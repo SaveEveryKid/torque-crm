@@ -3,13 +3,14 @@
   "version": "1.1.0",
   "private": true,
   "type": "module",
-  "description": "Torque CRM: a personal CRM for selling, hosted on your own Cloudflare account.",
+  "description": "Torque CRM: a personal CRM for selling, on your own Cloudflare account.",
   "scripts": {
     "dev": "vite",
-    "dev:cloud": "vite build && wrangler pages dev dist --d1 DB=local-db",
-    "build": "tsc --noEmit && tsc --noEmit -p functions && vite build",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p functions",
-    "test": "vitest run"
+    "dev:cloud": "vite build && wrangler dev",
+    "build": "tsc --noEmit && tsc --noEmit -p worker && vite build",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p worker",
+    "test": "vitest run",
+    "deploy": "npm run build && wrangler deploy"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261028.1",

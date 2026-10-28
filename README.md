@@ -19,22 +19,17 @@ Byron's personal CRM for selling, built from Torque. It runs on your own Cloudfl
   - The Call button on a customer's page calls just that person.
   - Every result goes on the customer's timeline.
 
-## Put it on Cloudflare (one time, about 10 minutes)
+## Put it on Cloudflare (one time)
 
-Everything below is done in the Cloudflare dashboard (dash.cloudflare.com), on the same account as your Torque dialer.
+Everything below is done in the Cloudflare dashboard (dash.cloudflare.com), on the same account as your Torque dialer. Torque CRM runs as a **Worker** with static assets.
 
-1. **Create the database.** Go to **Storage & Databases → D1 SQL Database → Create**.
-   - Name it `torque-crm`.
-   - Leave everything else as it is.
-2. **Create the site.**
-   1. Go to **Workers & Pages → Create → Pages → Import an existing Git repository**.
-   2. Pick **SaveEveryKid/torque-crm** (allow Cloudflare to see that repository if it asks).
-   3. Set **Framework preset** to *None*, **Build command** to `npm run build`, and **Build output directory** to `dist`.
-   4. Click **Save and Deploy**. The first build takes about a minute.
-3. **Connect the database.** In the new **torque-crm** project, go to **Settings → Bindings → Add → D1 database**.
-   - Variable name: `DB`
-   - Database: `torque-crm`
-4. **Add your passwords.** Go to **Settings → Variables and Secrets** and add three secrets (type *Secret*):
+1. **Database.** Create a D1 database named exactly `torque-crm` (**Storage & Databases → D1 SQL Database → Create**). Each deploy finds it by that name; there's no ID to copy.
+2. **Worker.** Go to **Workers & Pages → Create → Import a repository** and pick **SaveEveryKid/torque-crm**.
+   - Build command: `npm run build`
+   - Deploy command: `npx wrangler deploy`
+
+   Every push to `main` deploys by itself.
+3. **Passwords.** After the first deploy, open the **torque-crm** Worker, go to **Settings → Variables and Secrets**, and add three secrets (type *Secret*):
 
    | Name | Value |
    |---|---|
@@ -42,10 +37,8 @@ Everything below is done in the Cloudflare dashboard (dash.cloudflare.com), on t
    | `DIALER_URL` | Your Torque dialer address, e.g. `https://torque-dialer.yourname.workers.dev` |
    | `DIALER_PASSWORD` | Your Torque dialer password, the same one you typed into Torque |
 
-5. **Redeploy** so the settings take effect: go to **Deployments**, open the latest one's **⋯** menu, and choose **Retry deployment**.
-6. Open **https://torque-crm.pages.dev** (or whatever address Cloudflare shows), log in, and bookmark it. On your phone, use **Add to Home Screen**.
-
-From now on, every change pushed to this repository deploys by itself.
+   Secrets take effect right away; nothing needs redeploying.
+4. Open **https://torque-crm.<your-subdomain>.workers.dev** (the address on the Worker's Overview page), log in, and bookmark it. On your phone, use **Add to Home Screen**.
 
 ## Your data
 
@@ -67,24 +60,26 @@ From now on, every change pushed to this repository deploys by itself.
 
 The dealer's inventory page searches with Algolia, using a public search-only key built into the page. That key is limited to this dealer's units and the site renews it.
 
-Torque CRM's server reads that page (`functions/dealer`; GET only, inventory pages only, cached for 15 minutes). Your browser then runs the same search the website does. **Refresh** re-reads the page.
+Torque CRM's server reads that page (`/dealer` in `worker/index.ts`; GET only, inventory pages only, cached for 15 minutes). Your browser then runs the same search the website does. **Refresh** re-reads the page.
 
 ## For developers
 
 ```
 npm install
-npm run dev:cloud  # the full app with a local database at http://127.0.0.1:8788
+npm run dev:cloud  # the full app (Worker + local database) at http://127.0.0.1:8787
 npm test
 npm run build
 ```
 
 For local secrets, create a `.dev.vars` file (it's git-ignored) with `APP_PASSWORD=...` and, optionally, `DIALER_URL` and `DIALER_PASSWORD`.
 
-- `functions/`: Cloudflare Pages Functions.
-  - login (`api/login`);
-  - your data (`api/data`, D1, one row per customer);
-  - the dialer pass-through (`api/dialer`), which adds the dialer password;
-  - the dealer page reader (`dealer`).
+- `worker/`: the Cloudflare Worker (`index.ts` routes everything):
+  - login (`/api/login`);
+  - your data (`/api/data`, D1, one row per customer);
+  - the dialer pass-through (`/api/dialer`), which adds the dialer password;
+  - the dealer page reader (`/dealer`).
+
+  `wrangler.jsonc` sets up the app files and the D1 database.
 - `src/core/`: the Torque modules, used as they are:
   - AI drafting, the context budget, the playbook and learning;
   - the dialer session and SignalWire provider;

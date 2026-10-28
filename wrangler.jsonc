@@ -1,0 +1,18 @@
+// Torque CRM on Cloudflare Workers. Cloudflare builds and deploys this on every push.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "torque-crm",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  // The app (vite build → dist). /api/* and /dealer/* go to the Worker first.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/dealer/*"]
+  },
+  // Your customers and history. Found by name: the D1 database called "torque-crm" on your account.
+  "d1_databases": [{ "binding": "DB", "database_name": "torque-crm" }]
+  // Secrets (Settings → Variables and Secrets): APP_PASSWORD, DIALER_URL, DIALER_PASSWORD.
+}

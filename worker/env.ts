@@ -1,7 +1,9 @@
-/** Settings for Torque CRM on Cloudflare Pages (Settings → Variables and Secrets, and Bindings). */
+/** Torque CRM's Worker settings: the DB and ASSETS bindings (wrangler.jsonc) and your secrets (Settings → Variables and Secrets). */
 export interface Env {
   /** D1 database binding: where your customers and history are kept. */
   DB: D1Database;
+  /** The app's pages (dist/). */
+  ASSETS: Fetcher;
   /** The password you log in with (a secret). */
   APP_PASSWORD?: string;
   /** Your Torque dialer (the Cloudflare Worker), e.g. https://torque-dialer.yourname.workers.dev */
