@@ -54,14 +54,39 @@ async function data(request: Request, env: Env): Promise<Response> {
   return json(200, { now });
 }
 
+/** "torque-dialer.x.workers.dev/", "https://…/api" → "https://torque-dialer.x.workers.dev" (null if it isn't an address). */
+function dialerBase(raw: string | undefined): string | null {
+  const t = (raw ?? '').trim();
+  if (!t) return null;
+  try {
+    const u = new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`);
+    return u.protocol === 'https:' || u.hostname === '127.0.0.1' ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Passes a request to your dialer, adding the dialer password (a Cloudflare secret the browser never sees). */
 async function dialer(request: Request, env: Env, path: string): Promise<Response> {
   if (request.method !== 'POST' || (path !== '/api' && path !== '/draft')) return json(404, { error: 'Not found.' });
+  const base = dialerBase(env.DIALER_URL);
   if (!env.DIALER_URL || !env.DIALER_PASSWORD) return json(503, { error: 'The dialer isn’t set up yet. Add DIALER_URL and DIALER_PASSWORD in Cloudflare (see the README).' });
+  if (!base) return json(503, { error: `DIALER_URL doesn't look like an address: "${env.DIALER_URL.slice(0, 80)}". It should look like https://torque-dialer.yourname.workers.dev` });
   const form = new URLSearchParams(await request.text());
-  form.set('token', env.DIALER_PASSWORD);
-  const res = await fetch(new URL(path, env.DIALER_URL).toString(), { method: 'POST', body: form });
-  return new Response(res.body, { status: res.status, headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json', 'Cache-Control': 'no-store' } });
+  form.set('token', env.DIALER_PASSWORD.trim());
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, { method: 'POST', body: form });
+  } catch (e) {
+    return json(502, { error: `Couldn't reach your dialer at ${base}: ${(e as Error).message}` });
+  }
+  const type = res.headers.get('Content-Type') ?? '';
+  if (!type.includes('json')) {
+    // Not the dialer answering (e.g. a Cloudflare error page): say what came back.
+    const text = (await res.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return json(502, { error: `Your dialer at ${base} didn't answer properly (${res.status}): ${text.slice(0, 160) || 'empty reply'}` });
+  }
+  return new Response(res.body, { status: res.status, headers: { 'Content-Type': type, 'Cache-Control': 'no-store' } });
 }
 
 /** The dealer's inventory page (GET only, inventory pages only), cached for 15 minutes. */
@@ -87,7 +112,7 @@ export default {
     if (!env.APP_PASSWORD) return json(503, { error: SETUP_PASSWORD, setup: true });
     if (!(await loggedIn(request, env))) return json(401, { error: 'Please log in.' });
     if (path === '/api/data') return data(request, env);
-    if (path === '/api/status') return json(200, { dialer: Boolean(env.DIALER_URL && env.DIALER_PASSWORD), dialerUrl: env.DIALER_URL ?? null, database: Boolean(env.DB) });
+    if (path === '/api/status') return json(200, { dialer: Boolean(dialerBase(env.DIALER_URL) && env.DIALER_PASSWORD), dialerUrl: dialerBase(env.DIALER_URL) ?? env.DIALER_URL ?? null, database: Boolean(env.DB) });
     if (path.startsWith('/api/dialer/')) return dialer(request, env, path.slice('/api/dialer'.length));
     if (path.startsWith('/dealer/')) return dealer(request, path.slice('/dealer'.length));
     return json(404, { error: 'Not found.' });

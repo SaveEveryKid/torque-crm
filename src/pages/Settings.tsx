@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { kv, logout, type SyncState } from '../core/storage/kv';
-import { dialerAddress, dialerProvider } from '../crm/server';
+import { dialerAddress, dialerProvider, loadStatus } from '../crm/server';
 import { approvePending, editProfileText, rejectPending, type StyleProfile, EMPTY_PROFILE } from '../core/storage/styleProfile';
 import { aiReady, maybeProposeProfile } from '../crm/ai';
 import { backupFileName, backupJson, download, restoreBackup } from '../crm/backup';
@@ -61,6 +61,9 @@ function Profile({ s }: { s: Settings }) {
 function DialerSetup({ s }: { s: Settings }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [, setChecked] = useState(0);
+  // Secrets added on Cloudflare since this page opened show up without a reload.
+  useEffect(() => void loadStatus().then(() => setChecked((n) => n + 1)), []);
   const test = async () => {
     setBusy(true);
     setMsg(null);
