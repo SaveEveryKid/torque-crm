@@ -8,7 +8,7 @@ import type { LearningParts } from '../core/ai/contextBudget';
 import { listContext, type ListType } from '../core/analysis/customList';
 import { sendResults, winnersBlock, type CustomerInfo, type SendResult } from '../core/analysis/results';
 import { situationFor, type Situation } from '../core/analysis/situation';
-import { TwilioDialerProvider, twilioBaseOk } from '../core/dialer/twilioProvider';
+import { dialerProvider, dialerReady } from './server';
 import { getCallLog } from '../core/storage/callLog';
 import { getSent, getSentMap } from '../core/storage/sentLog';
 import { getStyleExamples, styleBlock } from '../core/storage/styleMemory';
@@ -26,13 +26,12 @@ export type Complete = (messages: ChatMessage[]) => Promise<unknown>;
 export const writerOf = (s: Settings): Writer => ({ name: s.name, dealership: s.dealership, phone: s.phone });
 export const meOf = (s: Settings) => firstName(writerOf(s));
 
-export function aiReady(s: Settings): boolean {
-  return twilioBaseOk(s.dialerUrl) && s.dialerPassword.length >= 16;
-}
+/** Claude goes through your dialer, set up on Cloudflare. */
+export const aiReady = () => dialerReady();
 
 export function completeFor(s: Settings): Complete {
-  if (!aiReady(s)) throw new Error('Set up your dialer address and password in Settings first (Claude goes through your dialer).');
-  const provider = new TwilioDialerProvider(s.dialerUrl, s.dialerPassword);
+  if (!aiReady()) throw new Error('Claude goes through your dialer: add DIALER_URL and DIALER_PASSWORD in Cloudflare first (see Settings).');
+  const provider = dialerProvider();
   return (messages) => {
     const [system, ...rest] = messages;
     const turns = rest.map((m) => ({ role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const), content: m.content }));
@@ -103,7 +102,7 @@ export async function appointmentTextFor(c: Customer, s: Settings, kind: Appoint
 
 /** After every 10 new edits, Claude proposes an updated "How I sell" profile for your OK (Settings). */
 export async function maybeProposeProfile(s: Settings, force = false): Promise<boolean> {
-  if (!aiReady(s)) return false;
+  if (!aiReady()) return false;
   const examples = await getStyleExamples();
   const edits = examples.filter((e) => !e.approved).length;
   const p = await getProfile();

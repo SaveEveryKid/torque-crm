@@ -1,6 +1,6 @@
 # Torque CRM
 
-Byron's personal CRM for selling, built from Torque. It's a web app that runs on your own computer, in your browser. It's not a Chrome extension and doesn't use eLead.
+Byron's personal CRM for selling, built from Torque. It runs on your own Cloudflare account, so it's a web address you open from any computer or phone. There's nothing to install, and it's protected by your password.
 
 - **Today:** what's due, your appointments this week, and who needs a follow-up.
 - **Customers:** everyone you're working. Each customer page has:
@@ -19,46 +19,77 @@ Byron's personal CRM for selling, built from Torque. It's a web app that runs on
   - The Call button on a customer's page calls just that person.
   - Every result goes on the customer's timeline.
 
-## Start it
+## Put it on Cloudflare (one time, about 10 minutes)
 
-1. Install **Node.js** (the LTS version) from https://nodejs.org. You only do this once.
-2. Download this repository and unzip it somewhere, such as `Documents\Torque CRM`.
-3. Double-click **Start Torque CRM.bat** (Windows) or **Start Torque CRM.command** (Mac).
-   - The first start installs what it needs, which takes about a minute.
-   - The app then opens at **http://localhost:5180**. Bookmark it.
-   - Leave the black window open while you work. Close it when you're done.
+Everything below is done in the Cloudflare dashboard (dash.cloudflare.com), on the same account as your Torque dialer.
+
+1. **Create the database.** Go to **Storage & Databases → D1 SQL Database → Create**.
+   - Name it `torque-crm`.
+   - Leave everything else as it is.
+2. **Create the site.**
+   1. Go to **Workers & Pages → Create → Pages → Import an existing Git repository**.
+   2. Pick **SaveEveryKid/torque-crm** (allow Cloudflare to see that repository if it asks).
+   3. Set **Framework preset** to *None*, **Build command** to `npm run build`, and **Build output directory** to `dist`.
+   4. Click **Save and Deploy**. The first build takes about a minute.
+3. **Connect the database.** In the new **torque-crm** project, go to **Settings → Bindings → Add → D1 database**.
+   - Variable name: `DB`
+   - Database: `torque-crm`
+4. **Add your passwords.** Go to **Settings → Variables and Secrets** and add three secrets (type *Secret*):
+
+   | Name | Value |
+   |---|---|
+   | `APP_PASSWORD` | The password you'll log in with. Make it long. |
+   | `DIALER_URL` | Your Torque dialer address, e.g. `https://torque-dialer.yourname.workers.dev` |
+   | `DIALER_PASSWORD` | Your Torque dialer password, the same one you typed into Torque |
+
+5. **Redeploy** so the settings take effect: go to **Deployments**, open the latest one's **⋯** menu, and choose **Retry deployment**.
+6. Open **https://torque-crm.pages.dev** (or whatever address Cloudflare shows), log in, and bookmark it. On your phone, use **Add to Home Screen**.
+
+From now on, every change pushed to this repository deploys by itself.
 
 ## Your data
 
-- Everything is kept in your browser on this computer, at `http://localhost:5180`. Always use that same address and the same browser.
-- **Settings → Download backup** saves everything to one file. The dialer password is never put in a backup.
-  - Restore that file on a new computer.
+- Your customers, history, tasks, call log and what Claude has learned are saved in **your own Cloudflare database (D1)**.
+  - They're the same on every device you log in from.
+  - Each change saves right away. The sidebar shows **All changes saved**.
+  - Other devices pick up your changes when you switch back to them, and every minute.
+- **Settings → Download backup** saves everything to one file, as your own copy.
+  - **Restore a backup** loads that file back.
   - Restoring a backup from the **Torque Chrome extension** brings over what Claude already learned: your edits, your profile and your call log.
 - **Customers → Import CSV** imports any spreadsheet with name and phone columns. A Torque **EXPORT LIST + HISTORY** file also brings each customer's eLead history.
-- Claude only sees one customer at a time, and only when you ask it for a draft. Requests go through your own dialer, where your Anthropic key stays.
-
-## Setup in Settings
-
-Use the same dialer address and password as Torque. Your Cloudflare Worker handles calls through SignalWire and drafts through Claude. Then click **Test connection**.
+- **Passwords stay in Cloudflare secrets.** The dialer password never reaches the browser:
+  - Torque CRM's server adds it when it passes a request to your dialer.
+  - Your Anthropic key stays in the dialer, as before.
+- Claude only sees one customer at a time, and only when you ask it for a draft.
+- Logging in gives that device a cookie that lasts 30 days. Changing `APP_PASSWORD` logs out every device.
 
 ## Inventory
 
-The dealer's inventory page searches with Algolia, using a public search-only key built into the page. That key is limited to this dealer's units and the site renews it. Torque CRM reads the page through its local server (`/dealer`, see `vite.config.ts`), then runs the same search the website does. **Refresh** re-reads the page.
+The dealer's inventory page searches with Algolia, using a public search-only key built into the page. That key is limited to this dealer's units and the site renews it.
+
+Torque CRM's server reads that page (`functions/dealer`; GET only, inventory pages only, cached for 15 minutes). Your browser then runs the same search the website does. **Refresh** re-reads the page.
 
 ## For developers
 
 ```
 npm install
-npm run dev        # http://localhost:5180 with hot reload
+npm run dev:cloud  # the full app with a local database at http://127.0.0.1:8788
 npm test
 npm run build
 ```
 
+For local secrets, create a `.dev.vars` file (it's git-ignored) with `APP_PASSWORD=...` and, optionally, `DIALER_URL` and `DIALER_PASSWORD`.
+
+- `functions/`: Cloudflare Pages Functions.
+  - login (`api/login`);
+  - your data (`api/data`, D1, one row per customer);
+  - the dialer pass-through (`api/dialer`), which adds the dialer password;
+  - the dealer page reader (`dealer`).
 - `src/core/`: the Torque modules, used as they are:
   - AI drafting, the context budget, the playbook and learning;
   - the dialer session and SignalWire provider;
   - phone rules and CSV import.
 
-  Storage is IndexedDB (`src/core/storage/kv.ts`) instead of `chrome.storage`.
+  `src/core/storage/kv.ts` syncs with `/api/data` instead of using `chrome.storage`.
 - `src/crm/`: the CRM data (`store.ts`), the bridge to Torque's AI (`record.ts`, `ai.ts`), the inventory reader, the dialer wiring and backups.
 - `src/pages/`, `src/ui/`: the screens.

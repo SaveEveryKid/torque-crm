@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PowerDialerSession, type SessionCustomer, type SessionState } from '../core/dialer/session';
 import { MockDialerProvider } from '../core/dialer/mockProvider';
-import { TwilioDialerProvider } from '../core/dialer/twilioProvider';
+import { dialerProvider } from './server';
 import type { DialerProvider } from '../core/dialer/provider';
 import { DISPOSITIONS, type CallLogEntry } from '../core/dialer/dispositions';
 import { normalizeUsPhone } from '../core/analysis/phone';
@@ -43,7 +43,7 @@ export function startDialer(customers: Customer[], s: Settings, practice: boolea
   if (!list.length) return 'Nobody to call (no valid phone numbers).';
   if (practice) provider = new MockDialerProvider({ ringMs: 4000 + Math.round(Math.random() * 3000) });
   else {
-    const p = new TwilioDialerProvider(s.dialerUrl, s.dialerPassword);
+    const p = dialerProvider();
     p.voicemail = s.voicemail;
     provider = p;
   }

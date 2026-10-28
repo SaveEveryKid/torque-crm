@@ -33,7 +33,7 @@ export function DraftPanel({ customer: c }: { customer: Customer }) {
   const latest = c.activities.find((a) => a.direction !== 'INTERNAL');
   const theyWroteLast = latest?.direction === 'INBOUND' && (latest.channel === 'TEXT' || latest.channel === 'EMAIL') && !!latest.text;
 
-  if (!aiReady(settings))
+  if (!aiReady())
     return (
       <section className="card card-pad stack">
         <h2>

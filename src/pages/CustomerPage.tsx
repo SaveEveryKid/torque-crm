@@ -42,7 +42,7 @@ export function CustomerPage({ id }: { id: string }) {
     );
 
   const call = () => {
-    const practice = !aiReady(settings);
+    const practice = !aiReady();
     const err = startDialer([c], settings, practice);
     if (err) return setCallError(err);
     go('dialer');
@@ -77,7 +77,7 @@ export function CustomerPage({ id }: { id: string }) {
                 </option>
               ))}
             </select>
-            <button className="btn primary" disabled={!c.phone || c.doNotContact} onClick={call} title={aiReady(settings) ? 'Call through your dialer' : 'Practice call (set up the dialer in Settings for real calls)'}>
+            <button className="btn primary" disabled={!c.phone || c.doNotContact} onClick={call} title={aiReady() ? 'Call through your dialer' : 'Practice call (set up the dialer in Settings for real calls)'}>
               <Icon name="phone" size={16} /> Call
             </button>
             {c.email && (
@@ -333,7 +333,6 @@ function Timeline({ customer: c }: { customer: Customer }) {
 
 /* ---------- next steps ---------- */
 function Tasks({ customer: c }: { customer: Customer }) {
-  const settings = useSettings();
   const [adding, setAdding] = useState(false);
   const [kind, setKind] = useState<TaskKind>('call');
   const [at, setAt] = useState(localInput(tomorrowAt(10)));
@@ -411,7 +410,7 @@ function Tasks({ customer: c }: { customer: Customer }) {
                           </button>
                         </>
                       ) : null}
-                      {aiReady(settings) && (
+                      {aiReady() && (
                         <button className="btn sm" onClick={() => setApptText(t)}>
                           <Icon name="sparkle" size={14} /> Text about it
                         </button>

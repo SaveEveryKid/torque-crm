@@ -88,9 +88,6 @@ export interface Settings {
   name: string;
   dealership: string;
   phone: string;
-  /** Your Torque dialer (Cloudflare Worker): calls and Claude drafts go through it. */
-  dialerUrl: string;
-  dialerPassword: string;
   claudeQuality: 'fast' | 'better';
   voicemail: 'connect' | 'hangup';
   dialDelaySeconds: number;
@@ -103,8 +100,6 @@ export const DEFAULT_SETTINGS: Settings = {
   name: 'Byron Green',
   dealership: 'Shoals Outdoor Sports',
   phone: '',
-  dialerUrl: '',
-  dialerPassword: '',
   claudeQuality: 'fast',
   voicemail: 'connect',
   dialDelaySeconds: 5,

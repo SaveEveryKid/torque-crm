@@ -86,13 +86,13 @@ describe('inventory', () => {
 });
 
 describe('backup', () => {
-  it('never includes the dialer password, and restoring keeps the current one', async () => {
-    await saveSettings({ dialerPassword: 'secret-password-123456', name: 'Byron Green' });
+  it('restores what was backed up', async () => {
+    await saveSettings({ name: 'Byron Green' });
+    await addCustomer(blankCustomer({ firstName: 'Backed', phone: '(256) 555-2333' }));
     const text = backupJson();
-    expect(text).not.toMatch(/secret-password/);
     await kv.set({ customers: {} });
     expect(await restoreBackup(text)).toMatch(/Restored \d+ customers/);
-    expect(((await kv.get('settings')).settings as { dialerPassword: string }).dialerPassword).toBe('secret-password-123456');
+    expect(Object.values(await getCustomers()).some((c) => c.firstName === 'Backed')).toBe(true);
   });
 
   it('a Torque extension backup brings over what Claude learned, not customers', async () => {
@@ -101,7 +101,6 @@ describe('backup', () => {
     expect(msg).toMatch(/1 writing examples/);
     expect(Object.keys(await getCustomers()).length).toBe(before);
     const s = (await kv.get('settings')).settings as Record<string, string>;
-    expect(s.dialerUrl).toBe('https://d.x.workers.dev');
-    expect(JSON.stringify(s)).not.toMatch(/nope/);
+    expect(JSON.stringify(s)).not.toMatch(/nope|workers\.dev/);
   });
 });

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { TwilioDialerProvider, twilioBaseOk } from '../core/dialer/twilioProvider';
+import { kv, logout, type SyncState } from '../core/storage/kv';
+import { dialerAddress, dialerProvider } from '../crm/server';
 import { approvePending, editProfileText, rejectPending, type StyleProfile, EMPTY_PROFILE } from '../core/storage/styleProfile';
 import { aiReady, maybeProposeProfile } from '../crm/ai';
 import { backupFileName, backupJson, download, restoreBackup } from '../crm/backup';
@@ -14,13 +15,14 @@ export function SettingsPage() {
       <div className="page-head">
         <div>
           <h1>Settings</h1>
-          <p>Everything is saved on this computer as you type.</p>
+          <p>Changes save as you type.</p>
         </div>
       </div>
       <Profile s={settings} />
       <DialerSetup s={settings} />
       <Learning s={settings} />
       <Backup />
+      <Account />
     </div>
   );
 }
@@ -62,7 +64,7 @@ function DialerSetup({ s }: { s: Settings }) {
   const test = async () => {
     setBusy(true);
     setMsg(null);
-    const p = new TwilioDialerProvider(s.dialerUrl, s.dialerPassword);
+    const p = dialerProvider();
     try {
       const { callerId } = await p.ping();
       let claude = '';
@@ -82,12 +84,16 @@ function DialerSetup({ s }: { s: Settings }) {
   return (
     <section className="card card-pad stack">
       <h2>Dialer and Claude</h2>
-      <p className="soft small">Your Torque dialer (the Cloudflare Worker) places calls through SignalWire and asks Claude for drafts. Your keys stay in the Worker.</p>
+      <p className="soft small">
+        Your Torque dialer (the Cloudflare Worker) places calls through SignalWire and asks Claude for drafts. Its address and password are set on Cloudflare (DIALER_URL and DIALER_PASSWORD
+        in the Torque CRM project's settings), so the password never reaches this browser.
+      </p>
+      {aiReady() ? (
+        <p className="success">Dialer set up: {dialerAddress()}</p>
+      ) : (
+        <p className="notice">Not set up yet. In Cloudflare → Workers &amp; Pages → torque-crm → Settings → Variables and Secrets, add DIALER_URL and DIALER_PASSWORD, then redeploy.</p>
+      )}
       <div className="form-grid">
-        <div className="full">
-          <Text label="Dialer address" k="dialerUrl" s={s} placeholder="https://torque-dialer.yourname.workers.dev" />
-        </div>
-        <Text label="Dialer password" k="dialerPassword" s={s} type="password" />
         <label className="field">
           Claude
           <select value={s.claudeQuality} onChange={(e) => void saveSettings({ claudeQuality: e.target.value as Settings['claudeQuality'] })}>
@@ -105,10 +111,9 @@ function DialerSetup({ s }: { s: Settings }) {
         <Text label="Seconds between calls" k="dialDelaySeconds" s={s} type="number" />
       </div>
       <div className="row">
-        <button className="btn" disabled={busy || !twilioBaseOk(s.dialerUrl) || !s.dialerPassword} onClick={() => void test()}>
+        <button className="btn" disabled={busy || !aiReady()} onClick={() => void test()}>
           {busy ? 'Testing…' : 'Test connection'}
         </button>
-        {!aiReady(s) && <span className="muted small">The password is at least 16 characters.</span>}
       </div>
       {msg && <p className={msg.ok ? 'success' : 'error'}>{msg.text}</p>}
     </section>
@@ -160,11 +165,30 @@ function Learning({ s }: { s: Settings }) {
         <button className="btn sm" disabled={text === profile.text} onClick={() => void editProfileText(text)}>
           Save profile
         </button>
-        <button className="btn sm" disabled={busy || !aiReady(s) || examples.length === 0} onClick={() => void update()}>
+        <button className="btn sm" disabled={busy || !aiReady() || examples.length === 0} onClick={() => void update()}>
           <Icon name="sparkle" size={14} /> {busy ? 'Building…' : 'Update from my edits now'}
         </button>
       </div>
       {error && <p className="error">{error}</p>}
+    </section>
+  );
+}
+
+function Account() {
+  const [sync, setSync] = useState<SyncState>(kv.sync());
+  useEffect(() => kv.onSync(setSync), []);
+  return (
+    <section className="card card-pad stack">
+      <h2>Account</h2>
+      <p className="soft small">
+        Your customers are saved in your own Cloudflare database, so they're the same on every computer and phone you log in from.{' '}
+        {sync.status === 'error' ? <span className="warn">Not saved yet: {sync.error} (retrying)</span> : sync.status === 'saving' ? 'Saving…' : 'Everything is saved.'}
+      </p>
+      <div className="row">
+        <button className="btn" onClick={() => void logout()}>
+          Log out
+        </button>
+      </div>
     </section>
   );
 }
@@ -185,7 +209,7 @@ function Backup() {
   return (
     <section className="card card-pad stack">
       <h2>Backup</h2>
-      <p className="soft small">Your data lives in this browser on this computer. Save a backup now and then (the dialer password is never included).</p>
+      <p className="soft small">Your data is saved on Cloudflare. A backup file is your own copy too: download one now and then.</p>
       <div className="row">
         <button className="btn primary" onClick={() => download(backupFileName(), backupJson())}>
           <Icon name="download" size={16} /> Download backup

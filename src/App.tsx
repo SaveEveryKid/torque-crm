@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { kv, type SyncState } from './core/storage/kv';
 import { fullName, openTasks, useCustomers, useSettings } from './crm/store';
 import { useDialer } from './crm/dialer';
 import { CustomerForm } from './ui/CustomerForm';
@@ -51,6 +52,7 @@ export function App() {
           ))}
         </nav>
         <div className="spacer" />
+        <SaveStatus />
         <nav className="nav">
           <a href="#/settings" className={page === 'settings' ? 'active' : ''}>
             <Icon name="settings" />
@@ -128,6 +130,18 @@ function GlobalSearch() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Saved to Cloudflare? */
+function SaveStatus() {
+  const [s, setS] = useState<SyncState>(kv.sync());
+  useEffect(() => kv.onSync(setS), []);
+  return (
+    <div className={`saved ${s.status}`} title={s.error}>
+      <span className="pulse" />
+      {s.status === 'saving' ? 'Saving…' : s.status === 'error' ? 'Not saved, retrying' : 'All changes saved'}
     </div>
   );
 }

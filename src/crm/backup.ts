@@ -4,15 +4,13 @@ import type { Settings } from './types';
 /**
  * BACKUP: everything Torque CRM keeps (customers, timeline, tasks, call log,
  * what you sent, your writing examples and profile, settings) in one file.
- * The dialer password is never put in a backup.
+ * (The dialer password is a Cloudflare secret: never in your data or a backup.)
  */
 const FORMAT = 'torque-crm-backup';
 
 export function backupJson(now = new Date()): string {
   const data = kv.all();
   delete data.inventoryConfig;
-  const s = data.settings as Partial<Settings> | undefined;
-  if (s) data.settings = { ...s, dialerPassword: '' };
   return JSON.stringify({ format: FORMAT, version: 1, savedAt: now.toISOString(), data });
 }
 
@@ -31,7 +29,6 @@ async function restoreTorqueExtension(data: Record<string, unknown>): Promise<st
     const current = ((await kv.get('settings')).settings as Partial<Settings> | undefined) ?? {};
     patch.settings = {
       ...current,
-      ...(typeof old.twilioUrl === 'string' && old.twilioUrl ? { dialerUrl: old.twilioUrl } : {}),
       ...(typeof old.writerName === 'string' && old.writerName ? { name: old.writerName } : {}),
       ...(old.claudeQuality === 'fast' || old.claudeQuality === 'better' ? { claudeQuality: old.claudeQuality } : {}),
       ...(old.voicemail === 'connect' || old.voicemail === 'hangup' ? { voicemail: old.voicemail } : {}),
@@ -40,10 +37,10 @@ async function restoreTorqueExtension(data: Record<string, unknown>): Promise<st
   }
   await kv.set(patch);
   const n = Array.isArray(data.styleExamples) ? data.styleExamples.length : 0;
-  return `Brought over from Torque: ${n} writing examples${data.styleProfile ? ', your "How I sell" profile' : ''}${data.callLog ? ', your call log' : ''} and dialer settings. Retype the dialer password.`;
+  return `Brought over from Torque: ${n} writing examples${data.styleProfile ? ', your "How I sell" profile' : ''}${data.callLog ? ', your call log' : ''} and your dialer settings.`;
 }
 
-/** Restore a backup file: replaces what's here (your current dialer password is kept). */
+/** Restore a backup file: replaces what's here. */
 export async function restoreBackup(text: string): Promise<string> {
   let parsed: { format?: string; app?: string; kind?: string; data?: Record<string, unknown> };
   try {
@@ -53,9 +50,8 @@ export async function restoreBackup(text: string): Promise<string> {
   }
   if (parsed.app === 'Torque' && parsed.kind === 'backup' && parsed.data) return restoreTorqueExtension(parsed.data);
   if (parsed.format !== FORMAT || !parsed.data) throw new Error("That file isn't a Torque CRM backup.");
-  const current = (await kv.get('settings')).settings as Partial<Settings> | undefined;
   const data = { ...parsed.data };
-  if (data.settings) data.settings = { ...(data.settings as Settings), dialerPassword: current?.dialerPassword ?? '' };
+  for (const k of ['customers', 'sentMessages']) if (data[k] === undefined) data[k] = {};
   await kv.set(data);
   return `Restored ${Object.keys((data.customers as object | undefined) ?? {}).length} customers.`;
 }

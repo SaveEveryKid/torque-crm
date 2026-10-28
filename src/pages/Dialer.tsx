@@ -34,7 +34,7 @@ function Setup({ finished }: { finished: string | null }) {
   const [who, setWho] = useState<Who>('followup');
   const [skip, setSkip] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const real = aiReady(settings);
+  const real = aiReady();
 
   const list = useMemo(() => {
     const all = Object.values(customers).filter((c) => toSessionCustomer(c));
