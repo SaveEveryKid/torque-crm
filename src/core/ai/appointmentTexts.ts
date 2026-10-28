@@ -21,7 +21,7 @@ const JOB: Record<AppointmentTextKind, string> = {
   confirm:
     'Sent the day before. Confirm the day and time simply and warmly, and make it easy to reschedule if something changes. No selling, no new information.',
   dayof:
-    'Sent the morning of. Say you are looking forward to seeing them, and ask them to text when they are on the way so you can meet them out front (or have the vehicle pulled up). No selling.',
+    'Sent the morning of. Say you are looking forward to seeing them, and ask them to text when they are on the way so you can meet them out front (or have it pulled up front). No selling.',
   noshow:
     'Sent after they missed it. Zero guilt: never "what happened", "we had you down" or "I waited". Say you totally understand if something came up, and leave the door open with one easy choice question that has an out (another day, or no pressure either way).',
 };
@@ -35,7 +35,7 @@ Customers show up when they feel safe and still in control: calm, short, no pres
 
 ${NEVER_LIST}VOICE
 - Calm, short, human, plain American English. First name only. No sign-off.
-- Call the vehicle what a person would say ("the Tundra"), not the listing title.
+- Call it what a person would say ("the Grizzly"), not the listing title.
 - Use the appointment day and time exactly as given; never invent another one.
 - Write fresh; don't sound like a template.
 

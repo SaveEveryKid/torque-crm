@@ -96,13 +96,13 @@ export async function setStage(id: string, stage: Stage, label: string): Promise
   );
 }
 
-export function activity(a: Omit<Activity, 'id' | 'at'> & { at?: string }): Activity {
-  return { id: newId(), at: a.at ?? now(), ...a };
+export function activity(a: Omit<Activity, 'id' | 'at'> & { at?: string; id?: string }): Activity {
+  return { ...a, id: a.id ?? newId(), at: a.at ?? now() };
 }
 
-export async function logActivity(id: string, a: Omit<Activity, 'id' | 'at'> & { at?: string }): Promise<void> {
+export async function logActivity(id: string, a: Omit<Activity, 'id' | 'at'> & { at?: string; id?: string }): Promise<void> {
   const entry = activity(a);
-  await updateCustomer(id, (c) => ({
+  await updateCustomer(id, (c) => c.activities.some((x) => x.id === entry.id) ? {} : ({
     activities: [entry, ...c.activities].sort((x, y) => y.at.localeCompare(x.at)),
     // First outbound contact moves a New customer to Contacted.
     ...(c.stage === 'new' && entry.direction === 'OUTBOUND' ? { stage: 'contacted' as Stage } : {}),

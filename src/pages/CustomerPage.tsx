@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { APPOINTMENT_TEXT_LABEL, type AppointmentTextKind } from '../core/ai/appointmentTexts';
 import { aiReady, appointmentTextFor } from '../crm/ai';
 import { startDialer } from '../crm/dialer';
@@ -19,6 +19,8 @@ import {
 import { STAGES, STAGE_LABEL, TASK_LABEL, type Activity, type Customer, type Stage, type Task, type TaskKind } from '../crm/types';
 import { CustomerForm } from '../ui/CustomerForm';
 import { DraftPanel } from '../ui/DraftPanel';
+import { smsReady } from '../crm/server';
+import { quietHours, sendText, statusLabel, unreadCount, useSms } from '../crm/sms';
 import { InventoryPicker } from './Inventory';
 import { Avatar, copy, daysFromToday, Empty, go, Icon, localInput, Modal, tomorrowAt, when } from '../ui/kit';
 
@@ -29,6 +31,11 @@ export function CustomerPage({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [picking, setPicking] = useState(false);
   const [callError, setCallError] = useState<string | null>(null);
+  const sms = useSms();
+  // Opening a customer marks their texts as read.
+  useEffect(() => {
+    if (c && unreadCount(c, sms)) void updateCustomer(c.id, { textsReadAt: new Date().toISOString() });
+  }, [c, sms]);
 
   if (!c)
     return (
@@ -212,7 +219,26 @@ function Composer({ customer: c }: { customer: Customer }) {
   const [dir, setDir] = useState<'OUTBOUND' | 'INBOUND'>('OUTBOUND');
   const [outcome, setOutcome] = useState(CALL_OUTCOMES[0]);
   const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const two = kind === 'TEXT' || kind === 'EMAIL' || kind === 'PHONE';
+  // Text tab, "I sent": send it for real through your SignalWire number.
+  const canSend = kind === 'TEXT' && dir === 'OUTBOUND' && smsReady() && !c.doNotText && !c.doNotContact;
+
+  const send = async () => {
+    if (!text.trim()) return;
+    if (quietHours() && !confirm("It's outside 8 AM–9 PM. Send anyway?")) return;
+    setSending(true);
+    setError(null);
+    try {
+      await sendText(c, text.trim());
+      setText('');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSending(false);
+    }
+  };
 
   const save = async () => {
     if (!text.trim() && kind !== 'PHONE' && kind !== 'VISIT') return;
@@ -261,7 +287,7 @@ function Composer({ customer: c }: { customer: Customer }) {
                   ? `Paste what ${c.firstName || 'they'} sent…`
                   : 'What you sent…'
         }
-        onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && void save()}
+        onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && void (canSend ? send() : save())}
       />
       <div className="row">
         {kind === 'PHONE' && (
@@ -271,11 +297,24 @@ function Composer({ customer: c }: { customer: Customer }) {
             ))}
           </select>
         )}
-        <span className="grow muted small">Ctrl + Enter to save</span>
-        <button className="btn primary sm" onClick={() => void save()}>
-          Log {KINDS.find((k) => k.id === kind)!.label.toLowerCase()}
-        </button>
+        <span className="grow muted small">{canSend ? 'Ctrl + Enter to send' : 'Ctrl + Enter to save'}</span>
+        {canSend ? (
+          <>
+            <button className="btn ghost sm" onClick={() => void save()} title="Just note it on the timeline (you sent it some other way)">
+              Log only
+            </button>
+            <button className="btn primary sm" disabled={!text.trim() || sending} onClick={() => void send()}>
+              {sending ? 'Sending…' : 'Send text'}
+            </button>
+          </>
+        ) : (
+          <button className="btn primary sm" onClick={() => void save()}>
+            Log {KINDS.find((k) => k.id === kind)!.label.toLowerCase()}
+          </button>
+        )}
       </div>
+      {kind === 'TEXT' && dir === 'OUTBOUND' && (c.doNotText || c.doNotContact) && <p className="notice">Marked do not text.</p>}
+      {error && <p className="error">{error}</p>}
     </div>
   );
 }
@@ -293,6 +332,7 @@ function label(a: Activity, first: string): string {
 
 function Timeline({ customer: c }: { customer: Customer }) {
   const [all, setAll] = useState(false);
+  const sms = useSms();
   if (!c.activities.length) return <Empty title="No activity yet">Log a call, text or note above.</Empty>;
   const shown = all ? c.activities : c.activities.slice(0, 40);
   return (
@@ -315,6 +355,7 @@ function Timeline({ customer: c }: { customer: Customer }) {
                   </button>
                 </div>
                 {!system && a.text && <div className={`tl-body${a.channel === 'TEXT' || a.channel === 'EMAIL' ? ' bubble' : ''}`}>{a.text}</div>}
+                {sms[a.id] && statusLabel(sms[a.id]).text && <div className={`status-line${statusLabel(sms[a.id]).bad ? ' bad' : ''}`}>{statusLabel(sms[a.id]).text}</div>}
               </div>
             </li>
           );
@@ -464,6 +505,16 @@ function AppointmentText({ customer: c, task, onClose }: { customer: Customer; t
     await logActivity(c.id, { channel: 'TEXT', direction: 'OUTBOUND', outcome: null, text });
     onClose();
   };
+  const sendNow = async () => {
+    if (quietHours() && !confirm("It's outside 8 AM–9 PM. Send anyway?")) return;
+    setError(null);
+    try {
+      await sendText(c, text);
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
   return (
     <Modal
       title={`Text ${c.firstName || 'them'} about the appointment`}
@@ -474,9 +525,14 @@ function AppointmentText({ customer: c, task, onClose }: { customer: Customer; t
             <button className="btn" onClick={() => void copy(text)}>
               <Icon name="copy" size={14} /> Copy
             </button>
-            <button className="btn green" onClick={() => void sent()}>
+            <button className="btn" onClick={() => void sent()}>
               Mark sent
             </button>
+            {smsReady() && !c.doNotText && (
+              <button className="btn primary" onClick={() => void sendNow()}>
+                Send text
+              </button>
+            )}
           </>
         ) : undefined
       }

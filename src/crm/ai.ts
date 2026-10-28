@@ -23,7 +23,7 @@ import type { Customer, Settings } from './types';
  */
 export type Complete = (messages: ChatMessage[]) => Promise<unknown>;
 
-export const writerOf = (s: Settings): Writer => ({ name: s.name, dealership: s.dealership, phone: s.phone });
+export const writerOf = (s: Settings): Writer => ({ name: s.name, dealership: s.dealership, phone: s.phone, sells: s.sells });
 export const meOf = (s: Settings) => firstName(writerOf(s));
 
 /** Claude goes through your dialer, set up on Cloudflare. */

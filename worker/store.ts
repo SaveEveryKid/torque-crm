@@ -47,3 +47,14 @@ export async function writeRows(db: D1Database, rows: Record<string, string | nu
   // Forget deletions older than 90 days (every device has synced by then).
   await db.prepare('DELETE FROM kv WHERE v IS NULL AND t < ?1').bind(now - 90 * 86_400_000).run();
 }
+
+/** Every saved row whose key starts with `prefix` (e.g. "customers/"), deleted ones left out. */
+export async function rowsWithPrefix(db: D1Database, prefix: string): Promise<Row[]> {
+  await init(db);
+  return (await db.prepare('SELECT k, v, t FROM kv WHERE k >= ?1 AND k < ?2 AND v IS NOT NULL').bind(prefix, `${prefix}￿`).all<Row>()).results;
+}
+
+export async function readRow(db: D1Database, k: string): Promise<string | null> {
+  await init(db);
+  return (await db.prepare('SELECT v FROM kv WHERE k = ?1').bind(k).first<{ v: string | null }>())?.v ?? null;
+}

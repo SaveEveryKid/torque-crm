@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { kv, type SyncState } from './core/storage/kv';
 import { fullName, openTasks, useCustomers, useSettings } from './crm/store';
 import { useDialer } from './crm/dialer';
+import { unreadCount, useSms, useTextInbox, type SmsRow } from './crm/sms';
+import { Texts } from './pages/Texts';
 import { CustomerForm } from './ui/CustomerForm';
 import { daysFromToday, go, Icon, StageBadge, useRoute } from './ui/kit';
 import { Today } from './pages/Today';
@@ -14,6 +16,7 @@ import { SettingsPage } from './pages/Settings';
 
 const NAV = [
   { path: 'today', label: 'Today', icon: 'today' },
+  { path: 'texts', label: 'Texts', icon: 'text' },
   { path: 'customers', label: 'Customers', icon: 'users' },
   { path: 'pipeline', label: 'Pipeline', icon: 'board' },
   { path: 'inventory', label: 'Inventory', icon: 'car' },
@@ -29,6 +32,22 @@ export function App() {
   const settings = useSettings();
   const dueToday = list.reduce((n, c) => n + openTasks(c).filter((t) => daysFromToday(t.dueAt) <= 0).length, 0);
   const live = dialer && !['idle', 'ended', 'done'].includes(dialer.phase);
+  const sms = useSms();
+  const unread = useMemo(() => list.reduce((n, c) => n + unreadCount(c, sms), 0), [list, sms]);
+  const [toast, setToast] = useState<SmsRow[]>([]);
+  useTextInbox((texts) => {
+    setToast(texts);
+    if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted')
+      for (const t of texts) new Notification('New text', { body: t.body || '[picture]', tag: t.id });
+  });
+  useEffect(() => {
+    document.title = unread ? `(${unread}) Torque CRM` : 'Torque CRM';
+  }, [unread]);
+  useEffect(() => {
+    if (!toast.length) return;
+    const t = setTimeout(() => setToast([]), 8000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   return (
     <div className="shell">
@@ -47,6 +66,7 @@ export function App() {
               {n.label}
               {n.path === 'today' && dueToday > 0 && <span className="count">{dueToday}</span>}
               {n.path === 'customers' && <span className="count">{list.length || ''}</span>}
+              {n.path === 'texts' && unread > 0 && <span className="count unread">{unread}</span>}
               {n.path === 'dialer' && live && <span className="count pulse live" />}
             </a>
           ))}
@@ -69,6 +89,7 @@ export function App() {
           </button>
         </header>
         {page === 'today' && <Today />}
+        {page === 'texts' && <Texts id={id} />}
         {page === 'customers' && !id && <Customers />}
         {page === 'customers' && id && <CustomerPage id={id} />}
         {page === 'pipeline' && <Pipeline />}
@@ -76,6 +97,15 @@ export function App() {
         {page === 'dialer' && <Dialer />}
         {page === 'settings' && <SettingsPage />}
       </div>
+      {toast.length > 0 && (
+        <button className="toast" onClick={() => (go(`texts/${toast[0].customerId ?? ''}`), setToast([]))}>
+          <Icon name="text" size={16} />
+          <span>
+            <strong>{toast.length === 1 ? 'New text' : `${toast.length} new texts`}</strong>
+            <span className="soft"> {toast[0].body.slice(0, 80) || '[picture]'}</span>
+          </span>
+        </button>
+      )}
       {adding && <CustomerForm onClose={() => setAdding(false)} onSaved={(c) => go(`customers/${c.id}`)} />}
     </div>
   );

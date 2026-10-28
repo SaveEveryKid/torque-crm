@@ -97,7 +97,7 @@ export const LIST_TYPES: Record<ListType, { label: string; hint: string }> = {
   },
   prior_sold: {
     label: 'Previous sold customers (owners)',
-    hint: 'They already bought from us. Lead with the relationship (how is the vehicle treating them), not a sale. Offer value: a trade-in value check, an upgrade only if it fits their history, or simply being their person at the dealership. Never assume they want a new car.',
+    hint: 'They already bought from us. Lead with the relationship (how it has been treating them), not a sale. Offer value: a trade-in value check, an upgrade only if it fits their history, or simply being their person at the dealership. Never assume they want a new car.',
   },
   orphan: {
     label: 'Orphan owners (their salesperson left)',
@@ -109,7 +109,7 @@ export const LIST_TYPES: Record<ListType, { label: string; hint: string }> = {
   },
   equity: {
     label: 'Equity / trade-up',
-    hint: 'Owners who may be able to trade into something newer. Offer a free, no-pressure look at what their vehicle is worth. Never state a trade value, payment or amount unless it is written in the history or list note.',
+    hint: 'Owners who may be able to trade into something newer. Offer a free, no-pressure look at what theirs is worth. Never state a trade value, payment or amount unless it is written in the history or list note.',
   },
   service: {
     label: 'Service customers',

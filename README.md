@@ -13,6 +13,12 @@ Byron's personal CRM for selling, built from Torque. It runs on your own Cloudfl
   - It can also reply to a customer's last message, and write appointment confirmation, day-of and no-show texts.
   - You copy and send each one yourself, then click **Mark sent**.
   - What you change teaches it. Every 10 edits it proposes an updated "How I sell" profile.
+- **Texts:** text customers from your SignalWire number, from their page, from Claude's draft or from the Texts inbox.
+  - Their replies land on their timeline and in Texts, with an unread count and a notification.
+  - Each text you send shows whether it was delivered.
+  - A text from a new number becomes a new customer.
+  - STOP marks a customer do-not-text; START clears it.
+  - Nothing is ever texted automatically: you press Send every time.
 - **Dialer:** the same power dialer as Torque, through your SignalWire number.
   - Calls go one at a time. Nothing is prerecorded and there's no AI voice.
   - Voicemail can either connect you or hang up.
@@ -38,7 +44,10 @@ Everything below is done in the Cloudflare dashboard (dash.cloudflare.com), on t
    | `DIALER_PASSWORD` | Your Torque dialer password, the same one you typed into Torque |
 
    Secrets take effect right away; nothing needs redeploying.
-4. Open **https://torque-crm.<your-subdomain>.workers.dev** (the address on the Worker's Overview page), log in, and bookmark it. On your phone, use **Add to Home Screen**.
+4. **Texting (optional).** Add these too, using the same values as your `torque-dialer` Worker: `SW_SPACE` (e.g. `byrongreen.signalwire.com`), `SW_PROJECT_ID`, `SW_API_TOKEN` (a Secret) and `SMS_FROM` (your SignalWire number, `+1…`).
+   - Then open Torque CRM → **Settings → Texting** and copy the address shown there.
+   - In SignalWire, go to **Phone Numbers →** your number **→ Messaging Settings**. Set **Handle messages using** to *LaML Webhooks*, and paste that address into **When a message comes in**. That's how replies reach the CRM.
+5. Open **https://torque-crm.<your-subdomain>.workers.dev** (the address on the Worker's Overview page), log in, and bookmark it. On your phone, use **Add to Home Screen**.
 
 ## Your data
 

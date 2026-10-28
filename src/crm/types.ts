@@ -78,6 +78,8 @@ export interface Customer {
   notes: string;
   doNotText: boolean;
   doNotContact: boolean;
+  /** When you last looked at their texts (for "unread"). */
+  textsReadAt?: string | null;
   createdAt: string;
   updatedAt: string;
   activities: Activity[];
@@ -87,6 +89,8 @@ export interface Customer {
 export interface Settings {
   name: string;
   dealership: string;
+  /** What you sell, in plain words (Claude uses it so drafts don't sound like a car lot). */
+  sells: string;
   phone: string;
   claudeQuality: 'fast' | 'better';
   voicemail: 'connect' | 'hangup';
@@ -99,6 +103,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   name: 'Byron Green',
   dealership: 'Shoals Outdoor Sports',
+  sells: 'powersports and outdoor equipment: ATVs, side-by-sides (UTVs), boats and outboard motors, trailers and riding mowers',
   phone: '',
   claudeQuality: 'fast',
   voicemail: 'connect',

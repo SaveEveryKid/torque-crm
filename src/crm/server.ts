@@ -8,8 +8,9 @@ import { TwilioDialerProvider } from '../core/dialer/twilioProvider';
 interface Status {
   dialer: boolean;
   dialerUrl: string | null;
+  sms: { ready: boolean; from: string | null; incomingUrl: string | null };
 }
-let status: Status = { dialer: false, dialerUrl: null };
+let status: Status = { dialer: false, dialerUrl: null, sms: { ready: false, from: null, incomingUrl: null } };
 
 export async function loadStatus(): Promise<void> {
   const res = await fetch('/api/status', { credentials: 'same-origin' });
@@ -18,6 +19,8 @@ export async function loadStatus(): Promise<void> {
 
 export const dialerReady = () => status.dialer;
 export const dialerAddress = () => status.dialerUrl;
+export const smsSetup = () => status.sms ?? { ready: false, from: null, incomingUrl: null };
+export const smsReady = () => Boolean(status.sms?.ready);
 
 /**
  * The Torque dialer provider, sending to /api/dialer/api and /api/dialer/draft

@@ -35,7 +35,7 @@ export const SITUATION_LABEL: Record<Situation, string> = {
 
 const THINKING = /\b(think (about|it over|on it)|let you know|get back (to|with) you|talk (to|with) (my )?(wife|husband|spouse|dad|mom|family)|need (more )?time|sleep on it)\b/i;
 const PRICE = /\b(price|pricing|payment|per month|a month|\/mo|out the door|otd|numbers|down payment|rate|apr|financ|afford|budget|cost)\b/i;
-const TRADE = /\b(trade|trade-in|my (truck|car|suv)|payoff|owe|upside down|appraise|appraisal)\b/i;
+const TRADE = /\b(trade|trade-in|my (truck|car|suv|atv|four.?wheeler|side.?by.?side|utv|boat|bike|mower)|payoff|owe|upside down|appraise|appraisal)\b/i;
 const RESEARCH = /\b(research|looking around|comparing|shopping around|other dealers?|just looking|browsing)\b/i;
 const NOT_NOW = /\b(not (ready|right now|yet)|busy|work (those|that|all)|working|later|next (week|month)|after (the|my)|in a (few|couple)|when i('m| am) ready|no rush)\b/i;
 

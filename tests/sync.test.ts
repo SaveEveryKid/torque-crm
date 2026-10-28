@@ -41,3 +41,11 @@ describe('saving to Cloudflare: only what changed', () => {
     expect(synced.get('customers/z')).toBe('{"n":9}');
   });
 });
+
+describe('rows the server writes by itself', () => {
+  it('"sms/<id>" rows make the sms map even with no head row', () => {
+    const m = decode(new Map([['sms/SM1', '{"body":"hi"}'], ['sms/SM2', '{"body":"yo"}'], ['settings', '{"a":1}']]));
+    expect(m.get('sms')).toEqual({ SM1: { body: 'hi' }, SM2: { body: 'yo' } });
+    expect(m.get('settings')).toEqual({ a: 1 });
+  });
+});

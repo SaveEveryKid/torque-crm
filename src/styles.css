@@ -323,3 +323,34 @@ table.table { width: 100%; border-collapse: collapse; }
 .saved.saving .pulse { background: var(--accent); }
 .saved.error { color: var(--red-text); }
 .saved.error .pulse { background: var(--red); }
+
+/* ---------- texting ---------- */
+.nav a .count.unread { background: var(--accent); color: #fff; border-radius: 999px; padding: 0 7px; font-weight: 600; }
+.toast {
+  position: fixed; right: 24px; bottom: 24px; z-index: 60; display: flex; gap: 10px; align-items: center; max-width: 380px;
+  padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); box-shadow: var(--shadow-lg);
+  cursor: pointer; text-align: left; animation: fade 0.15s;
+}
+.toast svg { color: var(--accent); flex: none; }
+.inbox { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: 560px; }
+.inbox .threads { border-right: 1px solid var(--border); overflow: auto; max-height: calc(100vh - 220px); }
+.thread-item { display: flex; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.thread-item:hover { background: var(--hover); }
+.thread-item.on { background: var(--accent-soft); }
+.thread-item .grow { min-width: 0; }
+.thread-item .preview { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread-item.unread .name { font-weight: 700; }
+.dot-unread { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; margin-top: 6px; }
+.convo { display: flex; flex-direction: column; min-width: 0; }
+.messages { flex: 1; overflow: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - 330px); }
+.msg { max-width: 72%; padding: 8px 12px; border-radius: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.in { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.msg.out { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+.msg-meta { font-size: 11.5px; color: var(--muted); }
+.msg-meta.out { align-self: flex-end; }
+.msg-meta.bad { color: var(--red-text); }
+.reply { border-top: 1px solid var(--border); padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.reply textarea { min-height: 64px; }
+.status-line { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.status-line.bad { color: var(--red-text); }
+@media (max-width: 900px) { .inbox { grid-template-columns: 1fr; } .inbox .threads { max-height: 260px; border-right: 0; border-bottom: 1px solid var(--border); } }

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { kv, logout, type SyncState } from '../core/storage/kv';
-import { dialerAddress, dialerProvider, loadStatus } from '../crm/server';
+import { dialerAddress, dialerProvider, loadStatus, smsSetup } from '../crm/server';
 import { approvePending, editProfileText, rejectPending, type StyleProfile, EMPTY_PROFILE } from '../core/storage/styleProfile';
 import { aiReady, maybeProposeProfile } from '../crm/ai';
 import { backupFileName, backupJson, download, restoreBackup } from '../crm/backup';
 import { saveSettings, useSettings, useStoredKey } from '../crm/store';
 import type { Settings } from '../crm/types';
-import { Icon } from '../ui/kit';
+import { copy, Icon } from '../ui/kit';
 
 export function SettingsPage() {
   const settings = useSettings();
@@ -20,6 +20,7 @@ export function SettingsPage() {
       </div>
       <Profile s={settings} />
       <DialerSetup s={settings} />
+      <Texting />
       <Learning s={settings} />
       <Backup />
       <Account />
@@ -51,6 +52,9 @@ function Profile({ s }: { s: Settings }) {
       <div className="form-grid">
         <Text label="Your name" k="name" s={s} />
         <Text label="Dealership" k="dealership" s={s} />
+        <div className="full">
+          <Text label="What you sell (Claude uses this)" k="sells" s={s} placeholder="ATVs, side-by-sides, boats…" />
+        </div>
         <Text label="Follow up after (days without contact)" k="followUpDays" s={s} type="number" />
         <Text label="Dealer inventory page" k="inventoryPage" s={s} placeholder="/Inventory/All-Inventory-In-Stock" />
       </div>
@@ -119,6 +123,44 @@ function DialerSetup({ s }: { s: Settings }) {
         </button>
       </div>
       {msg && <p className={msg.ok ? 'success' : 'error'}>{msg.text}</p>}
+    </section>
+  );
+}
+
+function Texting() {
+  const [, setChecked] = useState(0);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => void loadStatus().then(() => setChecked((n) => n + 1)), []);
+  const t = smsSetup();
+  return (
+    <section className="card card-pad stack">
+      <h2>Texting</h2>
+      <p className="soft small">
+        Text customers from Torque CRM through your SignalWire number. Their replies land on their timeline and in Texts. Only you press Send: nothing is ever texted automatically.
+      </p>
+      {t.ready ? (
+        <p className="success">Texting from {t.from}.</p>
+      ) : (
+        <div className="notice stack tight">
+          <strong>Not set up yet.</strong>
+          <span>
+            In Cloudflare → torque-crm → Settings → Variables and Secrets, add: <code>SW_SPACE</code> (e.g. byrongreen.signalwire.com), <code>SW_PROJECT_ID</code>, <code>SW_API_TOKEN</code>{' '}
+            (Secret) and <code>SMS_FROM</code> (your number, +1…). They're the same values as in your torque-dialer Worker.
+          </span>
+        </div>
+      )}
+      {t.incomingUrl && (
+        <div className="stack tight">
+          <strong className="small">So replies come in: in SignalWire → Phone Numbers → your number → Messaging Settings, set “Handle messages using” to LaML Webhooks and “When a message comes in” to:</strong>
+          <div className="row">
+            <input readOnly value={t.incomingUrl} className="grow" onFocus={(e) => e.target.select()} />
+            <button className="btn sm" onClick={() => void copy(t.incomingUrl!).then(() => setCopied(true))}>
+              <Icon name="copy" size={14} /> {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <span className="muted small">Keep this address private. Changing your login password changes it (paste the new one into SignalWire).</span>
+        </div>
+      )}
     </section>
   );
 }

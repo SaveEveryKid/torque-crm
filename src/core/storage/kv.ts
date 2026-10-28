@@ -11,10 +11,11 @@
 type Listener = (changed: string[]) => void;
 
 /** Saved one row per entry, so one customer's change doesn't re-send everyone. */
-const SPLIT = new Set(['customers', 'sentMessages']);
+const SPLIT = new Set(['customers', 'sentMessages', 'sms']);
 /** Bigger values are saved in parts. */
 const CHUNK = 400_000;
-const POLL_MS = 60_000;
+/** How often to check for changes (and new texts) while the window is open. */
+const POLL_MS = 15_000;
 const MAX_REQUEST = 200_000;
 
 const cache = new Map<string, unknown>();
@@ -85,14 +86,21 @@ function rowsFor(key: string, value: unknown): Map<string, string | null> {
 /** Rebuild stored values from rows. */
 function decode(rows: Map<string, string>): Map<string, unknown> {
   const out = new Map<string, unknown>();
+  // "customers/<id>" rows make the customers map (the server writes "sms/<id>" rows with no head row).
+  for (const [k, v] of rows) {
+    const slash = k.indexOf('/');
+    if (slash < 0 || k.includes('#')) continue;
+    const key = k.slice(0, slash);
+    const m = (out.get(key) as Record<string, unknown> | undefined) ?? {};
+    m[k.slice(slash + 1)] = JSON.parse(v);
+    out.set(key, m);
+  }
   for (const [k, v] of rows) {
     if (k.includes('/') || k.includes('#')) continue;
     const head = JSON.parse(v) as unknown;
     const meta = (head && typeof head === 'object' ? head : {}) as { $split?: boolean; $chunks?: number };
     if (meta.$split) {
-      const m: Record<string, unknown> = {};
-      for (const [rk, rv] of rows) if (rk.startsWith(`${k}/`)) m[rk.slice(k.length + 1)] = JSON.parse(rv);
-      out.set(k, m);
+      if (!out.has(k)) out.set(k, {});
     } else if (meta.$chunks) {
       const parts = Array.from({ length: meta.$chunks }, (_, i) => rows.get(`${k}#${i}`) ?? '');
       try {
@@ -246,6 +254,8 @@ export const kv = {
   },
   /** Save anything still waiting (e.g. before logging out). */
   flush,
+  /** Check for changes now (e.g. right after sending a text). */
+  refresh: () => pull(lastSync),
 };
 
 export async function login(password: string): Promise<void> {

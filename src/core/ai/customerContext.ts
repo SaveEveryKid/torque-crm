@@ -79,12 +79,12 @@ const TAGS: Array<{ tag: FactTag; label: string; critical: boolean; re: RegExp; 
     critical: true,
     re: /\$\s?\d|\b(price|pricing|payments?|per month|\/mo|out the door|otd|down payment|apr|interest rate|financ\w*|afford|budget|credit|approved|numbers|quote)\b/i,
   },
-  { tag: 'trade', label: 'Trade', critical: true, re: /\b(trade|trade-in|payoff|pay ?off|owe|upside down|apprais\w*|my (truck|car|suv|van)|miles on (it|mine|my))\b/i },
+  { tag: 'trade', label: 'Trade', critical: true, re: /\b(trade|trade-in|payoff|pay ?off|owe|upside down|apprais\w*|my (truck|car|suv|van|atv|four.?wheeler|side.?by.?side|sxs|utv|boat|bike|mower|rzr|ranger|general|maverick|grizzly|rancher|foreman|sportsman)|(miles|hours) on (it|mine|my))\b/i },
   {
     tag: 'vehicle',
     label: 'Vehicle preference',
     critical: false,
-    re: /\b(color|white|black|silver|gr[ae]y|red|blue|trim|4x4|4wd|awd|2wd|hybrid|leather|sunroof|third row|3rd row|seats|towing|mileage|xle|xse|limited|sr5|trd|platinum|used|new one)\b/i,
+    re: /\b(color|white|black|silver|gr[ae]y|red|blue|trim|4x4|4wd|awd|2wd|hybrid|leather|sunroof|third row|3rd row|seats|towing|mileage|xle|xse|limited|sr5|trd|platinum|used|new one|winch|plow|tracks|eps|power steering|2-up|crew|4-seat|six.?seat|cc|hp|horsepower|outboard|pontoon|trailer|trail|hunting|mud|utility|sport)\b/i,
   },
   {
     tag: 'scheduling',
@@ -107,7 +107,7 @@ export type OutreachAngle = 'appointment ask' | 'price / numbers' | 'video / pho
 const ANGLES: Array<[OutreachAngle, RegExp]> = [
   [
     'appointment ask',
-    /\b(come (in|by|see|out|drive|take a look)|stop by|swing by|appointment|what time|work(s)? better|test drive|drive it|this (afternoon|evening|weekend)|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i,
+    /\b(come (in|by|see|out|drive|take a look)|stop by|swing by|appointment|what time|work(s)? better|test drive|test ride|drive it|ride it|this (afternoon|evening|weekend)|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i,
   ],
   ['price / numbers', /\$\s?\d|\b(price|pricing|payments?|numbers|quote|out the door|otd)\b/i],
   ['video / photos', /\b(video|walk-?around|pictures|photos|pics)\b/i],

@@ -7,6 +7,8 @@ import { EDIT_REASONS, recordEdit, setReasons } from '../core/storage/styleMemor
 import { aiReady, draftFor, maybeProposeProfile, replyFor } from '../crm/ai';
 import { toRecord } from '../crm/record';
 import { logActivity, useSettings } from '../crm/store';
+import { smsReady } from '../crm/server';
+import { quietHours, sendText } from '../crm/sms';
 import type { Customer } from '../crm/types';
 import { copy, go, Icon } from './kit';
 
@@ -78,16 +80,26 @@ export function DraftPanel({ customer: c }: { customer: Customer }) {
     }
   };
 
-  const markSent = async (kind: 'text' | 'email') => {
+  /** viaSms: send the text now through your SignalWire number (otherwise you sent it yourself). */
+  const markSent = async (kind: 'text' | 'email', viaSms = false) => {
     const ai = kind === 'text' ? (reply ? reply.ai : res?.draft.text) : res?.draft.emailBody;
     const sent = kind === 'text' ? text : body;
     if (!sent.trim()) return;
+    if (viaSms) {
+      if (quietHours() && !confirm("It's outside 8 AM–9 PM. Send anyway?")) return;
+      setError(null);
+      try {
+        await sendText(c, sent.trim());
+      } catch (e) {
+        return setError((e as Error).message);
+      }
+    }
     const situation = situationFor(toRecord(c, settings.name));
     const id = await recordEdit(reply ? 'reply' : kind, ai, sent, c.firstName, new Date(), situation);
     await recordSent(c.id, { at: new Date().toISOString(), kind, subject: kind === 'email' ? subject : null, body: sent, source: reply ? 'reply' : 'followup' });
-    await logActivity(c.id, { channel: kind === 'text' ? 'TEXT' : 'EMAIL', direction: 'OUTBOUND', outcome: kind === 'email' && subject ? `Subject: ${subject}` : null, text: sent });
+    if (!viaSms) await logActivity(c.id, { channel: kind === 'text' ? 'TEXT' : 'EMAIL', direction: 'OUTBOUND', outcome: kind === 'email' && subject ? `Subject: ${subject}` : null, text: sent });
     if (id) setEdited((x) => [...x, id]);
-    setDone(kind === 'text' ? 'Text logged.' : 'Email logged.');
+    setDone(viaSms ? 'Text sent.' : kind === 'text' ? 'Text logged.' : 'Email logged.');
     void maybeProposeProfile(settings).catch(() => undefined);
   };
 
@@ -149,9 +161,14 @@ export function DraftPanel({ customer: c }: { customer: Customer }) {
               <button className="btn sm" onClick={() => void copy(text)}>
                 <Icon name="copy" size={14} /> Copy
               </button>
-              <button className="btn sm green" onClick={() => void markSent('text')}>
+              <button className="btn sm" onClick={() => void markSent('text')} title="You sent it yourself: put it on the timeline">
                 <Icon name="check" size={14} /> Mark sent
               </button>
+              {smsReady() && !c.doNotText && (
+                <button className="btn sm primary" onClick={() => void markSent('text', true)}>
+                  <Icon name="text" size={14} /> Send text
+                </button>
+              )}
             </div>
           </div>
         )}

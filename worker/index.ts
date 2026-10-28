@@ -1,6 +1,7 @@
 import { clearCookie, loggedIn, passwordOk, sessionCookie } from './auth';
 import { json, type Env } from './env';
 import { MAX_VALUE, PAGE, readRows, writeRows } from './store';
+import { incomingSms, sendSms, smsSetup, smsStatus } from './sms';
 
 /**
  * TORQUE CRM's server (a Cloudflare Worker). /api/* and /dealer/* come here;
@@ -14,6 +15,8 @@ import { MAX_VALUE, PAGE, readRows, writeRows } from './store';
  *   POST   /api/dialer/api      → your dialer's /api   (password added here)
  *   POST   /api/dialer/draft    → your dialer's /draft (password added here)
  *   GET    /dealer/Inventory/…  the dealer's inventory page
+ *   POST   /api/sms/send        send a text (see sms.ts)
+ *   POST   /sms/incoming|status SignalWire's texts in and delivery updates (key in the address)
  */
 const SETUP_PASSWORD = 'Torque CRM has no password yet. Add APP_PASSWORD in Cloudflare (see the README).';
 const SETUP_DB = 'No database yet. Add the D1 database to wrangler.jsonc (see the README).';
@@ -105,14 +108,24 @@ async function dealer(request: Request, path: string): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const path = new URL(request.url).pathname;
+    const url = new URL(request.url);
+    const path = url.pathname;
     const isApi = path.startsWith('/api/');
+    if (path === '/sms/incoming' && request.method === 'POST') return incomingSms(request, env);
+    if (path === '/sms/status' && request.method === 'POST') return smsStatus(request, env);
     if (!isApi && !path.startsWith('/dealer/')) return env.ASSETS.fetch(request);
     if (path === '/api/login') return login(request, env);
     if (!env.APP_PASSWORD) return json(503, { error: SETUP_PASSWORD, setup: true });
     if (!(await loggedIn(request, env))) return json(401, { error: 'Please log in.' });
     if (path === '/api/data') return data(request, env);
-    if (path === '/api/status') return json(200, { dialer: Boolean(dialerBase(env.DIALER_URL) && env.DIALER_PASSWORD), dialerUrl: dialerBase(env.DIALER_URL) ?? env.DIALER_URL ?? null, database: Boolean(env.DB) });
+    if (path === '/api/status')
+      return json(200, {
+        dialer: Boolean(dialerBase(env.DIALER_URL) && env.DIALER_PASSWORD),
+        dialerUrl: dialerBase(env.DIALER_URL) ?? env.DIALER_URL ?? null,
+        database: Boolean(env.DB),
+        sms: await smsSetup(env, url.origin),
+      });
+    if (path === '/api/sms/send' && request.method === 'POST') return sendSms(request, env, url.origin);
     if (path.startsWith('/api/dialer/')) return dialer(request, env, path.slice('/api/dialer'.length));
     if (path.startsWith('/dealer/')) return dealer(request, path.slice('/dealer'.length));
     return json(404, { error: 'Not found.' });

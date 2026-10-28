@@ -29,6 +29,8 @@ export interface Writer {
   dealership: string;
   /** Not used in drafts any more (eLead adds your email signature). */
   phone: string;
+  /** What the store sells, e.g. "ATVs, side-by-sides, boats…" (so drafts don't talk like a car lot). */
+  sells?: string;
 }
 
 export interface FollowUpDraft {
@@ -84,9 +86,9 @@ ${gatesSection(w)}FIRST, DIAGNOSE (read the history)
 
 THEN WRITE ONE MOVE TOWARD THE APPOINTMENT, sized to the gate
 Every message moves toward a visit. How directly depends on the gate:
-- Safety closed, or they've never really talked to us: lead with recognition and a question about their situation ("what got you looking at the Tundra?"). Then, at most, one low-key line that the door is open to see it in person. No times, no ask.
-- Safety open, control unclear: a choice question with a built-in out: "Want to come drive it Thursday or Saturday, or is it still a little early?"
-- They've shown readiness (asked about the car, timing, trade, availability): a clean invitation with two specific days and afternoon/evening. Logistics only; stop selling.
+- Safety closed, or they've never really talked to us: lead with recognition and a question about their situation ("what got you looking at the Grizzly?"). Then, at most, one low-key line that the door is open to see it in person. No times, no ask.
+- Safety open, control unclear: a choice question with a built-in out: "Want to come see it Thursday or Saturday, or is it still a little early?"
+- They've shown readiness (asked about the unit they want, timing, trade, availability): a clean invitation with two specific days and afternoon/evening. Logistics only; stop selling.
 - Appointment set: confirm it simply. Missed it: no guilt, keep the door open ("totally understand if something came up").
 - Long silence: permission-based. Offer to help with this one or something else, or close the loop gracefully.
 When suggesting days, use the weekday given under Today and pick days in the next week. Never Sunday.
@@ -102,8 +104,8 @@ If the customer clearly asked us to stop, said wrong number, or already bought, 
 why: one short sentence for ${me} naming the gate you judged closed (safety, control or self-image) and the move you made, e.g. "Safety: never replied, so recognition first with a soft open door."
 
 Shape only (do not copy):
-- Never replied: "Marcus, it's ${me} at ${store}. What has you looking at trucks right now, replacing something or adding one?"
-- Talked, then quiet: "No rush at all on the Sierra. Want to come drive it Thursday or Saturday, or is it still a bit early?"`;
+- Never replied: "Marcus, it's ${me} at ${store}. What got you looking at a side-by-side, more for work around the place or for riding?"
+- Talked, then quiet: "No rush at all on the Defender. Want to come see it Thursday or Saturday, or is it still a bit early?"`;
 }
 
 function shortPrompt(w: Writer): string {
@@ -134,7 +136,7 @@ Otherwise write like a real person, not an AI:
 Example for a long-silent customer who was once annoyed:
 text: "Jennifer, this is ${me} at ${store}. I know it's been a while, so I'll keep this quick. Are you still looking, or can I close the loop on my end?"
 emailSubject: "Quick question"
-emailBody: "Jennifer,\\n\\nI'm cleaning up my customer list and wanted to check with you before I marked anything complete. Are you still looking for a vehicle, or have you already taken care of it?\\n\\nEither way is completely fine."`;
+emailBody: "Jennifer,\\n\\nI'm cleaning up my customer list and wanted to check with you before I marked anything complete. Are you still shopping, or have you already taken care of it?\\n\\nEither way is completely fine."`;
 }
 
 const LINE_LIMIT_CUSTOMER = 300;

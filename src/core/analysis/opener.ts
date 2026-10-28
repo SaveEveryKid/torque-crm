@@ -16,13 +16,13 @@ export interface Opener {
 }
 
 const MAKES =
-  /^(toyota|gmc|chevrolet|chevy|ford|honda|nissan|hyundai|kia|jeep|ram|dodge|subaru|mazda|lexus|bmw|mercedes-benz|mercedes|volkswagen|vw|audi|buick|cadillac|chrysler|lincoln|acura|infiniti|mitsubishi|tesla|volvo|genesis|land rover|porsche|mini)\s+/i;
+  /^(toyota|gmc|chevrolet|chevy|ford|honda|nissan|hyundai|kia|jeep|ram|dodge|subaru|mazda|lexus|bmw|mercedes-benz|mercedes|volkswagen|vw|audi|buick|cadillac|chrysler|lincoln|acura|infiniti|mitsubishi|tesla|volvo|genesis|land rover|porsche|mini|yamaha|polaris|can-am|can am|kawasaki|arctic cat|cfmoto|cf moto|segway|suzuki|kubota|john deere|massey ferguson|mahindra|hisun|massimo|intimidator|sea-doo|seadoo|ski-doo|bennington|tracker|sun tracker|mercury|evinrude|caymas|cub cadet|husqvarna|dewalt|big tex|carry-on)\s+/i;
 
 /** "2026 GMC Sierra 1500 Denali Ultimate 4x4 Crew Cab" → "the Sierra". */
 export function shortVehicle(v: string | null | undefined): string {
   const rest = (v ?? '').replace(/^\s*(new|used|certified|pre-owned)\s+/i, '').replace(/^\s*(19|20)\d{2}\s+/, '').replace(MAKES, '').trim();
   const model = rest.split(/\s+/)[0];
-  return model && /[a-z]/i.test(model) ? `the ${model}` : 'the vehicle you asked about';
+  return model && /[a-z]/i.test(model) ? `the ${model}` : 'the one you asked about';
 }
 
 const THINKING = /\b(think (about|it over)|let you know|get back to you|talk (to|with) my (wife|husband|spouse|dad|mom)|not (ready|sure yet)|need (more )?time)\b/i;

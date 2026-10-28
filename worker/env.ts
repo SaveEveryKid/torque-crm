@@ -10,6 +10,11 @@ export interface Env {
   DIALER_URL?: string;
   /** The dialer password (a secret). Stays on Cloudflare: the browser never sees it. */
   DIALER_PASSWORD?: string;
+  /** Texting through SignalWire: your space (e.g. byrongreen.signalwire.com), project ID, API token (a secret) and the number you text from (+1…). */
+  SW_SPACE?: string;
+  SW_PROJECT_ID?: string;
+  SW_API_TOKEN?: string;
+  SMS_FROM?: string;
 }
 
 export const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
