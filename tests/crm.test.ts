@@ -104,3 +104,13 @@ describe('backup', () => {
     expect(JSON.stringify(s)).not.toMatch(/nope|workers\.dev/);
   });
 });
+
+import { findPhoto } from '../src/crm/inventory';
+describe('inventory photos', () => {
+  it('finds the photo whatever the field is called', () => {
+    expect(readUnit({ objectID: '1', Media: [{ Kind: 'photo', Location: 'https://cdn.dx1app.com/media/abc/1.jpg' }] }).image).toBe('https://cdn.dx1app.com/media/abc/1.jpg');
+    expect(readUnit({ objectID: '2', Assets: { PrimaryPhotoUrl: '//cdn.example.com/u/2.webp?w=800' } }).image).toBe('https://cdn.example.com/u/2.webp?w=800');
+    expect(findPhoto({ objectID: '3', DetailUrl: '/Inventory/x', Desc: 'nothing here' })).toBeNull();
+    expect(readUnit({ objectID: '4', Gallery: ['https://x.com/a.png', 'https://x.com/b.png'] }).image).toBe('https://x.com/a.png');
+  });
+});

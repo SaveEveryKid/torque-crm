@@ -129,7 +129,7 @@ export function CustomerPage({ id }: { id: string }) {
             <div className="card-pad stack">
               {c.vehicle ? (
                 <div className="vehicle">
-                  {c.vehicle.image ? <img src={c.vehicle.image} alt="" /> : null}
+                  {c.vehicle.image ? <img src={c.vehicle.image} alt="" referrerPolicy="no-referrer" /> : null}
                   <div className="stack tight" style={{ minWidth: 0 }}>
                     <strong>{c.vehicle.title}</strong>
                     <span className="soft small">

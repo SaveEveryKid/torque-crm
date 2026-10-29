@@ -140,6 +140,30 @@ function firstImage(v: unknown): string | null {
   return null;
 }
 
+const PHOTO = /\.(jpe?g|png|webp|gif|avif)(\?|#|$)|\/media\/|\/images?\/|imgix|cloudinary/i;
+const PHOTO_KEY = /image|photo|media|picture|thumb|pic/i;
+
+/**
+ * Any photo link anywhere in the listing (field names differ from site to
+ * site): fields named like images first, then any link that looks like a photo.
+ */
+export function findPhoto(h: unknown): string | null {
+  const named: string[] = [];
+  const other: string[] = [];
+  const walk = (v: unknown, keyHint: boolean, depth: number) => {
+    if (depth > 5 || named.length) return;
+    if (typeof v === 'string') {
+      const t = v.trim();
+      if (!/^(https?:)?\/\/|^\/[^/]/.test(t) || t.length > 1000) return;
+      if (keyHint && (PHOTO.test(t) || /^https?:\/\//.test(t))) named.push(t);
+      else if (PHOTO.test(t) && !/\/Inventory\//i.test(t)) other.push(t);
+    } else if (Array.isArray(v)) for (const x of v) walk(x, keyHint, depth + 1);
+    else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) walk(x, keyHint || PHOTO_KEY.test(k), depth + 1);
+  };
+  walk(h, false, 0);
+  return named[0] ?? other[0] ?? null;
+}
+
 function absolute(u: string | null): string | null {
   if (!u) return null;
   if (/^https?:\/\//i.test(u)) return u;
@@ -192,7 +216,7 @@ export function readUnit(h: Hit): Unit {
     color: str(pick(h, ['Color', 'ExteriorColor', 'PrimaryColor'])),
     usage: miles ? `${miles} mi` : hours ? `${hours} hrs` : null,
     location: str(pick(h, ['DealershipName', 'Location', 'StoreName'])),
-    image: absolute(firstImage(pick(h, ['ImageUrl', 'PrimaryImage', 'Image', 'MainImage', 'Photo', 'Images', 'ImageUrls', 'Photos', 'Media']))),
+    image: absolute(firstImage(pick(h, ['ImageUrl', 'PrimaryImage', 'Image', 'MainImage', 'Photo', 'Images', 'ImageUrls', 'Photos', 'Media'])) ?? findPhoto(h)),
     url: absolute(str(pick(h, ['DetailUrl', 'DetailsUrl', 'ProductUrl', 'Url', 'Link', 'SeoUrl', 'VehicleUrl']))),
     raw: h,
   };

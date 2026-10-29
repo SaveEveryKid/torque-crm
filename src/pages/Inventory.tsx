@@ -101,7 +101,7 @@ function useInventory() {
 function UnitCard({ u, onClick }: { u: Unit; onClick: () => void }) {
   return (
     <div className="card unit" onClick={onClick}>
-      <div className="img">{u.image ? <img src={u.image} alt="" loading="lazy" /> : <Icon name="car" size={28} />}</div>
+      <div className="img">{u.image ? <img src={u.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <Icon name="car" size={28} />}</div>
       <div className="body">
         <div className="title">{u.title}</div>
         <div className="price">
@@ -171,7 +171,7 @@ function UnitDetails({ u, onClose }: { u: Unit; onClose: () => void }) {
   ];
   return (
     <Modal title={u.title} onClose={onClose} wide>
-      {u.image && <img src={u.image} alt="" style={{ width: '100%', maxHeight: 380, objectFit: 'cover', borderRadius: 10 }} />}
+      {u.image && <img src={u.image} alt="" referrerPolicy="no-referrer" style={{ width: '100%', maxHeight: 380, objectFit: 'cover', borderRadius: 10 }} />}
       <dl className="facts">
         {facts
           .filter(([, v]) => v)
