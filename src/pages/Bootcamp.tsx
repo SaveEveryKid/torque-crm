@@ -25,6 +25,7 @@ import {
   type Question,
 } from '../training/engine';
 import { Icon } from '../ui/kit';
+import { Listen } from './Listen';
 
 /**
  * PRODUCT BOOTCAMP: every product the store sells, learned a little every day.
@@ -57,14 +58,19 @@ export function Bootcamp() {
   const [p, save] = useProgress();
   // A new key each start: "Keep going" gets a fresh session instead of the finished one.
   const [run, setRun] = useState<{ mode: Mode; category?: string; key: number } | null>(null);
+  const [listening, setListening] = useState(false);
   if (!bank) return <div className="page"><p className="muted">Loading the bootcamp…</p></div>;
   const start = (mode: Mode, category?: string) => setRun({ mode, category, key: Date.now() });
+  if (listening) {
+    const { cards, ...stats } = p;
+    return <Listen listened={p.listened ?? {}} onListened={(id) => save(cards, { ...stats, listened: { ...(p.listened ?? {}), [id]: new Date().toISOString() } })} onBack={() => setListening(false)} />;
+  }
   if (run) return <Play key={run.key} bank={bank} p={p} save={save} run={run} onExit={() => setRun(null)} onAgain={() => start(run.mode, run.category)} />;
-  return <Home bank={bank} p={p} save={save} start={start} />;
+  return <Home bank={bank} p={p} save={save} start={start} listen={() => setListening(true)} />;
 }
 
 /* ---------- home ---------- */
-function Home({ bank, p, save, start }: { bank: Card[]; p: Progress; save: (c: Record<string, CardState>, s: Stats) => void; start: (m: Mode, cat?: string) => void }) {
+function Home({ bank, p, save, start, listen }: { bank: Card[]; p: Progress; save: (c: Record<string, CardState>, s: Stats) => void; start: (m: Mode, cat?: string) => void; listen: () => void }) {
   const today = dayOf();
   const lv = level(p.xp);
   const streak = currentStreak(p, today);
@@ -118,6 +124,11 @@ function Home({ bank, p, save, start }: { bank: Card[]; p: Progress; save: (c: R
       </section>
 
       <div className="boot-modes">
+        <button className="card boot-mode listen-mode" onClick={listen}>
+          <span className="emoji">🎧</span>
+          <strong>Listen</strong>
+          <small>The product course, read aloud. Headphones in, walk the lot. {Object.keys(p.listened ?? {}).length} episodes finished</small>
+        </button>
         <button className="card boot-mode" onClick={() => start('speed')}>
           <span className="emoji">⚡</span>
           <strong>Speed Round</strong>

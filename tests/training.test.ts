@@ -175,3 +175,17 @@ describe('the learning loop', () => {
     expect(s.due > addDays(T, 1)).toBe(true);
   });
 });
+
+import audioJson from '../src/training/audio.json';
+import { scriptText } from '../src/pages/Listen';
+describe('the listening course', () => {
+  const eps = (audioJson as { episodes: { id: string; title: string; minutes: number; segments: { t: string; h?: boolean; pause?: number }[] }[] }).episodes;
+  it('covers every product line, reads naturally, and quiz questions pause', () => {
+    expect(eps.length).toBeGreaterThanOrEqual(12);
+    for (const t of ['RANGER', 'RZR', 'GENERAL', 'XPEDITION', 'Sportsman', 'Bennington', 'Mercury', 'Mowers']) expect(eps.some((e) => e.title.includes(t))).toBe(true);
+    const all = eps.flatMap((e) => e.segments.map((s) => s.t)).join(' ');
+    expect(all).not.toMatch(/It total|inches the|v-hull \(modified vee\)| in\. | lb\. |\bhp\b/);
+    expect(eps.flatMap((e) => e.segments).some((s) => s.pause && s.t.startsWith('Question.'))).toBe(true);
+    expect(scriptText(eps[1])).toContain('(pause)');
+  });
+});

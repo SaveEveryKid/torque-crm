@@ -53,6 +53,8 @@ export interface Progress {
   /** Which categories new facts come from ([] = all). */
   focus: string[];
   speedBest: number;
+  /** Listen episodes finished (id → when). */
+  listened?: Record<string, string>;
 }
 
 export const EMPTY_PROGRESS: Progress = { cards: {}, xp: 0, streak: 0, lastGoalDay: null, days: {}, bestCombo: 0, sessions: 0, perfect: 0, newPerDay: 6, focus: [], speedBest: 0 };
