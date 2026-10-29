@@ -19,3 +19,16 @@ export interface Env {
 
 export const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
+
+/** "torque-dialer.x.workers.dev/", "https://…/api" → "https://torque-dialer.x.workers.dev" (null if it isn't an address). */
+export function dialerBase(raw: string | undefined): string | null {
+  const t = (raw ?? '').trim();
+  if (!t) return null;
+  try {
+    const u = new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`);
+    return u.protocol === 'https:' || u.hostname === '127.0.0.1' ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+

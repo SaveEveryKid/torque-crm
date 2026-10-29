@@ -133,7 +133,7 @@ function Texting() {
   useEffect(() => void loadStatus().then(() => setChecked((n) => n + 1)), []);
   const t = smsSetup();
   const [checking, setChecking] = useState(false);
-  const [report, setReport] = useState<{ login: string; space: string; projectIdStart: string; tokenLength: number; tokenStart: string; from: string | null; notes: string[] } | null>(null);
+  const [report, setReport] = useState<{ via?: string; login: string; space: string; projectIdStart: string; tokenLength: number; tokenStart: string; from: string | null; notes: string[] } | null>(null);
   const check = async () => {
     setChecking(true);
     try {
@@ -147,16 +147,24 @@ function Texting() {
     <section className="card card-pad stack">
       <h2>Texting</h2>
       <p className="soft small">
-        Text customers from Torque CRM through your SignalWire number. Their replies land on their timeline and in Texts. Only you press Send: nothing is ever texted automatically.
+        Text customers from Torque CRM through your SignalWire number. Texts go out through your dialer (torque-dialer), which already has your SignalWire login. Their replies land on
+        their timeline and in Texts. Only you press Send: nothing is ever texted automatically.
+      </p>
+      <p className="small">
+        Your dialer needs the texting update once: download{' '}
+        <a href="https://github.com/SaveEveryKid/idea/raw/claude/adoring-lovelace-woaj5n/signalwire/worker.js" target="_blank" rel="noreferrer">
+          the new worker.js
+        </a>
+        , open Cloudflare → torque-dialer → Edit code, replace everything with it and click Deploy. Check texting setup (below) tells you if it's needed.
       </p>
       {t.ready ? (
-        <p className="success">Texting from {t.from}.</p>
+        <p className="success">Texting is set up, from {t.from}.</p>
       ) : (
         <div className="notice stack tight">
           <strong>Not set up yet{t.missing?.length ? `: missing ${t.missing.join(', ')}` : ''}.</strong>
           <span>
-            In Cloudflare → torque-crm → Settings → Variables and Secrets, add: <code>SW_SPACE</code> (e.g. byrongreen.signalwire.com), <code>SW_PROJECT_ID</code>, <code>SW_API_TOKEN</code>{' '}
-            (Secret) and <code>SMS_FROM</code> (your number, +1…). They're the same values as in your torque-dialer Worker.
+            Texting goes through your dialer: in Cloudflare → torque-crm → Settings → Variables and Secrets, add <code>DIALER_URL</code> and <code>DIALER_PASSWORD</code> (Secrets) — see
+            Dialer and Claude above.
           </span>
         </div>
       )}
@@ -168,9 +176,9 @@ function Texting() {
       {report && (
         <div className={report.login.startsWith('OK') ? 'success' : 'notice'}>
           <strong>{report.login}</strong>
-          <div className="small" style={{ marginTop: 6 }}>
+          {report.via !== 'dialer' && (<div className="small" style={{ marginTop: 6 }}>
             Space: {report.space} · Project ID starts {report.projectIdStart || '(none)'} · Token: {report.tokenLength} characters, starts “{report.tokenStart}” · From: {report.from ?? '(none)'}
-          </div>
+          </div>)}
           {report.notes.map((n) => (
             <div key={n} className="small">
               • {n}

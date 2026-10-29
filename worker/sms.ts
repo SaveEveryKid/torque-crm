@@ -1,4 +1,4 @@
-import { json, type Env } from './env';
+import { dialerBase, json, type Env } from './env';
 import { readRow, rowsWithPrefix, writeRows } from './store';
 
 /**
@@ -43,7 +43,11 @@ export function digits(phone: string): string {
   return d.length === 10 ? d : '';
 }
 
-export const smsReady = (env: Env) => Boolean(env.SW_SPACE && env.SW_PROJECT_ID && env.SW_API_TOKEN && digits(env.SMS_FROM ?? ''));
+/** Texts go through your dialer (it already has your SignalWire login) when it's set up. */
+export const viaDialer = (env: Env) => Boolean(dialerBase(env.DIALER_URL) && env.DIALER_PASSWORD);
+/** Or straight to SignalWire with Torque CRM's own SignalWire settings. */
+const direct = (env: Env) => Boolean(env.SW_SPACE && env.SW_PROJECT_ID && env.SW_API_TOKEN && digits(env.SMS_FROM ?? ''));
+export const smsReady = (env: Env) => viaDialer(env) || direct(env);
 
 async function hmac(secret: string, data: string): Promise<string> {
   const enc = new TextEncoder();
@@ -90,7 +94,7 @@ const laml = () => new Response('<?xml version="1.0" encoding="UTF-8"?><Response
 
 /** POST {customerId, to, body} → sends it and returns the saved text. */
 export async function sendSms(request: Request, env: Env, origin: string): Promise<Response> {
-  if (!smsReady(env)) return json(503, { error: 'Texting isn’t set up yet. Add SW_SPACE, SW_PROJECT_ID, SW_API_TOKEN and SMS_FROM in Cloudflare (see Settings).' });
+  if (!smsReady(env)) return json(503, { error: 'Texting isn’t set up yet: Torque CRM texts through your dialer, so add DIALER_URL and DIALER_PASSWORD in Cloudflare (see Settings).' });
   const b = (await request.json().catch(() => ({}))) as { customerId?: string; to?: string; body?: string };
   const to = digits(b.to ?? '');
   const body = (b.body ?? '').trim();
@@ -103,6 +107,13 @@ export async function sendSms(request: Request, env: Env, origin: string): Promi
     if (c?.doNotText || c?.doNotContact) return json(403, { error: 'This customer is marked do not text.' });
   }
   const key = await webhookKey(env);
+  if (viaDialer(env)) {
+    const sent = await sendViaDialer(env, `+1${to}`, body, `${origin}/sms/status?k=${key}`);
+    if ('error' in sent) return json(502, { error: sent.error });
+    const row: SmsRow = { id: sent.sid, at: new Date().toISOString(), direction: 'OUTBOUND', phone: `+1${to}`, body, customerId: b.customerId ?? null, status: sent.status };
+    await save(env, row);
+    return json(200, row);
+  }
   const form = new URLSearchParams({ From: `+1${digits(env.SMS_FROM!)}`, To: `+1${to}`, Body: body, StatusCallback: `${origin}/sms/status?k=${key}` });
   let res: Response;
   try {
@@ -131,6 +142,23 @@ export async function sendSms(request: Request, env: Env, origin: string): Promi
   const row: SmsRow = { id: out.sid, at: new Date().toISOString(), direction: 'OUTBOUND', phone: `+1${to}`, body, customerId: b.customerId ?? null, status: out.status ?? 'queued' };
   await save(env, row);
   return json(200, row);
+}
+
+/** Your dialer (torque-dialer) sends it with its own SignalWire login, from its CALLER_ID. */
+async function sendViaDialer(env: Env, to: string, body: string, statusCallback: string): Promise<{ sid: string; status: string } | { error: string }> {
+  const base = dialerBase(env.DIALER_URL)!;
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api`, { method: 'POST', body: new URLSearchParams({ token: env.DIALER_PASSWORD!.trim(), action: 'sms', to, body, statusCallback }) });
+  } catch (e) {
+    return { error: `Couldn't reach your dialer at ${base}: ${(e as Error).message}` };
+  }
+  const out = (await res.json().catch(() => ({}))) as { sid?: string; status?: string; error?: string };
+  if (res.ok && out.sid) return { sid: out.sid, status: out.status ?? 'queued' };
+  if (out.error === 'Unknown action.')
+    return { error: 'Your dialer needs the texting update: paste the new worker.js into Cloudflare → torque-dialer → Edit code, then Deploy (see Settings → Texting).' };
+  if (res.status === 401) return { error: 'Your dialer refused the password: DIALER_PASSWORD on torque-crm must match DIALER_TOKEN on torque-dialer.' };
+  return { error: `Your dialer couldn't send it: ${out.error ?? `error ${res.status}`}` };
 }
 
 async function keyOk(request: Request, env: Env) {
@@ -178,13 +206,8 @@ export async function smsStatus(request: Request, env: Env): Promise<Response> {
 /** For Settings: the address to paste into SignalWire (only when logged in). */
 export async function smsSetup(env: Env, origin: string) {
   // Which settings are missing or wrong (names only, never values).
-  const missing = [
-    !env.SW_SPACE?.trim() && 'SW_SPACE',
-    !env.SW_PROJECT_ID?.trim() && 'SW_PROJECT_ID',
-    !env.SW_API_TOKEN?.trim() && 'SW_API_TOKEN',
-    !env.SMS_FROM?.trim() ? 'SMS_FROM' : !digits(env.SMS_FROM) && 'SMS_FROM (should look like +12563149936)',
-  ].filter((m): m is string => Boolean(m));
-  return { ready: smsReady(env), from: env.SMS_FROM ?? null, missing, incomingUrl: env.APP_PASSWORD ? `${origin}/sms/incoming?k=${await webhookKey(env)}` : null };
+  const missing = smsReady(env) ? [] : [!env.DIALER_URL?.trim() && 'DIALER_URL', !env.DIALER_PASSWORD?.trim() && 'DIALER_PASSWORD'].filter((m): m is string => Boolean(m));
+  return { ready: smsReady(env), via: viaDialer(env) ? 'dialer' : 'signalwire', from: viaDialer(env) ? 'your dialer’s number (CALLER_ID)' : (env.SMS_FROM ?? null), missing, incomingUrl: env.APP_PASSWORD ? `${origin}/sms/incoming?k=${await webhookKey(env)}` : null };
 }
 
 /**
@@ -192,6 +215,7 @@ export async function smsSetup(env: Env, origin: string) {
  * the settings without revealing them (length and first letters only).
  */
 export async function checkSms(env: Env): Promise<Response> {
+  if (viaDialer(env)) return json(200, await checkDialerTexting(env));
   const token = env.SW_API_TOKEN ?? '';
   const project = env.SW_PROJECT_ID ?? '';
   const notes: string[] = [];
@@ -236,4 +260,27 @@ export async function checkSms(env: Env): Promise<Response> {
     }
   }
   return json(200, { ...facts, login, notes });
+}
+
+/** Texting through the dialer: is the password right, and does the dialer have the texting update? (Sends nothing.) */
+async function checkDialerTexting(env: Env) {
+  const base = dialerBase(env.DIALER_URL)!;
+  const ask = async (fields: Record<string, string>) => {
+    const res = await fetch(`${base}/api`, { method: 'POST', body: new URLSearchParams({ token: env.DIALER_PASSWORD!.trim(), ...fields }) });
+    return { status: res.status, body: (await res.json().catch(() => ({}))) as { error?: string; callerId?: string } };
+  };
+  const facts = { via: 'dialer', space: base.replace('https://', ''), projectIdStart: '', tokenLength: 0, tokenStart: '', from: null as string | null, notes: [] as string[] };
+  try {
+    const ping = await ask({ action: 'ping' });
+    if (ping.status === 401) return { ...facts, login: 'Refused: DIALER_PASSWORD on torque-crm doesn’t match DIALER_TOKEN on torque-dialer.' };
+    if (ping.status !== 200) return { ...facts, login: `Your dialer answered ${ping.status}: ${ping.body.error ?? 'error'}` };
+    facts.from = ping.body.callerId ?? null;
+    // An empty text: the updated dialer says "empty", an older one says "Unknown action". Nothing is sent.
+    const probe = await ask({ action: 'sms', to: '+12565550100', body: '' });
+    if (probe.body.error === 'Unknown action.')
+      return { ...facts, login: 'Your dialer is connected, but it needs the texting update: paste the new worker.js into Cloudflare → torque-dialer → Edit code, then Deploy.' };
+    return { ...facts, login: `OK: texting goes through your dialer, from ${facts.from ?? 'its number'}.` };
+  } catch (e) {
+    return { ...facts, login: `Couldn't reach your dialer at ${base}: ${(e as Error).message}` };
+  }
 }

@@ -1,5 +1,5 @@
 import { clearCookie, loggedIn, passwordOk, sessionCookie } from './auth';
-import { json, type Env } from './env';
+import { dialerBase, json, type Env } from './env';
 import { MAX_VALUE, PAGE, readRows, writeRows } from './store';
 import { checkSms, incomingSms, sendSms, smsSetup, smsStatus } from './sms';
 
@@ -55,18 +55,6 @@ async function data(request: Request, env: Env): Promise<Response> {
   const now = Date.now();
   await writeRows(env.DB, rows, now);
   return json(200, { now });
-}
-
-/** "torque-dialer.x.workers.dev/", "https://…/api" → "https://torque-dialer.x.workers.dev" (null if it isn't an address). */
-function dialerBase(raw: string | undefined): string | null {
-  const t = (raw ?? '').trim();
-  if (!t) return null;
-  try {
-    const u = new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`);
-    return u.protocol === 'https:' || u.hostname === '127.0.0.1' ? u.origin : null;
-  } catch {
-    return null;
-  }
 }
 
 /** Passes a request to your dialer, adding the dialer password (a Cloudflare secret the browser never sees). */
