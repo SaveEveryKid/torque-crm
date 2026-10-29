@@ -171,7 +171,7 @@ function UnitDetails({ u, onClose }: { u: Unit; onClose: () => void }) {
   ];
   return (
     <Modal title={u.title} onClose={onClose} wide>
-      {u.image && <img src={u.image} alt="" referrerPolicy="no-referrer" style={{ width: '100%', maxHeight: 380, objectFit: 'cover', borderRadius: 10 }} />}
+      <Gallery photos={u.photos} />
       <dl className="facts">
         {facts
           .filter(([, v]) => v)
@@ -237,5 +237,25 @@ export function InventoryPicker({ onClose, onPick }: { onClose: () => void; onPi
       </div>
       {inv.pager}
     </Modal>
+  );
+}
+
+/** Big photo with thumbnails underneath. */
+function Gallery({ photos }: { photos: string[] }) {
+  const [i, setI] = useState(0);
+  if (!photos.length) return null;
+  return (
+    <div className="gallery">
+      <img className="main" src={photos[i]} alt="" referrerPolicy="no-referrer" />
+      {photos.length > 1 && (
+        <div className="thumbs">
+          {photos.map((p, n) => (
+            <button key={p} className={n === i ? 'on' : ''} onClick={() => setI(n)} aria-label={`Photo ${n + 1}`}>
+              <img src={p} alt="" loading="lazy" referrerPolicy="no-referrer" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

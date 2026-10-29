@@ -187,6 +187,8 @@ export interface Unit {
   usage: string | null;
   location: string | null;
   image: string | null;
+  /** Every photo, in the dealer's order (the first is the main one). */
+  photos: string[];
   url: string | null;
   raw: Hit;
 }
@@ -200,7 +202,16 @@ export function readUnit(h: Hit): Unit {
   const sale = num(pick(h, ['SalePrice', 'InternetPrice', 'Price', 'DisplayPrice', 'SellingPrice', 'WebPrice']));
   const msrp = num(pick(h, ['MSRP', 'Msrp', 'RetailPrice', 'OriginalPrice']));
   const hours = str(pick(h, ['Hours', 'EngineHours']));
-  const miles = str(pick(h, ['Miles', 'Mileage', 'Odometer']));
+  // DX1 sites: PhotoUrl is the main photo, PhotoLists the gallery (Seq = order).
+  const gallery = (Array.isArray(h.PhotoLists) ? (h.PhotoLists as { Seq?: number; Url?: string }[]) : [])
+    .filter((p) => typeof p?.Url === 'string' && p.Url)
+    .sort((a, b) => (a.Seq ?? 0) - (b.Seq ?? 0))
+    .map((p) => absolute(p.Url!)!);
+  const main = absolute(str(pick(h, ['PhotoUrl'])) ?? firstImage(pick(h, ['ImageUrl', 'PrimaryImage', 'Image', 'MainImage', 'Photo', 'Images', 'ImageUrls', 'Photos', 'Media'])) ?? findPhoto(h));
+  const photos = [...new Set([...(main ? [main] : []), ...gallery])];
+  // 0 means "not recorded" (boats, new units); HasOdometer: false means the same.
+  const odo = num(pick(h, ['Miles', 'Mileage', 'Odometer']));
+  const miles = h.HasOdometer === false || !odo ? null : odo.toLocaleString('en-US');
   return {
     id: h.objectID,
     title: title || 'Unit',
@@ -216,8 +227,9 @@ export function readUnit(h: Hit): Unit {
     color: str(pick(h, ['Color', 'ExteriorColor', 'PrimaryColor'])),
     usage: miles ? `${miles} mi` : hours ? `${hours} hrs` : null,
     location: str(pick(h, ['DealershipName', 'Location', 'StoreName'])),
-    image: absolute(firstImage(pick(h, ['ImageUrl', 'PrimaryImage', 'Image', 'MainImage', 'Photo', 'Images', 'ImageUrls', 'Photos', 'Media'])) ?? findPhoto(h)),
-    url: absolute(str(pick(h, ['DetailUrl', 'DetailsUrl', 'ProductUrl', 'Url', 'Link', 'SeoUrl', 'VehicleUrl']))),
+    image: photos[0] ?? null,
+    photos,
+    url: absolute(str(pick(h, ['ShowroomUrl', 'DetailUrl', 'DetailsUrl', 'ProductUrl', 'Url', 'Link', 'SeoUrl', 'VehicleUrl']))),
     raw: h,
   };
 }

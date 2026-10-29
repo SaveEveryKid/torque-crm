@@ -341,3 +341,11 @@ table.table { width: 100%; border-collapse: collapse; }
 .status-line { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .status-line.bad { color: var(--red-text); }
 @media (max-width: 900px) { .inbox { grid-template-columns: 1fr; } .inbox .threads { max-height: 260px; border-right: 0; border-bottom: 1px solid var(--border); } }
+
+/* ---------- inventory photos ---------- */
+.gallery { display: flex; flex-direction: column; gap: 8px; }
+.gallery .main { width: 100%; max-height: 420px; object-fit: contain; background: #0f1113; border-radius: 10px; }
+.gallery .thumbs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.gallery .thumbs button { flex: none; padding: 0; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; opacity: 0.7; }
+.gallery .thumbs button.on { border-color: var(--accent); opacity: 1; }
+.gallery .thumbs img { width: 84px; height: 60px; object-fit: cover; border-radius: 6px; display: block; }
