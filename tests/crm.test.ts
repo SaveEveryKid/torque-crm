@@ -114,3 +114,15 @@ describe('inventory photos', () => {
     expect(readUnit({ objectID: '4', Gallery: ['https://x.com/a.png', 'https://x.com/b.png'] }).image).toBe('https://x.com/a.png');
   });
 });
+
+describe('changes made at the same moment', () => {
+  it('picking a vehicle and logging "Showing…" together keeps both', async () => {
+    const { updateCustomer } = await import('../src/crm/store');
+    const c = await addCustomer(blankCustomer({ firstName: 'Race', phone: '(256) 555-2444' }));
+    const v = { id: 'u1', title: '2008 Azure AZ220', stock: 'U1916', vin: null, price: 12999, image: null, url: null };
+    await Promise.all([updateCustomer(c.id, { vehicle: v }), logActivity(c.id, { channel: 'NOTE', direction: 'INTERNAL', outcome: 'Vehicle', text: 'Showing 2008 Azure AZ220' })]);
+    const saved = (await getCustomers())[c.id];
+    expect(saved.vehicle?.title).toBe('2008 Azure AZ220');
+    expect(saved.activities[0].text).toBe('Showing 2008 Azure AZ220');
+  });
+});

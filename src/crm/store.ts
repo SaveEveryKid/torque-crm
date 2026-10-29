@@ -24,6 +24,18 @@ export async function getCustomer(id: string): Promise<Customer | null> {
   return (await getCustomers())[id] ?? null;
 }
 
+/**
+ * Every change to customers runs one at a time: two changes made at once
+ * (pick a vehicle + log "Showing…") would otherwise each start from the same
+ * copy and the second would undo the first.
+ */
+let queue: Promise<unknown> = Promise.resolve();
+export function serial<T>(fn: () => Promise<T>): Promise<T> {
+  const run = queue.then(fn);
+  queue = run.catch(() => undefined);
+  return run;
+}
+
 async function saveAll(m: CustomerMap) {
   await kv.set({ [CUSTOMERS]: m });
 }
@@ -60,33 +72,41 @@ export function formatPhone(raw: string): string {
   return n.ok ? n.display : raw.trim();
 }
 
-export async function addCustomer(c: Customer): Promise<Customer> {
-  const m = await getCustomers();
-  const saved = { ...c, phone: formatPhone(c.phone), altPhone: c.altPhone ? formatPhone(c.altPhone) : '' };
-  m[saved.id] = saved;
-  await saveAll(m);
-  return saved;
+export function addCustomer(c: Customer): Promise<Customer> {
+  return serial(async () => {
+    const m = await getCustomers();
+    const saved = { ...c, phone: formatPhone(c.phone), altPhone: c.altPhone ? formatPhone(c.altPhone) : '' };
+    m[saved.id] = saved;
+    await saveAll(m);
+    return saved;
+  });
 }
 
-export async function addCustomers(list: Customer[]): Promise<void> {
-  const m = await getCustomers();
-  for (const c of list) m[c.id] = c;
-  await saveAll(m);
+export function addCustomers(list: Customer[]): Promise<void> {
+  return serial(async () => {
+    const m = await getCustomers();
+    for (const c of list) m[c.id] = c;
+    await saveAll(m);
+  });
 }
 
-export async function updateCustomer(id: string, patch: Partial<Customer> | ((c: Customer) => Partial<Customer>)): Promise<void> {
-  const m = await getCustomers();
-  const c = m[id];
-  if (!c) return;
-  const p = typeof patch === 'function' ? patch(c) : patch;
-  m[id] = { ...c, ...p, updatedAt: now() };
-  await saveAll(m);
+export function updateCustomer(id: string, patch: Partial<Customer> | ((c: Customer) => Partial<Customer>)): Promise<void> {
+  return serial(async () => {
+    const m = await getCustomers();
+    const c = m[id];
+    if (!c) return;
+    const p = typeof patch === 'function' ? patch(c) : patch;
+    m[id] = { ...c, ...p, updatedAt: now() };
+    await saveAll(m);
+  });
 }
 
-export async function deleteCustomer(id: string): Promise<void> {
-  const m = await getCustomers();
-  delete m[id];
-  await saveAll(m);
+export function deleteCustomer(id: string): Promise<void> {
+  return serial(async () => {
+    const m = await getCustomers();
+    delete m[id];
+    await saveAll(m);
+  });
 }
 
 /** Moving to Appointment / Showed / Sold etc. is logged on the timeline. */

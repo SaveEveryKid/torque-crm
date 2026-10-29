@@ -112,6 +112,7 @@ const PATHS: Record<string, string> = {
   refresh: 'M23 4v6h-6M1 20v-6h6M3.5 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.5 15',
   walk: 'M13 4a1 1 0 1 0 2 0 1 1 0 0 0-2 0M7 21l3-7 2.5 2V21M10 14l1-5 3 3h3M11 9l-3 1-1 3',
   back: 'M15 18l-6-6 6-6',
+  trophy: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3',
 };
 
 export function Icon({ name, size = 18 }: { name: keyof typeof PATHS | string; size?: number }) {

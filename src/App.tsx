@@ -4,6 +4,7 @@ import { fullName, openTasks, useCustomers, useSettings } from './crm/store';
 import { useDialer } from './crm/dialer';
 import { unreadCount, useSms, useTextInbox, type SmsRow } from './crm/sms';
 import { Texts } from './pages/Texts';
+import { Bootcamp } from './pages/Bootcamp';
 import { CustomerForm } from './ui/CustomerForm';
 import { daysFromToday, go, Icon, StageBadge, useRoute } from './ui/kit';
 import { Today } from './pages/Today';
@@ -21,6 +22,7 @@ const NAV = [
   { path: 'pipeline', label: 'Pipeline', icon: 'board' },
   { path: 'inventory', label: 'Inventory', icon: 'car' },
   { path: 'dialer', label: 'Dialer', icon: 'phone' },
+  { path: 'bootcamp', label: 'Bootcamp', icon: 'trophy' },
 ];
 
 export function App() {
@@ -94,6 +96,7 @@ export function App() {
         {page === 'pipeline' && <Pipeline />}
         {page === 'inventory' && <Inventory />}
         {page === 'dialer' && <Dialer />}
+        {page === 'bootcamp' && <Bootcamp />}
         {page === 'settings' && <SettingsPage />}
       </div>
       {toast.length > 0 && (

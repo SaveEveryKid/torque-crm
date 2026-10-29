@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { fullName, lastContact, openTasks, updateTask, useCustomers, useSettings } from '../crm/store';
+import { fullName, lastContact, openTasks, updateTask, useCustomers, useSettings, useStoredKey } from '../crm/store';
+import { DAILY_GOAL, EMPTY_PROGRESS, currentStreak, dayOf, type CardState, type Progress } from '../training/engine';
 import { OPEN_STAGES, TASK_LABEL, type Customer, type Task } from '../crm/types';
 import { ago, Avatar, daysFromToday, Empty, go, Icon, StageBadge, time, when } from '../ui/kit';
 
@@ -38,6 +39,7 @@ export function Today() {
         </div>
       </div>
 
+      <BootcampNudge />
       <div className="stats">
         <Stat label="Tasks due" value={due.length} hint={late ? `${late} overdue` : due.length ? 'due today' : 'all caught up'} />
         <Stat label="Appointments today" value={apptsToday.length} hint={`${appts.length} this week`} />
@@ -133,5 +135,29 @@ function Stat({ label, value, hint }: { label: string; value: number; hint: stri
       <div className="value">{value}</div>
       <div className="hint">{hint}</div>
     </div>
+  );
+}
+
+/** Today's study: streak, reviews due, progress toward the daily goal. */
+function BootcampNudge() {
+  const stats = useStoredKey<Omit<Progress, 'cards'>>('training', EMPTY_PROGRESS);
+  const cards = useStoredKey<Record<string, CardState>>('trainingCards', {});
+  const today = dayOf();
+  const p = { ...EMPTY_PROGRESS, ...stats, cards };
+  const done = p.days[today] ?? 0;
+  const due = Object.values(cards).filter((c) => c.due <= today).length;
+  const streak = currentStreak(p, today);
+  const finished = done >= DAILY_GOAL;
+  return (
+    <a className="card boot-nudge" href="#/bootcamp">
+      <span className="emoji">{finished ? '✅' : '🔥'}</span>
+      <div className="grow">
+        <strong>{finished ? `Bootcamp done for today · ${streak} day streak` : streak ? `Keep your ${streak}-day streak alive` : 'Product Bootcamp: start your streak today'}</strong>
+        <div className="muted small">
+          {done} / {DAILY_GOAL} answered today{due ? ` · ${due} reviews due` : ''}
+        </div>
+      </div>
+      <span className="btn primary sm">{finished ? 'Study more' : done ? 'Keep going' : 'Start'}</span>
+    </a>
   );
 }

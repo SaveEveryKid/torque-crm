@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { kv } from '../core/storage/kv';
 import { normalizeUsPhone } from '../core/analysis/phone';
-import { activity, blankCustomer, getCustomers, useStoredKey } from './store';
+import { activity, blankCustomer, getCustomers, serial, useStoredKey } from './store';
 import type { Activity, Customer } from './types';
 
 /**
@@ -67,7 +67,11 @@ const textOf = (s: SmsRow) => [s.body, ...(s.media ?? []).map((m) => `[picture] 
  * nobody has gets a new customer. STOP marks them do-not-text; START clears it.
  * Returns the new incoming texts.
  */
-export async function addToTimeline(rows: SmsRow[]): Promise<SmsRow[]> {
+export function addToTimeline(rows: SmsRow[]): Promise<SmsRow[]> {
+  return serial(() => mergeTexts(rows));
+}
+
+async function mergeTexts(rows: SmsRow[]): Promise<SmsRow[]> {
   const customers = await getCustomers();
   const byDigits = new Map<string, string>();
   for (const c of Object.values(customers))
