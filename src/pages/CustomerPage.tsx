@@ -31,6 +31,7 @@ export function CustomerPage({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [picking, setPicking] = useState(false);
   const [callError, setCallError] = useState<string | null>(null);
+  const [texting, setTexting] = useState(false);
   const sms = useSms();
   // Opening a customer marks their texts as read.
   useEffect(() => {
@@ -86,6 +87,14 @@ export function CustomerPage({ id }: { id: string }) {
             </select>
             <button className="btn primary" disabled={!c.phone || c.doNotContact} onClick={call} title={aiReady() ? 'Call through your dialer' : 'Practice call (set up the dialer in Settings for real calls)'}>
               <Icon name="phone" size={16} /> Call
+            </button>
+            <button
+              className="btn primary"
+              disabled={!c.phone || c.doNotText || c.doNotContact || !smsReady()}
+              onClick={() => setTexting(true)}
+              title={c.doNotText || c.doNotContact ? 'Marked do not text' : smsReady() ? 'Text from your SignalWire number' : 'Set up texting in Settings first'}
+            >
+              <Icon name="text" size={16} /> Text
             </button>
             {c.email && (
               <a className="btn" href={`mailto:${c.email}`}>
@@ -189,6 +198,7 @@ export function CustomerPage({ id }: { id: string }) {
       </div>
 
       {editing && <CustomerForm customer={c} onClose={() => setEditing(false)} />}
+      {texting && <QuickText customer={c} onClose={() => setTexting(false)} />}
       {picking && (
         <InventoryPicker
           onClose={() => setPicking(false)}
@@ -553,6 +563,59 @@ function AppointmentText({ customer: c, task, onClose }: { customer: Customer; t
       {why && <p className="why">{why}</p>}
       {text && <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} />}
       <p className="muted small">Appointment: {when(task.dueAt)}</p>
+    </Modal>
+  );
+}
+
+/** TEXT button: type and send one text from your SignalWire number. */
+function QuickText({ customer: c, onClose }: { customer: Customer; onClose: () => void }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const send = async () => {
+    if (!text.trim()) return;
+    if (quietHours() && !confirm("It's outside 8 AM–9 PM. Send anyway?")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await sendText(c, text.trim());
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      title={`Text ${c.firstName || 'customer'} · ${c.phone}`}
+      onClose={onClose}
+      foot={
+        <>
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn primary" disabled={!text.trim() || busy} onClick={() => void send()}>
+            <Icon name="text" size={15} /> {busy ? 'Sending…' : 'Send text'}
+          </button>
+        </>
+      }
+    >
+      <textarea
+        rows={4}
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={`Hi ${c.firstName || 'there'}, it's …`}
+        onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && void send()}
+      />
+      <div className="row between">
+        <span className="muted small">{text.length} characters · Ctrl + Enter to send</span>
+        <button className="link small" onClick={() => go(`texts/${c.id}`)}>
+          See the whole conversation
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
     </Modal>
   );
 }
