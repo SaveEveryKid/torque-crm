@@ -82,6 +82,19 @@ def clean(v):
     v = re.sub(r'\b(in|lb|lbs|gal)\b(?!\.)', lambda m: ('lb' if m.group(1) == 'lbs' else m.group(1)) + '.', v)   # "64 in" → "64 in."
     return v.strip().rstrip(';').strip()
 
+# Sanity limits: anything outside is a data glitch, not a fact to memorize.
+LIMITS = {
+    'Seating': (1, 9), 'Seating Capacity': (1, 16), 'Horsepower': (1, 600), 'Power': (1, 600), 'Displacement': (40, 2500),
+    'Towing Capacity': (100, 5000), 'Cargo Box Capacity': (20, 2000), 'Capacity': (100, 4000), 'Ground Clearance': (3, 20),
+    'Fuel Capacity': (1, 30), 'Fuel Tank Capacity': (1, 150), 'Dry Weight': (20, 6000), 'Cutting Width': (20, 80),
+    'Load Capacity': (100, 20000), 'Maximum Load Capacity': (100, 20000),
+}
+def plausible(field, cat, n, v):
+    lo, hi = LIMITS.get(field, (0, float('inf')))
+    if field == 'Width' and cat == 'Polaris': lo, hi = (25, 90)
+    if field == 'Length': lo, hi = (40, 400) if cat == 'Polaris' else (5, 400)
+    return lo <= n <= hi
+
 def number(v):
     m = re.search(r'(\d[\d,]*\.?\d*)', v)
     return float(m.group(1).replace(',', '')) if m else None
@@ -106,8 +119,17 @@ for name, d in specs.items():
         n = number(v) if field in NUMERIC else None
         if field in NUMERIC and n is None: continue
         if field in ('Seating', 'Seating Capacity'):
+            # The site runs values together ("Person capacity - 3" + "3-person bench" → "33-person"):
+            # take the single digit right before "person", else the first number.
+            seat = re.search(r'(\d)(?=\s*-?\s*person)', raw, re.I)
+            n = float(seat.group(1)) if seat else n
             v = f"{n:g} {'person' if n == 1 else 'people'}"
         if field == 'Capacity' and 'lb' not in v.lower(): continue
+        if re.match(r'\s*winch', raw, re.I): continue   # a winch rating, not towing
+        if n is not None and field not in ('Seating', 'Seating Capacity', 'Length'):
+            first = re.match(r'\s*([\d,]*\.?\d+\s*(?:[A-Za-z]+\.?)?)', v)   # "2,500 lb.4,500 lb. winch…" → "2,500 lb."
+            if first: v = first.group(1).strip()
+        if n is not None and not plausible(field, cat, n, v): continue
         base = re.sub(r'\s+', ' ', TRIM.sub('', model)).strip()
         key = (base.lower(), field, v.lower())
         m = merged.setdefault(key, {'models': [], 'cat': cat, 'field': field, 'v': v, 'n': n, 'src': d.get('source')})
