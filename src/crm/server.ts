@@ -8,7 +8,7 @@ import { TwilioDialerProvider } from '../core/dialer/twilioProvider';
 interface Status {
   dialer: boolean;
   dialerUrl: string | null;
-  sms: { ready: boolean; from: string | null; incomingUrl: string | null };
+  sms: { ready: boolean; from: string | null; incomingUrl: string | null; missing?: string[] };
 }
 let status: Status = { dialer: false, dialerUrl: null, sms: { ready: false, from: null, incomingUrl: null } };
 

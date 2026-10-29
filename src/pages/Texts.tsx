@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { recordEdit } from '../core/storage/styleMemory';
 import { recordSent } from '../core/storage/sentLog';
 import { aiReady, replyFor } from '../crm/ai';
-import { smsReady } from '../crm/server';
+import { loadStatus, smsReady, smsSetup } from '../crm/server';
 import { quietHours, sendText, statusLabel, unreadCount, useSms, type SmsMap } from '../crm/sms';
 import { fullName, updateCustomer, useCustomers, useSettings } from '../crm/store';
 import type { Customer } from '../crm/types';
@@ -21,6 +21,10 @@ export function Texts({ id }: { id?: string }) {
     [customers],
   );
   const open = id ? customers[id] : threads[0]?.c;
+  // Re-check the texting setup each time Texts opens (settings added on Cloudflare show up without a reload).
+  const [, setChecked] = useState(0);
+  useEffect(() => void loadStatus().then(() => setChecked((n) => n + 1)), []);
+  const missing = smsSetup().missing ?? [];
   const [perm, setPerm] = useState(typeof Notification === 'undefined' ? 'denied' : Notification.permission);
 
   return (
@@ -28,7 +32,7 @@ export function Texts({ id }: { id?: string }) {
       <div className="page-head">
         <div>
           <h1>Texts</h1>
-          <p>{smsReady() ? 'Texts to and from your SignalWire number.' : 'Texting isn’t set up yet: see Settings → Texting.'}</p>
+          <p>{smsReady() ? 'Texts to and from your SignalWire number.' : `Texting isn’t set up yet${missing.length ? `: missing ${missing.join(', ')} on the torque-crm Worker in Cloudflare` : ''}. See Settings → Texting.`}</p>
         </div>
         {perm === 'default' && (
           <button className="btn" onClick={() => void Notification.requestPermission().then(setPerm)}>

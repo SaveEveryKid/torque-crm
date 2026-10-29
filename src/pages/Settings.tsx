@@ -142,7 +142,7 @@ function Texting() {
         <p className="success">Texting from {t.from}.</p>
       ) : (
         <div className="notice stack tight">
-          <strong>Not set up yet.</strong>
+          <strong>Not set up yet{t.missing?.length ? `: missing ${t.missing.join(', ')}` : ''}.</strong>
           <span>
             In Cloudflare → torque-crm → Settings → Variables and Secrets, add: <code>SW_SPACE</code> (e.g. byrongreen.signalwire.com), <code>SW_PROJECT_ID</code>, <code>SW_API_TOKEN</code>{' '}
             (Secret) and <code>SMS_FROM</code> (your number, +1…). They're the same values as in your torque-dialer Worker.

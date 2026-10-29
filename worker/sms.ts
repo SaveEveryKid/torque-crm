@@ -159,5 +159,12 @@ export async function smsStatus(request: Request, env: Env): Promise<Response> {
 
 /** For Settings: the address to paste into SignalWire (only when logged in). */
 export async function smsSetup(env: Env, origin: string) {
-  return { ready: smsReady(env), from: env.SMS_FROM ?? null, incomingUrl: env.APP_PASSWORD ? `${origin}/sms/incoming?k=${await webhookKey(env)}` : null };
+  // Which settings are missing or wrong (names only, never values).
+  const missing = [
+    !env.SW_SPACE?.trim() && 'SW_SPACE',
+    !env.SW_PROJECT_ID?.trim() && 'SW_PROJECT_ID',
+    !env.SW_API_TOKEN?.trim() && 'SW_API_TOKEN',
+    !env.SMS_FROM?.trim() ? 'SMS_FROM' : !digits(env.SMS_FROM) && 'SMS_FROM (should look like +12563149936)',
+  ].filter((m): m is string => Boolean(m));
+  return { ready: smsReady(env), from: env.SMS_FROM ?? null, missing, incomingUrl: env.APP_PASSWORD ? `${origin}/sms/incoming?k=${await webhookKey(env)}` : null };
 }
