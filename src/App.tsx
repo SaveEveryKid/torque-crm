@@ -52,13 +52,12 @@ export function App() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand">
-          <img src="/torque-icon.png" alt="" />
-          <div>
-            Torque CRM
-            <small>{settings.name}</small>
-          </div>
-        </div>
+        <a className="brand" href="#/today" aria-label="Torque CRM home">
+          <img className="emblem" src="/torque-icon.png" alt="" />
+          <img className="wordmark" src="/torque-wordmark.png" alt="Torque" />
+          <span className="tag">CRM</span>
+          <small>{settings.name}</small>
+        </a>
         <nav className="nav stack tight">
           {NAV.map((n) => (
             <a key={n.path} href={`#/${n.path}`} className={page === n.path ? 'active' : ''}>

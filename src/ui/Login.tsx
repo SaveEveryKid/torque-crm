@@ -28,8 +28,9 @@ export function Login({ setup, message, onIn }: { setup: boolean; message: strin
         }}
       >
         <div className="brand">
-          <img src="/torque-icon.png" alt="" />
-          <div>Torque CRM</div>
+          <img className="emblem" src="/torque-icon.png" alt="" />
+          <img className="wordmark" src="/torque-wordmark.png" alt="Torque" />
+          <span className="tag">CRM</span>
         </div>
         {setup ? (
           <p className="notice">{message}</p>
