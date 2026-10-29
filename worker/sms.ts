@@ -121,6 +121,9 @@ export async function sendSms(request: Request, env: Env, origin: string): Promi
   } catch {
     /* not JSON: reported below */
   }
+  // SignalWire answers a wrong API token with an empty 200 (no token at all: 401).
+  if ((res.ok && !raw.trim()) || res.status === 401)
+    return json(502, { error: "SignalWire didn't accept the login: SW_API_TOKEN (or SW_PROJECT_ID) on the torque-crm Worker is wrong. Copy the API token again from SignalWire → API, paste it as the SW_API_TOKEN secret, and try again." });
   if (!res.ok || !out.sid) {
     const what = out.message ?? out.error_message ?? `answered ${res.status} from ${new URL(res.url || swBase(env)).host}: ${raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140) || 'empty reply'}`;
     return json(502, { error: `SignalWire didn't send it: ${what}${out.code ? ` (code ${out.code})` : ''}. Check SW_SPACE (just byrongreen.signalwire.com) and SW_PROJECT_ID.` });
