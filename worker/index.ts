@@ -1,7 +1,7 @@
 import { clearCookie, loggedIn, passwordOk, sessionCookie } from './auth';
 import { json, type Env } from './env';
 import { MAX_VALUE, PAGE, readRows, writeRows } from './store';
-import { incomingSms, sendSms, smsSetup, smsStatus } from './sms';
+import { checkSms, incomingSms, sendSms, smsSetup, smsStatus } from './sms';
 
 /**
  * TORQUE CRM's server (a Cloudflare Worker). /api/* and /dealer/* come here;
@@ -126,6 +126,7 @@ export default {
         sms: await smsSetup(env, url.origin),
       });
     if (path === '/api/sms/send' && request.method === 'POST') return sendSms(request, env, url.origin);
+    if (path === '/api/sms/check') return checkSms(env);
     if (path.startsWith('/api/dialer/')) return dialer(request, env, path.slice('/api/dialer'.length));
     if (path.startsWith('/dealer/')) return dealer(request, path.slice('/dealer'.length));
     return json(404, { error: 'Not found.' });

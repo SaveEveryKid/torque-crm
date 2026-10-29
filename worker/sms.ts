@@ -186,3 +186,54 @@ export async function smsSetup(env: Env, origin: string) {
   ].filter((m): m is string => Boolean(m));
   return { ready: smsReady(env), from: env.SMS_FROM ?? null, missing, incomingUrl: env.APP_PASSWORD ? `${origin}/sms/incoming?k=${await webhookKey(env)}` : null };
 }
+
+/**
+ * Settings → Check texting setup: tries the SignalWire login and describes
+ * the settings without revealing them (length and first letters only).
+ */
+export async function checkSms(env: Env): Promise<Response> {
+  const token = env.SW_API_TOKEN ?? '';
+  const project = env.SW_PROJECT_ID ?? '';
+  const notes: string[] = [];
+  const describe = (name: string, v: string) => {
+    if (!v) return notes.push(`${name} is missing.`);
+    if (v !== v.trim()) notes.push(`${name} has a space or line break at the start or end (Torque CRM trims it, so that's OK).`);
+    if (/["'`]/.test(v)) notes.push(`${name} contains a quote mark: paste it without quotes.`);
+    if (/\s/.test(v.trim())) notes.push(`${name} has a space in the middle: it was probably pasted with something extra.`);
+  };
+  describe('SW_PROJECT_ID', project);
+  describe('SW_API_TOKEN', token);
+  describe('SW_SPACE', env.SW_SPACE ?? '');
+  const t = token.trim();
+  const facts = {
+    space: swBase(env).replace('https://', ''),
+    projectIdLooksRight: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(project.trim()),
+    projectIdStart: project.trim().slice(0, 8),
+    tokenLength: t.length,
+    tokenStart: t.slice(0, 3),
+    from: env.SMS_FROM ?? null,
+  };
+  if (!facts.projectIdLooksRight) notes.push('SW_PROJECT_ID should look like b78f475d-18ed-4658-b32c-02c8b4fb4f85 (the Project ID from SignalWire → API).');
+  let login = 'not tried';
+  if (project && token) {
+    try {
+      const res = await fetch(`${swBase(env)}/api/laml/2010-04-01/Accounts/${project.trim()}`, {
+        headers: { Authorization: `Basic ${btoa(`${project.trim()}:${t}`)}`, Accept: 'application/json' },
+      });
+      const raw = await res.text();
+      let body: { friendly_name?: string; status?: string } = {};
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        /* not JSON */
+      }
+      login =
+        res.ok && body.status
+          ? `OK: SignalWire accepted the login (project "${body.friendly_name ?? '?'}", ${body.status}).`
+          : `Refused (${res.status}${raw.trim() ? `: ${raw.trim().slice(0, 80)}` : ', empty reply'}). SignalWire doesn't accept this project ID + token pair.`;
+    } catch (e) {
+      login = `Couldn't reach SignalWire: ${(e as Error).message}`;
+    }
+  }
+  return json(200, { ...facts, login, notes });
+}

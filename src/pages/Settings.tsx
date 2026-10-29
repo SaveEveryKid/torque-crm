@@ -132,6 +132,17 @@ function Texting() {
   const [copied, setCopied] = useState(false);
   useEffect(() => void loadStatus().then(() => setChecked((n) => n + 1)), []);
   const t = smsSetup();
+  const [checking, setChecking] = useState(false);
+  const [report, setReport] = useState<{ login: string; space: string; projectIdStart: string; tokenLength: number; tokenStart: string; from: string | null; notes: string[] } | null>(null);
+  const check = async () => {
+    setChecking(true);
+    try {
+      const res = await fetch('/api/sms/check', { credentials: 'same-origin' });
+      setReport(await res.json());
+    } finally {
+      setChecking(false);
+    }
+  };
   return (
     <section className="card card-pad stack">
       <h2>Texting</h2>
@@ -147,6 +158,24 @@ function Texting() {
             In Cloudflare → torque-crm → Settings → Variables and Secrets, add: <code>SW_SPACE</code> (e.g. byrongreen.signalwire.com), <code>SW_PROJECT_ID</code>, <code>SW_API_TOKEN</code>{' '}
             (Secret) and <code>SMS_FROM</code> (your number, +1…). They're the same values as in your torque-dialer Worker.
           </span>
+        </div>
+      )}
+      <div className="row">
+        <button className="btn sm" disabled={checking} onClick={() => void check()}>
+          {checking ? 'Checking…' : 'Check texting setup'}
+        </button>
+      </div>
+      {report && (
+        <div className={report.login.startsWith('OK') ? 'success' : 'notice'}>
+          <strong>{report.login}</strong>
+          <div className="small" style={{ marginTop: 6 }}>
+            Space: {report.space} · Project ID starts {report.projectIdStart || '(none)'} · Token: {report.tokenLength} characters, starts “{report.tokenStart}” · From: {report.from ?? '(none)'}
+          </div>
+          {report.notes.map((n) => (
+            <div key={n} className="small">
+              • {n}
+            </div>
+          ))}
         </div>
       )}
       {t.incomingUrl && (
