@@ -22,3 +22,10 @@ describe('texting', () => {
     expect(digits('555-2964')).toBe('');
   });
 });
+
+describe('SignalWire address', () => {
+  it('uses just the space name, however SW_SPACE was pasted', async () => {
+    const { swBase } = await import('./sms');
+    for (const v of ['byrongreen.signalwire.com', 'https://byrongreen.signalwire.com/', 'https://byrongreen.signalwire.com/dashboard/phone_numbers', ' byrongreen.signalwire.com/api ']) expect(swBase({ SW_SPACE: v })).toBe('https://byrongreen.signalwire.com');
+  });
+});

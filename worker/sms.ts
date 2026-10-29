@@ -55,9 +55,15 @@ async function hmac(secret: string, data: string): Promise<string> {
 /** The key in SignalWire's addresses. */
 export const webhookKey = (env: Env) => hmac(env.APP_PASSWORD ?? '', 'webhook');
 
-function swBase(env: Env): string {
-  const space = (env.SW_SPACE ?? '').trim().replace(/\/+$/, '');
-  return /^https?:\/\//.test(space) ? space : `https://${space}`;
+/** "byrongreen.signalwire.com", "https://byrongreen.signalwire.com/dashboard/…" → "https://byrongreen.signalwire.com". */
+export function swBase(env: Pick<Env, 'SW_SPACE'>): string {
+  const raw = (env.SW_SPACE ?? '').trim();
+  try {
+    const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    return u.hostname === '127.0.0.1' ? u.origin : `https://${u.hostname}`;
+  } catch {
+    return `https://${raw}`;
+  }
 }
 
 /** Find the customer with this number (main or other phone). */
@@ -100,16 +106,25 @@ export async function sendSms(request: Request, env: Env, origin: string): Promi
   const form = new URLSearchParams({ From: `+1${digits(env.SMS_FROM!)}`, To: `+1${to}`, Body: body, StatusCallback: `${origin}/sms/status?k=${key}` });
   let res: Response;
   try {
-    res = await fetch(`${swBase(env)}/api/laml/2010-04-01/Accounts/${env.SW_PROJECT_ID}/Messages.json`, {
+    res = await fetch(`${swBase(env)}/api/laml/2010-04-01/Accounts/${env.SW_PROJECT_ID!.trim()}/Messages.json`, {
       method: 'POST',
-      headers: { Authorization: `Basic ${btoa(`${env.SW_PROJECT_ID}:${env.SW_API_TOKEN}`)}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form,
+      headers: { Authorization: `Basic ${btoa(`${env.SW_PROJECT_ID!.trim()}:${env.SW_API_TOKEN!.trim()}`)}`, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: form.toString(),
     });
   } catch (e) {
     return json(502, { error: `Couldn't reach SignalWire: ${(e as Error).message}` });
   }
-  const out = (await res.json().catch(() => ({}))) as { sid?: string; status?: string; message?: string; code?: number; error_message?: string };
-  if (!res.ok || !out.sid) return json(502, { error: `SignalWire didn't send it: ${out.message ?? out.error_message ?? `error ${res.status}`}${out.code ? ` (code ${out.code})` : ''}` });
+  const raw = await res.text();
+  let out: { sid?: string; status?: string; message?: string; code?: number; error_message?: string } = {};
+  try {
+    out = JSON.parse(raw);
+  } catch {
+    /* not JSON: reported below */
+  }
+  if (!res.ok || !out.sid) {
+    const what = out.message ?? out.error_message ?? `answered ${res.status} from ${new URL(res.url || swBase(env)).host}: ${raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140) || 'empty reply'}`;
+    return json(502, { error: `SignalWire didn't send it: ${what}${out.code ? ` (code ${out.code})` : ''}. Check SW_SPACE (just byrongreen.signalwire.com) and SW_PROJECT_ID.` });
+  }
   const row: SmsRow = { id: out.sid, at: new Date().toISOString(), direction: 'OUTBOUND', phone: `+1${to}`, body, customerId: b.customerId ?? null, status: out.status ?? 'queued' };
   await save(env, row);
   return json(200, row);
