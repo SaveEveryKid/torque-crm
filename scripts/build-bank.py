@@ -15,7 +15,7 @@ MATCH = [
  ('RANGER 500','Mid-size RANGER with 28 hp and 1,500-lb towing'),('RANGER SP 570','Mid-size RANGER platform with 570-class power'),('RANGER 1000','Full-size RANGER listed at 61 hp'),('RANGER XP 1000','Full-size RANGER listed at 82 hp'),('RANGER XD 1500','Extreme-duty RANGER using STEELDRIVE'),('RANGER XP KINETIC','Electric RANGER line'),('RZR TRAIL','Narrow trail-oriented RZR branch'),('RZR TRAIL S','Trail S branch of the RZR lineup'),('RZR Pro XP','64-inch, 181-hp RZR platform'),('RZR Pro S','74-inch, 181-hp RZR platform'),('RZR Pro R','Wide-open RZR branch'),('GENERAL 1000','100-hp GENERAL overview model'),('GENERAL XP 1000','100-hp GENERAL with 13.5-inch clearance'),('Sportsman Touring 570','Two-seat ATV branch with passenger seat system'),('Sportsman 850','Recreation/utility ATV branch'),('Scrambler','Sportsman-line sport ATV branch'),('Sportsman X2 570','Special-edition two-rider ATV branch'),('Sportsman 6x6 570','Six-wheel special-edition ATV branch'),('Outlaw 70 EFI','Youth ATV model'),('Outlaw 110 EFI','Youth ATV model'),('Phoenix 200','Youth ATV model'),('RZR 200 EFI','Youth side-by-side model'),('CREW','Longer passenger configuration marker'),('NorthStar','Cab-equipped trim naming used across families'),('Premium','Polaris trim name used in multiple model tables'),('Ultimate','Higher equipment trim in several tables'),
 ]
 BOOK = [
- ('RANGER 1000','Horsepower',61,'hp'),('RANGER XP 1000','Horsepower',82,'hp'),('RZR Pro XP','Horsepower',181,'hp'),('RZR Pro S','Horsepower',181,'hp'),('GENERAL 1000','Horsepower',100,'hp'),('GENERAL XP 1000','Horsepower',100,'hp'),('Sportsman 570','Horsepower',44,'hp'),('RZR Pro XP','Width',64,'in'),('RZR Pro S','Width',74,'in'),('GENERAL 1000','Width',62.5,'in'),('GENERAL XP 1000','Width',64,'in'),('GENERAL 1000','Ground Clearance',12,'in'),('GENERAL XP 1000','Ground Clearance',13.5,'in'),('RZR Pro S','Ground Clearance',16,'in'),('RANGER 500','Towing Capacity',1500,'lb'),('RANGER 500','Cargo Box Capacity',300,'lb'),('RANGER SP 570','Towing Capacity',1500,'lb'),('RANGER 1000','Towing Capacity',2500,'lb'),('RANGER XP 1000','Towing Capacity',2500,'lb'),('RANGER XD 1500','Towing Capacity',3500,'lb'),('RANGER XD 1500','Horsepower',110,'hp'),('RANGER XP KINETIC','Horsepower',110,'hp'),
+ ('RANGER 1000','Horsepower',61,'hp'),('RANGER XP 1000','Horsepower',82,'hp'),('RZR Pro XP','Horsepower',181,'hp'),('RZR Pro S','Horsepower',181,'hp'),('GENERAL 1000','Horsepower',100,'hp'),('GENERAL XP 1000','Horsepower',100,'hp'),('Sportsman 570','Horsepower',44,'hp'),('RZR Pro XP','Width',64,'in'),('RZR Pro S','Width',74,'in'),('GENERAL 1000','Width',62.5,'in'),('GENERAL XP 1000','Width',64,'in'),('GENERAL 1000','Ground Clearance',12,'in'),('GENERAL XP 1000','Ground Clearance',13.5,'in'),('RZR Pro S','Ground Clearance',16,'in'),('RANGER 500','Towing Capacity',1500,'lb'),('RANGER 500','Cargo Box Capacity',500,'lb'),('RANGER SP 570','Towing Capacity',1500,'lb'),('RANGER 1000','Towing Capacity',2500,'lb'),('RANGER XP 1000','Towing Capacity',2500,'lb'),('RANGER XD 1500','Towing Capacity',3500,'lb'),('RANGER XD 1500','Horsepower',110,'hp'),('RANGER XP KINETIC','Horsepower',110,'hp'),
 ]
 
 proper = {x['name'].lower(): x['name'] for x in inv}
@@ -49,7 +49,7 @@ ASK = {
 }
 NUMERIC = {'Horsepower','Displacement','Towing Capacity','Cargo Box Capacity','Ground Clearance','Width','Length','Dry Weight','Load Capacity','Maximum Load Capacity','Power','Cutting Width','Capacity','Seating','Seating Capacity','Fuel Capacity','Fuel Tank Capacity'}
 LABEL = {'Capacity': 'payload capacity', 'Seating': 'seating (how many people)', 'Seating Capacity': 'seating (how many people)', 'Power': 'horsepower', 'Starting': 'starting (electric or manual)', 'Displacement': 'engine size', 'Width': 'width (trail fit)', 'Dry Weight': 'dry weight', 'Maximum Load Capacity': 'max load', 'Load Capacity': 'load capacity'}
-TRIM = re.compile(r'\b(northstar|premium|ultimate|trail boss|edition|mud|light tint|cab|crew|sport|eps|high lifter|hunter|ride command|le|se|ps|camo)\b|-.*$', re.I)
+TRIM = re.compile(r'\b(premium|ultimate|trail boss|edition|light tint|sport|eps|high lifter|hunter|ride command|le|se|ps|camo)\b|-.*$', re.I)
 
 ASKED = {
     'Horsepower': 'How much horsepower does the {t} make?', 'Power': 'How much horsepower does the {t} make?',
@@ -102,6 +102,16 @@ def number(v):
 cards = []
 def add(**c): cards.append(c)
 
+# Corrections checked against polaris.com spec pages (Oct 2026), where the academy data is wrong.
+def corrected(name, field, v):
+    if re.search(r'rzr pro r\b', name) and field == 'Width': return '74 in.'          # 76.5 was its height
+    if re.search(r'ranger 600', name) and field == 'Ground Clearance': return '11 in.'
+    if re.search(r'ranger 600', name) and field == 'Fuel Capacity': return None
+    if re.search(r'rzr 200', name) and field == 'Cargo Box Capacity': return '50 lb.'
+    # Sport RZRs, GENERALs and XPEDITIONs list a steering wheel without saying EPS; that doesn't mean no power steering.
+    if field == 'Steering' and v.startswith('No') and re.search(r'rzr|general|xpedition', name) and not re.search(r'rzr 200', name): return None
+    return v
+
 for f,(name,ans) in enumerate(MATCH):
     add(id=f'line-{f}', cat='Product line', topic=name, kind='type', q=f'Which Polaris family, model or term is this: {ans}?', a=name, field='Product line', why=f'{name} = {ans}.')
 for i,(model,field,val,unit) in enumerate(BOOK):
@@ -116,6 +126,8 @@ for name, d in specs.items():
         if field not in ASK.get(cat, set()): continue
         v = plain(field, clean(raw))
         if not v or len(v) > 70: continue
+        v = corrected(name, field, v)
+        if v is None: continue
         n = number(v) if field in NUMERIC else None
         if field in NUMERIC and n is None: continue
         if field in ('Seating', 'Seating Capacity'):
@@ -134,9 +146,16 @@ for name, d in specs.items():
         key = (base.lower(), field, v.lower())
         m = merged.setdefault(key, {'models': [], 'cat': cat, 'field': field, 'v': v, 'n': n, 'src': d.get('source')})
         m['models'].append(model)
+trims = {}
+for (base, field, _), m in merged.items(): trims.setdefault((base, field), set()).update(m['models'])
 for (base, field, _), m in merged.items():
     models = sorted(set(m['models']), key=len)
-    topic = models[0] if len(models) == 1 else re.sub(r'\s+', ' ', TRIM.sub('', models[0])).strip() + ' (every trim)'
+    stem = re.sub(r'\s+', ' ', TRIM.sub('', models[0])).strip()
+    if len(models) == 1: topic = models[0]
+    elif set(models) == trims[(base, field)]: topic = stem + ' (every trim)'
+    else:
+        names = sorted({re.sub(r'\s+', ' ', re.sub(r'\s*-.*$', '', x[len(stem):])).strip() or 'base' for x in models if x.lower().startswith(stem.lower())})
+        topic = stem + ' (' + ', '.join(names[:3]) + (', …' if len(names) > 3 else '') + ')' if len(names) == len(models) else stem + ' (some trims)'
     label = LABEL.get(field, field.lower())
     add(id=f'spec-{base}-{field}-{m["v"]}', cat=m['cat'], topic=topic, kind='type' if m['n'] is not None else 'choice', q=ASKED.get(field + (' Polaris' if m['cat'] == 'Polaris' and field == 'Length' else ''), ASKED.get(field, 'What is the {l} of the {t}?')).format(t=topic, l=label), a=m['v'], **({'num': m['n']} if m['n'] is not None else {}), field=field, why=f'{topic}: {label} {m["v"].rstrip(".")}.' + (f' Same on: {", ".join(models[1:4])}{"…" if len(models) > 4 else ""}.' if len(models) > 1 else ''), src=m['src'])
 

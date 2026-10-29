@@ -129,6 +129,16 @@ describe('no data glitches in the answers', () => {
     for (const c of bank.filter((x) => x.field === 'Towing Capacity')) expect(c.a).not.toMatch(/winch/i);
     for (const c of bank.filter((x) => x.num !== undefined && x.field !== 'Length')) expect(c.a.length).toBeLessThan(20);
   });
+
+  it('Crew and Cab numbers never land on the plain model; Polaris-checked fixes hold', () => {
+    const card = (topic: string, field: string) => bank.filter((c) => c.topic === topic && c.field === field).map((c) => c.a);
+    expect(card('2027 Polaris Ranger 1000 (every trim)', 'Length')).toEqual(['120 in.']);
+    expect(card('2027 Polaris Ranger 1000 (every trim)', 'Capacity')).toEqual(['1,500 lb.']);
+    expect(card('2027 Polaris Ranger 600', 'Ground Clearance')).toEqual(['11 in.']);
+    expect(card('2026 Polaris RZR Pro R 4 Ultimate', 'Width')).toEqual(['74 in.']);
+    expect(card('2026 Polaris RZR 200 EFI', 'Cargo Box Capacity')).toEqual(['50 lb.']);
+    expect(bank.some((c) => c.topic.includes('every trim') && c.field === 'Width' && /Ranger XP 1000 \(/.test(c.topic) && c.a === '65 in.')).toBe(false);
+  });
 });
 
 import { LEARN_RUN, Trainer, type CardState as CS } from '../src/training/engine';
