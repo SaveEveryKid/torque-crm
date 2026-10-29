@@ -73,7 +73,14 @@ export function toRecord(c: Customer, me: string): CustomerRecord {
       showroomStatus: null,
       salesSteps: [],
     },
-    crmAiSummary: c.notes ? `Salesperson's notes: ${c.notes}` : null,
+    crmAiSummary:
+      [
+        c.notes && `Salesperson's notes: ${c.notes}`,
+        c.needs && `What they want it for: ${[c.needs.use, c.needs.tags.join(', '), c.needs.riders && `riders: ${c.needs.riders}`].filter(Boolean).join('; ')}`,
+        c.match?.picks.length && `Units suggested to them: ${c.match.picks.map((p) => p.v.title).join('; ')}`,
+      ]
+        .filter(Boolean)
+        .join('\n') || null,
     crmAiSummaryUpdated: null,
     scheduled: c.tasks
       .filter((t) => !t.done)

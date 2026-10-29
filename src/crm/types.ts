@@ -78,6 +78,10 @@ export interface Customer {
   notes: string;
   doNotText: boolean;
   doNotContact: boolean;
+  /** The desk interview: what they'll use it for (Find the right unit). */
+  needs?: { use: string; tags: string[]; riders: string; budget: string } | null;
+  /** The 3 units Claude suggested from inventory. */
+  match?: { at: string; summary: string; picks: { v: VehicleRef; reason: string; inStock: number }[] } | null;
   /** When you last looked at their texts (for "unread"). */
   textsReadAt?: string | null;
   createdAt: string;

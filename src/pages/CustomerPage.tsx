@@ -19,6 +19,7 @@ import {
 import { STAGES, STAGE_LABEL, TASK_LABEL, type Activity, type Customer, type Stage, type Task, type TaskKind } from '../crm/types';
 import { CustomerForm } from '../ui/CustomerForm';
 import { DraftPanel } from '../ui/DraftPanel';
+import { UnitFinder } from '../ui/UnitFinder';
 import { loadStatus, smsReady, smsSetup } from '../crm/server';
 import { quietHours, sendText, statusLabel, unreadCount, useSms } from '../crm/sms';
 import { InventoryPicker } from './Inventory';
@@ -31,7 +32,7 @@ export function CustomerPage({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [picking, setPicking] = useState(false);
   const [callError, setCallError] = useState<string | null>(null);
-  const [texting, setTexting] = useState(false);
+  const [texting, setTexting] = useState<false | string>(false);
   const sms = useSms();
   // Opening a customer marks their texts as read.
   useEffect(() => {
@@ -88,7 +89,7 @@ export function CustomerPage({ id }: { id: string }) {
             <button className="btn primary" disabled={!c.phone || c.doNotContact} onClick={call} title={aiReady() ? 'Call through your dialer' : 'Practice call (set up the dialer in Settings for real calls)'}>
               <Icon name="phone" size={16} /> Call
             </button>
-            <button className="btn primary" onClick={() => setTexting(true)} title="Text from your SignalWire number">
+            <button className="btn primary" onClick={() => setTexting('')} title="Text from your SignalWire number">
               <Icon name="text" size={16} /> Text
             </button>
             {c.email && (
@@ -189,11 +190,12 @@ export function CustomerPage({ id }: { id: string }) {
               <Icon name="trash" size={14} /> Delete customer
             </button>
           </section>
+          <UnitFinder customer={c} onText={(body) => setTexting(body)} />
         </div>
       </div>
 
       {editing && <CustomerForm customer={c} onClose={() => setEditing(false)} />}
-      {texting && <QuickText customer={c} onClose={() => setTexting(false)} />}
+      {texting !== false && <QuickText customer={c} initial={texting} onClose={() => setTexting(false)} />}
       {picking && (
         <InventoryPicker
           onClose={() => setPicking(false)}
@@ -563,8 +565,8 @@ function AppointmentText({ customer: c, task, onClose }: { customer: Customer; t
 }
 
 /** TEXT button: type and send one text from your SignalWire number. */
-function QuickText({ customer: c, onClose }: { customer: Customer; onClose: () => void }) {
-  const [text, setText] = useState('');
+function QuickText({ customer: c, initial = '', onClose }: { customer: Customer; initial?: string; onClose: () => void }) {
+  const [text, setText] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Re-check the texting setup now (settings added on Cloudflare since the app opened).

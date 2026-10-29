@@ -450,3 +450,10 @@ table.table { width: 100%; border-collapse: collapse; }
 .ep-num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--hover); font-weight: 700; flex: none; }
 .list-item.on-ep { background: var(--accent-soft); }
 @media (max-width: 1100px) { .boot-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- find the right unit ---------- */
+.unit-finder { border-color: rgba(242, 100, 25, 0.35); }
+.match { display: flex; gap: 12px; padding: 10px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); }
+.match img, .match .noimg { width: 92px; height: 70px; object-fit: cover; border-radius: 8px; flex: none; background: var(--hover); }
+.match .noimg { display: grid; place-items: center; font-weight: 800; color: var(--muted); }
+.match .title { font-weight: 600; line-height: 1.3; }

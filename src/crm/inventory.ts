@@ -82,13 +82,18 @@ export interface SearchParams {
   page: number;
   index: string;
   filters: Record<string, string>;
+  /** Default 24 (a page of cards). */
+  perPage?: number;
+  /** Only these fields (smaller answers when loading everything). */
+  fields?: string[];
 }
 
 async function algolia(cfg: SearchConfig, p: SearchParams): Promise<Response> {
   const facetFilters = Object.entries(p.filters)
     .filter(([, v]) => v)
     .map(([k, v]) => `${k}:${v}`);
-  const params = new URLSearchParams({ query: p.query, page: String(p.page), hitsPerPage: '24', facets: JSON.stringify(['*']), maxValuesPerFacet: '50' });
+  const params = new URLSearchParams({ query: p.query, page: String(p.page), hitsPerPage: String(p.perPage ?? 24), facets: JSON.stringify(['*']), maxValuesPerFacet: '50' });
+  if (p.fields) params.set('attributesToRetrieve', JSON.stringify(p.fields));
   if (facetFilters.length) params.set('facetFilters', JSON.stringify(facetFilters));
   return fetch(`https://${cfg.appId}-dsn.algolia.net/1/indexes/${encodeURIComponent(p.index || cfg.index)}/query`, {
     method: 'POST',
@@ -108,6 +113,21 @@ export async function searchInventory(path: string, p: SearchParams): Promise<Se
   if (!res.ok) throw new Error(`Inventory search failed (${res.status}).`);
   const body = (await res.json()) as Partial<SearchResult>;
   return { hits: body.hits ?? [], nbHits: body.nbHits ?? 0, page: body.page ?? 0, nbPages: body.nbPages ?? 0, facets: body.facets ?? {} };
+}
+
+/** Everything in stock (a few big pages), kept for 15 minutes. */
+let everything: { at: number; units: Unit[] } | null = null;
+const LIST_FIELDS = ['objectID', 'Year', 'Manufacturer', 'ProductName', 'ProductType', 'ProductCategory', 'Condition', 'IsUsed', 'Price', 'TotalPrice', 'SalePrice', 'Msrp', 'StockNumber', 'PhotoUrl', 'ShowroomUrl', 'Color', 'DealershipName', 'Odometer', 'HasOdometer', 'Specs', 'IndustryNameLists'];
+export async function allUnits(path: string): Promise<Unit[]> {
+  if (everything && Date.now() - everything.at < 15 * 60_000) return everything.units;
+  const hits: Hit[] = [];
+  for (let page = 0; page < 10; page++) {
+    const r = await searchInventory(path, { query: '', page, index: '', filters: {}, perPage: 200, fields: LIST_FIELDS });
+    hits.push(...r.hits);
+    if (page + 1 >= r.nbPages) break;
+  }
+  everything = { at: Date.now(), units: hits.map(readUnit) };
+  return everything.units;
 }
 
 /* ---------- reading a unit (field names vary by site: look for each one several ways) ---------- */
