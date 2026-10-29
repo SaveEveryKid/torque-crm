@@ -40,14 +40,14 @@ def category(name):
 
 # What customers actually ask about, by product line (the rest can be looked up later).
 ASK = {
-    'Polaris': {'Horsepower', 'Towing Capacity', 'Cargo Box Capacity', 'Capacity', 'Seating', 'Displacement', 'Width', 'Ground Clearance'},
-    'Boats': {'Seating Capacity', 'Seating', 'Power', 'Horsepower', 'Length', 'Dry Weight', 'Maximum Load Capacity', 'Load Capacity'},
+    'Polaris': {'Horsepower', 'Towing Capacity', 'Cargo Box Capacity', 'Capacity', 'Seating', 'Displacement', 'Width', 'Ground Clearance', 'Steering', 'Transmission', 'Warranty', 'Fuel Capacity', 'Length'},
+    'Boats': {'Seating Capacity', 'Seating', 'Power', 'Horsepower', 'Length', 'Dry Weight', 'Maximum Load Capacity', 'Load Capacity', 'Hull Material', 'Hull Shape', 'Fuel Tank Capacity'},
     'Mercury': {'Power', 'Horsepower', 'Dry Weight', 'Starting', 'Displacement'},
-    'Mowers': {'Cutting Width', 'Horsepower', 'Engine Make', 'Power'},
+    'Mowers': {'Cutting Width', 'Horsepower', 'Engine Make', 'Power', 'Deck Construction', 'Starting', 'Warranty'},
     'Trailers': {'Load Capacity', 'Capacity', 'Maximum Load Capacity'},
     'Equipment': {'Horsepower', 'Power', 'Displacement', 'Capacity'},
 }
-NUMERIC = {'Horsepower','Displacement','Towing Capacity','Cargo Box Capacity','Ground Clearance','Width','Length','Dry Weight','Load Capacity','Maximum Load Capacity','Power','Cutting Width','Capacity','Seating','Seating Capacity'}
+NUMERIC = {'Horsepower','Displacement','Towing Capacity','Cargo Box Capacity','Ground Clearance','Width','Length','Dry Weight','Load Capacity','Maximum Load Capacity','Power','Cutting Width','Capacity','Seating','Seating Capacity','Fuel Capacity','Fuel Tank Capacity'}
 LABEL = {'Capacity': 'payload capacity', 'Seating': 'seating (how many people)', 'Seating Capacity': 'seating (how many people)', 'Power': 'horsepower', 'Starting': 'starting (electric or manual)', 'Displacement': 'engine size', 'Width': 'width (trail fit)', 'Dry Weight': 'dry weight', 'Maximum Load Capacity': 'max load', 'Load Capacity': 'load capacity'}
 TRIM = re.compile(r'\b(northstar|premium|ultimate|trail boss|edition|mud|light tint|cab|crew|sport|eps|high lifter|hunter|ride command|le|se|ps|camo)\b|-.*$', re.I)
 
@@ -55,11 +55,23 @@ ASKED = {
     'Horsepower': 'How much horsepower does the {t} make?', 'Power': 'How much horsepower does the {t} make?',
     'Towing Capacity': 'How much can the {t} tow?', 'Cargo Box Capacity': "How much does the {t}'s cargo box hold?",
     'Capacity': 'What is the total payload of the {t}?', 'Seating': 'How many people does the {t} seat?', 'Seating Capacity': 'How many people does the {t} seat?',
-    'Displacement': 'What is the engine size (cc) of the {t}?', 'Width': 'How wide is the {t}? (Will it fit the trail?)',
+    'Displacement': 'What is the engine size (cc) of the {t}?', 'Length Polaris': 'How long is the {t}? (Garage, truck bed or trailer fit)', 'Width': 'How wide is the {t}? (Will it fit the trail?)',
     'Ground Clearance': 'How much ground clearance does the {t} have?', 'Length': 'How long is the {t}?', 'Dry Weight': 'How much does the {t} weigh (dry)?',
     'Starting': 'Is the {t} electric start or manual?', 'Cutting Width': 'How wide does the {t} cut?', 'Engine Make': 'Whose engine is in the {t}?',
     'Maximum Load Capacity': 'How much can the {t} carry (max load)?', 'Load Capacity': 'How much can the {t} carry?',
+    'Steering': 'Does the {t} have power steering?', 'Transmission': 'What kind of transmission does the {t} have?',
+    'Warranty': "What's the factory warranty on the {t}?", 'Fuel Capacity': 'How much gas does the {t} hold?', 'Fuel Tank Capacity': 'How much gas does the {t} hold?',
+    'Hull Material': 'Is the {t} aluminum or fiberglass?', 'Hull Shape': 'Is the {t} a pontoon or a V-hull?', 'Deck Construction': 'Is the deck on the {t} stamped or fabricated?',
 }
+# Long spec text → the answer a customer needs.
+def plain(field, v):
+    if field == 'Steering': return 'Yes, power steering (EPS)' if re.search(r'power steering|\bEPS\b', v, re.I) else 'No power steering'
+    if field == 'Transmission': return 'STEELDRIVE automatic (sealed, steel belt)' if 'STEELDRIVE' in v.upper() else 'Automatic PVT (belt), with high/low range'
+    if field == 'Warranty': return re.split(r'(?<=[a-z.])(?=[A-Z])', re.sub(r'^Residential( / [A-Za-z ]+)* - ', 'Residential ', v))[0]
+    if field == 'Hull Shape': return {'Modified Vee': 'V-hull (modified vee)'}.get(v, v)
+    if field == 'Deck Construction': return re.split(r'(?<=[a-z.])(?=[A-Z])', v)[0].split(',')[0].strip().capitalize()
+    if field == 'Starting': return 'Electric' if 'electric' in v.lower() else v
+    return v
 
 def clean(v):
     v = re.sub(r'\s*\([^)]*\b(cm|kg|l|mm|kw|m)\)', '', v)       # drop metric in parentheses
@@ -89,7 +101,7 @@ for name, d in specs.items():
     model, cat = title(name), category(name)
     for field, raw in d['facts']:
         if field not in ASK.get(cat, set()): continue
-        v = clean(raw)
+        v = plain(field, clean(raw))
         if not v or len(v) > 70: continue
         n = number(v) if field in NUMERIC else None
         if field in NUMERIC and n is None: continue
@@ -104,12 +116,24 @@ for (base, field, _), m in merged.items():
     models = sorted(set(m['models']), key=len)
     topic = models[0] if len(models) == 1 else re.sub(r'\s+', ' ', TRIM.sub('', models[0])).strip() + ' (every trim)'
     label = LABEL.get(field, field.lower())
-    add(id=f'spec-{base}-{field}-{m["v"]}', cat=m['cat'], topic=topic, kind='type' if m['n'] is not None else 'choice', q=ASKED.get(field, 'What is the {l} of the {t}?').format(t=topic, l=label), a=m['v'], **({'num': m['n']} if m['n'] is not None else {}), field=field, why=f'{topic}: {label} {m["v"].rstrip(".")}.' + (f' Same on: {", ".join(models[1:4])}{"…" if len(models) > 4 else ""}.' if len(models) > 1 else ''), src=m['src'])
+    add(id=f'spec-{base}-{field}-{m["v"]}', cat=m['cat'], topic=topic, kind='type' if m['n'] is not None else 'choice', q=ASKED.get(field + (' Polaris' if m['cat'] == 'Polaris' and field == 'Length' else ''), ASKED.get(field, 'What is the {l} of the {t}?')).format(t=topic, l=label), a=m['v'], **({'num': m['n']} if m['n'] is not None else {}), field=field, why=f'{topic}: {label} {m["v"].rstrip(".")}.' + (f' Same on: {", ".join(models[1:4])}{"…" if len(models) > 4 else ""}.' if len(models) > 1 else ''), src=m['src'])
 
+# Colors: "What colors does it come in?"
+def model_of(r):
+    v = r['variant']
+    return re.split(r' - (?=[A-Z][a-z])', v)[0].strip() if ' - ' in v else v
+colors = {}
 for r in catalog['rows']:
-    label = r['variant'] + (f" ({r['color']})" if r.get('color') and r['color'].lower() not in r['variant'].lower() else '')
-    if r.get('msrp'):
-        add(id=f"cat-msrp-{r['id']}", cat='MY27 pricing', topic=r['family'], kind='choice', q=f'2027 price sheet: what is the MSRP of the {label}?', a=f"${r['msrp']:,}", num=r['msrp'], field='MSRP ' + r['family'], why=f"{label}: ${r['msrp']:,} MSRP" + (f" plus ${r['freight']:,} freight" if r.get('freight') else '') + ' on the MY27 price sheet. Prices change; check the current sheet before quoting.')
+    col = r.get('color') or (r['variant'].split(' - ', 1)[1] if ' - ' in r['variant'] else '')
+    if not col: continue
+    colors.setdefault((r['family'], model_of(r)), set()).add(col.strip())
+family_colors = {}
+for (fam, _), cs in colors.items(): family_colors.setdefault(fam, set()).update(cs)
+for (fam, model), cs in colors.items():
+    others = sorted(family_colors[fam] - cs)
+    if len(others) < 2: continue
+    for col in sorted(cs):
+        add(id=f'color-{model}-{col}', cat='Colors', topic=model, kind='choice', q=f'Which of these colors does the 2027 {model} come in?', a=col, field='Color ' + fam, why=f"The 2027 {model} comes in: {', '.join(sorted(cs))}.", wrong=others[:12])
 
 for l in lessons:
     add(id=f"lesson-{l['id']}", cat='Lessons', topic=l['title'], kind='flash', q=l['recall'], a=l['answer'], field='Lesson', why=' '.join([l['hook'] + '.'] + l.get('points', [])), src=l.get('source'))

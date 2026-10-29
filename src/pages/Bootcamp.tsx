@@ -48,7 +48,7 @@ function useProgress(): [Progress, (cards: Record<string, CardState>, stats: Sta
   return [p, save];
 }
 
-const CAT_ICON: Record<string, string> = { Polaris: '🏁', 'MY27 pricing': '🏷️', Boats: '🚤', Mercury: '⚙️', Mowers: '🌱', Lessons: '📘', 'Product line': '🧭', Trailers: '🛻', Equipment: '🔧' };
+const CAT_ICON: Record<string, string> = { Polaris: '🏁', Colors: '🎨', Boats: '🚤', Mercury: '⚙️', Mowers: '🌱', Lessons: '📘', 'Product line': '🧭', Trailers: '🛻', Equipment: '🔧' };
 
 export function Bootcamp() {
   const bank = useBank();

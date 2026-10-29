@@ -20,6 +20,8 @@ export interface Card {
   field: string;
   why: string;
   src?: string;
+  /** Wrong choices to use (e.g. the family's other colors). */
+  wrong?: string[];
 }
 
 export interface CardState {
@@ -113,8 +115,8 @@ export function questionFor(card: Card, state: CardState | undefined, bank: Card
     }
   }
   if (card.kind === 'type' && box >= 2) return { format: 'type', card };
-  const wrong = distractors(card, bank, rnd);
-  if (wrong.length < 2) return card.kind === 'type' ? { format: 'type', card } : { format: 'flash', card };
+  const wrong = card.wrong?.length ? shuffle(card.wrong, rnd).slice(0, 3) : distractors(card, bank, rnd);
+  if (wrong.length < 1) return card.kind === 'type' ? { format: 'type', card } : { format: 'flash', card };
   const options = shuffle([card.a, ...wrong], rnd);
   return { format: 'choice', card, options, correct: options.indexOf(card.a) };
 }

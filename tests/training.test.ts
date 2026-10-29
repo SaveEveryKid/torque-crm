@@ -23,10 +23,12 @@ const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 describe('the question bank', () => {
   it('covers the whole store, and every card has a question and an answer', () => {
     expect(bank.length).toBeGreaterThan(600);
-    for (const cat of ['Polaris', 'Boats', 'Mercury', 'Mowers', 'MY27 pricing', 'Lessons', 'Product line']) expect(bank.some((c) => c.cat === cat)).toBe(true);
+    for (const cat of ['Polaris', 'Boats', 'Mercury', 'Mowers', 'Colors', 'Lessons', 'Product line']) expect(bank.some((c) => c.cat === cat)).toBe(true);
     for (const c of bank) expect(c.q && c.a && c.id).toBeTruthy();
     expect(new Set(bank.map((c) => c.id)).size).toBe(bank.length);
     expect(bank.some((c) => /Polaris Polaris|1 people/.test(c.q + c.a))).toBe(false);
+    // No price questions: customers ask about the machine, not the sticker.
+    expect(bank.some((c) => /MSRP|price/i.test(c.q) || /^\$/.test(c.a))).toBe(false);
   });
 });
 
@@ -101,5 +103,18 @@ describe('multiple choice', () => {
       const keys = q.options.map((o) => o.toLowerCase().replace(/[^a-z0-9]+/g, ''));
       expect(new Set(keys).size).toBe(keys.length);
     }
+  });
+});
+
+describe('customer questions', () => {
+  it('colors use the family\'s other colors as wrong answers; yes/no questions get two choices', () => {
+    const color = bank.find((c) => c.cat === 'Colors')!;
+    const q = questionFor(color, undefined, bank, rnd);
+    expect(q.format).toBe('choice');
+    if (q.format === 'choice') expect(q.options.filter((o) => o !== color.a).every((o) => color.wrong!.includes(o))).toBe(true);
+    const steer = bank.find((c) => c.field === 'Steering')!;
+    const s = questionFor(steer, undefined, bank, rnd);
+    expect(s.format).toBe('choice');
+    if (s.format === 'choice') expect(s.options.sort()).toEqual(['No power steering', 'Yes, power steering (EPS)']);
   });
 });
