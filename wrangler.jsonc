@@ -8,6 +8,9 @@
   // Without it Cloudflare blocks Worker-to-Worker calls on workers.dev (error 1042).
   "compatibility_flags": ["global_fetch_strictly_public"],
   "observability": { "enabled": true },
+  // Keep the variables you add in the Cloudflare dashboard when a new version deploys
+  // (without this, every deploy deletes plain-text variables; secrets are always kept).
+  "keep_vars": true,
   // The app (vite build → dist). /api/* and /dealer/* go to the Worker first.
   "assets": {
     "directory": "./dist",
