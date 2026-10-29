@@ -122,7 +122,7 @@ describe('customer questions', () => {
 describe('no data glitches in the answers', () => {
   it('seating is believable (no "33 people"), towing is never a winch rating, numbers are short', () => {
     for (const c of bank.filter((x) => x.field === 'Seating')) expect(c.num!).toBeLessThanOrEqual(9);
-    expect(bank.find((c) => c.q.includes('Ranger 1000 Cab seat'))?.a).toBe('3 people');
+    expect(bank.find((c) => c.q.includes('2027 Polaris Ranger 1000 (every trim) seat'))?.a).toBe('3 people');
     for (const c of bank.filter((x) => x.field === 'Towing Capacity')) expect(c.a).not.toMatch(/winch/i);
     for (const c of bank.filter((x) => x.num !== undefined && x.field !== 'Length')) expect(c.a.length).toBeLessThan(20);
   });
