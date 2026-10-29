@@ -6,6 +6,7 @@ import { unreadCount, useSms, useTextInbox, type SmsRow } from './crm/sms';
 import { Texts } from './pages/Texts';
 import { Bootcamp } from './pages/Bootcamp';
 import { CustomerForm } from './ui/CustomerForm';
+import { UpdateBanner } from './ui/UpdateBanner';
 import { daysFromToday, go, Icon, StageBadge, useRoute } from './ui/kit';
 import { Today } from './pages/Today';
 import { Customers } from './pages/Customers';
@@ -108,6 +109,7 @@ export function App() {
           </span>
         </button>
       )}
+      <UpdateBanner />
       {adding && <CustomerForm onClose={() => setAdding(false)} onSaved={(c) => go(`customers/${c.id}`)} />}
     </div>
   );
