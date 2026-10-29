@@ -39,9 +39,12 @@ describe('spaced repetition', () => {
     s = grade(s, true, T);
     s = grade(s, true, T);
     expect(s.box).toBe(3);
-    expect(s.due).toBe(addDays(T, 4));
+    expect(s.due).toBe(addDays(T, 1)); // still learning: 3 right in a row isn't 5
+    s = grade(grade(s, true, T), true, T);
+    expect(s.learned).toBe(true);
+    expect(s.due).toBe(addDays(T, 14)); // learned: the spaced schedule
     s = grade(s, false, T);
-    expect(s).toMatchObject({ box: 1, due: addDays(T, 1), misses: 1 });
+    expect(s).toMatchObject({ box: 1, due: addDays(T, 1), misses: 1, run: 0 });
   });
 
   it('a daily session is what is due (most-missed first) plus new facts from your focus', () => {
@@ -125,5 +128,50 @@ describe('no data glitches in the answers', () => {
     expect(bank.find((c) => c.q.includes('2027 Polaris Ranger 1000 (every trim) seat'))?.a).toBe('3 people');
     for (const c of bank.filter((x) => x.field === 'Towing Capacity')) expect(c.a).not.toMatch(/winch/i);
     for (const c of bank.filter((x) => x.num !== undefined && x.field !== 'Length')) expect(c.a.length).toBeLessThan(20);
+  });
+});
+
+import { LEARN_RUN, Trainer, type CardState as CS } from '../src/training/engine';
+describe('the learning loop', () => {
+  const play = (t: Trainer, store: Record<string, CS>, answerFor: (c: Card) => boolean, turns: number) => {
+    const seen: string[] = [];
+    for (let k = 0; k < turns; k++) {
+      const c = t.next();
+      if (!c) break;
+      const ok = answerFor(c);
+      store[c.id] = grade(store[c.id], ok, T);
+      t.answered(c, ok, store[c.id]);
+      seen.push(c.id);
+    }
+    return seen;
+  };
+
+  it('a missed fact keeps coming back until it is right 5 times in a row, then a new fact takes its place', () => {
+    const store: Record<string, CS> = {};
+    const t = new Trainer(bank, () => store, { today: T, size: 4, rnd });
+    const first = [...t.working];
+    const hard = first[0];
+    let missesLeft = 3; // miss the hard one 3 times, everything else right
+    const seen = play(t, store, (c) => !(c.id === hard && missesLeft-- > 0), 80);
+    expect(store[hard].run).toBeGreaterThanOrEqual(LEARN_RUN);
+    expect(store[hard].learned).toBe(true);
+    // The hard fact came back often, never twice in a row.
+    expect(seen.filter((id) => id === hard).length).toBeGreaterThanOrEqual(3 + LEARN_RUN);
+    for (let k = 1; k < seen.length; k++) if (t.working.length > 1) expect(seen[k] === seen[k - 1] && seen[k] === hard).toBe(false);
+    // New facts kept arriving.
+    expect(t.learnedNow.length).toBeGreaterThanOrEqual(4);
+    expect(new Set(seen).size).toBeGreaterThan(first.length);
+    expect(t.working).toHaveLength(4);
+  });
+
+  it('a miss resets the run; learned facts come back on the spaced schedule', () => {
+    let s = grade(undefined, true, T);
+    for (let k = 0; k < 3; k++) s = grade(s, true, T);
+    expect(s.run).toBe(4);
+    s = grade(s, false, T);
+    expect(s.run).toBe(0);
+    for (let k = 0; k < 5; k++) s = grade(s, true, T);
+    expect(s.learned).toBe(true);
+    expect(s.due > addDays(T, 1)).toBe(true);
   });
 });

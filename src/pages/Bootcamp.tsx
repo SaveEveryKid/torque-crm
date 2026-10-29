@@ -4,7 +4,9 @@ import { useStoredKey } from '../crm/store';
 import {
   DAILY_GOAL,
   EMPTY_PROGRESS,
-  MASTERED,
+  LEARN_RUN,
+  Trainer,
+  inProgress,
   buildSession,
   checkTyped,
   currentStreak,
@@ -48,15 +50,17 @@ function useProgress(): [Progress, (cards: Record<string, CardState>, stats: Sta
   return [p, save];
 }
 
-const CAT_ICON: Record<string, string> = { Polaris: '🏁', Colors: '🎨', Boats: '🚤', Mercury: '⚙️', Mowers: '🌱', Lessons: '📘', 'Product line': '🧭', Trailers: '🛻', Equipment: '🔧' };
+const CAT_ICON: Record<string, string> = { Polaris: '🏁', Colors: '🎨', Compare: '⚖️', Boats: '🚤', Mercury: '⚙️', Mowers: '🌱', Lessons: '📘', 'Product line': '🧭', Trailers: '🛻', Equipment: '🔧' };
 
 export function Bootcamp() {
   const bank = useBank();
   const [p, save] = useProgress();
-  const [run, setRun] = useState<{ mode: Mode; cards: Card[]; category?: string } | null>(null);
+  // A new key each start: "Keep going" gets a fresh session instead of the finished one.
+  const [run, setRun] = useState<{ mode: Mode; category?: string; key: number } | null>(null);
   if (!bank) return <div className="page"><p className="muted">Loading the bootcamp…</p></div>;
-  if (run) return <Play bank={bank} p={p} save={save} run={run} onExit={() => setRun(null)} onAgain={() => setRun({ ...run, cards: buildSession(run.mode, bank, p, dayOf(), Math.random, run.category) })} />;
-  return <Home bank={bank} p={p} save={save} start={(mode, category) => setRun({ mode, category, cards: buildSession(mode, bank, p, dayOf(), Math.random, category) })} />;
+  const start = (mode: Mode, category?: string) => setRun({ mode, category, key: Date.now() });
+  if (run) return <Play key={run.key} bank={bank} p={p} save={save} run={run} onExit={() => setRun(null)} onAgain={() => start(run.mode, run.category)} />;
+  return <Home bank={bank} p={p} save={save} start={start} />;
 }
 
 /* ---------- home ---------- */
@@ -67,10 +71,11 @@ function Home({ bank, p, save, start }: { bank: Card[]; p: Progress; save: (c: R
   const done = p.days[today] ?? 0;
   const due = dueCards(bank, p, today).length;
   const seen = Object.keys(p.cards).length;
-  const mastered = Object.values(p.cards).filter((s) => s.box >= MASTERED).length;
-  const weak = bank.filter((c) => (p.cards[c.id]?.misses ?? 0) > 0).length;
+    const weak = bank.filter((c) => (p.cards[c.id]?.misses ?? 0) > 0).length;
   const cats = mastery(bank, p);
-  const sessionSize = Math.min(30, due) + Math.min(p.newPerDay, bank.length - seen);
+  const learning = bank.filter((c) => inProgress(p.cards[c.id])).length;
+  const learned = bank.filter((c) => p.cards[c.id]?.learned).length;
+  const sessionSize = learning + due + (bank.length - seen);
   const { cards: _c, ...stats } = p;
   const setStats = (patch: Partial<Stats>) => save(p.cards, { ...stats, ...patch });
 
@@ -105,10 +110,10 @@ function Home({ bank, p, save, start }: { bank: Card[]; p: Progress; save: (c: R
           </div>
         </div>
         <button className="btn primary boot-go" disabled={!sessionSize} onClick={() => start('daily')}>
-          <Icon name="sparkle" /> {done ? "Keep going: today's bootcamp" : "Start today's bootcamp"} · {sessionSize} questions
+          <Icon name="sparkle" /> {done ? 'Keep learning' : "Start today's bootcamp"}
         </button>
         <p className="muted small boot-sub">
-          {due} reviews due · {Math.min(p.newPerDay, bank.length - seen)} new facts · {seen.toLocaleString()} of {bank.length.toLocaleString()} facts seen · {mastered.toLocaleString()} mastered
+          {learning} in progress · {due} reviews due · {learned.toLocaleString()} of {bank.length.toLocaleString()} facts learned · {(bank.length - seen).toLocaleString()} still new
         </p>
       </section>
 
@@ -148,7 +153,7 @@ function Home({ bank, p, save, start }: { bank: Card[]; p: Progress; save: (c: R
                   <i className="mastered" style={{ width: `${(c.mastered / c.total) * 100}%` }} />
                 </span>
                 <small className="muted">
-                  {c.mastered} mastered · {c.seen} seen · {c.total} facts
+                  {c.mastered} learned · {c.seen} started · {c.total} facts
                 </small>
               </span>
               <span className="muted">Drill →</span>
@@ -160,8 +165,8 @@ function Home({ bank, p, save, start }: { bank: Card[]; p: Progress; save: (c: R
       <section className="card card-pad stack">
         <h2>Your daily plan</h2>
         <div className="row">
-          <span className="soft small">New facts per day:</span>
-          {[5, 10, 20, 30].map((n) => (
+          <span className="soft small">Facts in rotation at once:</span>
+          {[4, 6, 8, 10].map((n) => (
             <button key={n} className={`chip${p.newPerDay === n ? ' on' : ''}`} onClick={() => setStats({ newPerDay: n })}>
               {n}
             </button>
@@ -183,8 +188,9 @@ function Home({ bank, p, save, start }: { bank: Card[]; p: Progress; save: (c: R
           ))}
         </div>
         <p className="muted small">
-          Each day: your reviews (facts you're about to forget) plus new facts. Get one right and it comes back in 1, 2, 4, 7, 14, 30 then 60 days; miss it and it comes back tomorrow.
-          New facts start as multiple choice; after two right answers you type them from memory. Answer {DAILY_GOAL} a day to keep your streak.
+          You work on a few facts at a time. Miss one and it keeps coming back every few questions until you get it right {LEARN_RUN} times in a row; then it's learned and a new fact
+          takes its place, so you're always moving forward. Learned facts come back later (2, 4, 7, 14, 30, 60 days) so they stick. New facts start as multiple choice; after two right in a
+          row you type them from memory. Answer {DAILY_GOAL} a day to keep your streak.
         </p>
       </section>
     </div>
@@ -192,7 +198,6 @@ function Home({ bank, p, save, start }: { bank: Card[]; p: Progress; save: (c: R
 }
 
 /* ---------- playing ---------- */
-
 function Play({
   bank,
   p,
@@ -204,37 +209,56 @@ function Play({
   bank: Card[];
   p: Progress;
   save: (c: Record<string, CardState>, s: Stats) => void;
-  run: { mode: Mode; cards: Card[]; category?: string };
+  run: { mode: Mode; category?: string };
   onExit: () => void;
   onAgain: () => void;
 }) {
   const speed = run.mode === 'speed';
   const today = dayOf();
-  const [queue, setQueue] = useState(run.cards);
-  const [i, setI] = useState(0);
-  const [requeued] = useState(() => new Set<string>());
+  const live = useRef(p);
+  live.current = p;
+  // Learning modes: the 5-in-a-row loop. Speed: a fixed shuffled stack.
+  const [trainer] = useState(() =>
+    speed
+      ? null
+      : new Trainer(bank, () => live.current.cards, {
+          today,
+          size: Math.max(2, Math.min(12, p.newPerDay || 6)),
+          focus: run.mode === 'daily' ? p.focus : undefined,
+          filter: run.mode === 'category' ? (c) => c.cat === run.category : undefined,
+          noNew: run.mode === 'weak',
+          seed:
+            run.mode === 'weak'
+              ? bank
+                  .filter((c) => (p.cards[c.id]?.misses ?? 0) > 0)
+                  .sort((a, b) => p.cards[b.id].misses - p.cards[a.id].misses)
+                  .slice(0, 15)
+              : undefined,
+        }),
+  );
+  const [stack] = useState(() => (speed ? buildSession('speed', bank, p, today) : []));
+  const [card, setCard] = useState<Card | null>(() => (trainer ? trainer.next() : stack[0] ?? null));
+  const [n, setN] = useState(0);
   const [combo, setCombo] = useState(0);
+  const [bestCombo, setBestCombo] = useState(0);
   const [xp, setXp] = useState(0);
   const [right, setRight] = useState(0);
   const [answered, setAnswered] = useState(0);
-  const [result, setResult] = useState<null | { ok: boolean; picked?: number | string }>(null);
+  const [learnedNow, setLearnedNow] = useState(0);
+  const [result, setResult] = useState<null | { ok: boolean; picked?: number | string; graduated?: boolean; run: number }>(null);
   const [typed, setTyped] = useState('');
   const [flipped, setFlipped] = useState(false);
   const [endsAt] = useState(() => (speed ? Date.now() + 60_000 : 0));
   const [now, setNow] = useState(Date.now());
   const [finished, setFinished] = useState(false);
-  const live = useRef(p);
-  live.current = p;
 
-  const card = queue[i];
   const q: Question | null = useMemo(() => {
     if (!card) return null;
     const qq = questionFor(card, live.current.cards[card.id], bank);
-    // Speed round: tap answers only.
     if (speed && qq.format !== 'choice') return questionFor(card, undefined, bank);
     return qq;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card?.id, i]);
+  }, [card, n]);
 
   useEffect(() => {
     if (!speed || finished) return;
@@ -250,9 +274,8 @@ function Play({
   const finish = () => {
     if (finished) return;
     setFinished(true);
-    const cur = live.current;
-    const { cards, ...stats } = cur;
-    const perfect = answered > 0 && right === answered && !speed;
+    const { cards, ...stats } = live.current;
+    const perfect = answered >= 10 && right === answered && !speed;
     save(cards, {
       ...stats,
       xp: stats.xp + (perfect ? 25 : 0),
@@ -264,41 +287,37 @@ function Play({
   };
 
   const answer = (ok: boolean, picked?: number | string) => {
-    if (result || !q) return;
+    if (result || !q || !card) return;
+    const gained = points(q, ok, combo) + 0;
     const nextCombo = ok ? combo + 1 : 0;
-    const gained = points(q, ok, combo);
     setCombo(nextCombo);
-    setXp((x) => x + gained);
-    setAnswered((n) => n + 1);
-    if (ok) setRight((n) => n + 1);
+    setBestCombo((b) => Math.max(b, nextCombo));
+    setAnswered((x) => x + 1);
+    if (ok) setRight((x) => x + 1);
     const cur = live.current;
     const { cards, ...stats } = cur;
-    const nextCards = speed ? cards : { ...cards, [q.card.id]: grade(cards[q.card.id], ok, today) };
+    const after = grade(cards[card.id], ok, today);
+    const nextCards = speed ? cards : { ...cards, [card.id]: after };
+    const graduated = trainer ? trainer.answered(card, ok, after).graduated : false;
+    const bonus = graduated ? 30 : 0;
+    setXp((x) => x + gained + bonus);
+    if (graduated) setLearnedNow((x) => x + 1);
     const withDay = recordDay({ ...cur, cards: nextCards }, today, 1);
     const { cards: _x, ...nextStats } = withDay;
-    save(nextCards, { ...nextStats, xp: stats.xp + gained, bestCombo: Math.max(stats.bestCombo, nextCombo) });
-    // A miss comes back again a few questions later (once).
-    if (!ok && !speed && !requeued.has(q.card.id)) {
-      requeued.add(q.card.id);
-      setQueue((qs) => [...qs.slice(0, i + 4), q.card, ...qs.slice(i + 4)]);
-    }
-    if (speed) {
-      setResult({ ok, picked });
-      setTimeout(next, ok ? 250 : 900);
-    } else setResult({ ok, picked });
+    save(nextCards, { ...nextStats, xp: stats.xp + gained + bonus, bestCombo: Math.max(stats.bestCombo, nextCombo) });
+    setResult({ ok, picked, graduated, run: after.run ?? 0 });
+    if (speed) setTimeout(next, ok ? 250 : 900);
   };
 
   const next = () => {
     setResult(null);
     setTyped('');
     setFlipped(false);
-    setI((n) => n + 1);
+    setN((x) => x + 1);
+    const c = trainer ? trainer.next() : stack[n + 1] ?? null;
+    setCard(c);
+    if (!c) finish();
   };
-
-  useEffect(() => {
-    if (card === undefined && !finished) finish();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card]);
 
   // Keyboard: 1-4 to pick, Enter for next.
   useEffect(() => {
@@ -308,8 +327,8 @@ function Play({
         e.preventDefault();
         next();
       } else if (!result && q.format === 'choice' && /^[1-4]$/.test(e.key)) {
-        const n = Number(e.key) - 1;
-        if (n < q.options.length) answer(n === q.correct, n);
+        const i = Number(e.key) - 1;
+        if (i < q.options.length) answer(i === q.correct, i);
       }
     };
     addEventListener('keydown', k);
@@ -319,14 +338,16 @@ function Play({
   if (finished || !card || !q) {
     const lv = level(live.current.xp);
     const acc = answered ? Math.round((right / answered) * 100) : 0;
+    const perfect = !speed && answered >= 10 && right === answered;
     return (
       <div className="page bootcamp">
         <section className="card boot-finish">
-          <div className="big-emoji">{speed ? '⚡' : right === answered && answered ? '🏆' : '💪'}</div>
-          <div className="eyebrow">{speed ? 'SPEED ROUND OVER' : right === answered && answered ? 'PERFECT SESSION · +25 BONUS' : 'SESSION COMPLETE'}</div>
+          <div className="big-emoji">{speed ? '⚡' : learnedNow ? '🎓' : perfect ? '🏆' : '💪'}</div>
+          <div className="eyebrow">{speed ? 'SPEED ROUND OVER' : perfect ? 'PERFECT SESSION · +25 BONUS' : 'SESSION COMPLETE'}</div>
           <h1>+{xp} XP</h1>
           <p className="soft">
-            {speed ? `${right} right in 60 seconds${right > p.speedBest ? ' · new best!' : ''}` : `${right} of ${answered} right (${acc}%)`} · best combo this round: {Math.max(0, combo)}
+            {speed ? `${right} right in 60 seconds${right > p.speedBest ? ' · new best!' : ''}` : `${right} of ${answered} right (${acc}%)`}
+            {!speed && ` · ${learnedNow} fact${learnedNow === 1 ? '' : 's'} learned`} · best combo {bestCombo}
           </p>
           <div className="boot-level center">
             <div className="ring" style={{ ['--pct' as string]: `${Math.round(lv.progress * 100)}%` }}>
@@ -352,26 +373,39 @@ function Play({
     );
   }
 
-  const total = queue.length;
+  const st = live.current.cards[card.id];
+  const runNow = result ? result.run : st?.run ?? 0;
+  const isNew = !st && !speed;
+  const isReview = !!st?.learned && !inProgress(st) && !speed;
+  const doneToday = live.current.days[today] ?? 0;
   return (
     <div className="page bootcamp">
       <div className="boot-bar">
         <button className="btn ghost sm" onClick={() => (answered ? finish() : onExit())}>
           <Icon name="x" size={16} /> {answered ? 'End' : 'Exit'}
         </button>
-        <div className="grow progress">
-          <i style={{ width: `${speed ? ((60 - left) / 60) * 100 : (i / total) * 100}%` }} />
+        <div className="grow progress" title={speed ? 'Time' : `Today's goal: ${doneToday} / ${DAILY_GOAL}`}>
+          <i style={{ width: `${speed ? ((60 - left) / 60) * 100 : Math.min(100, (doneToday / DAILY_GOAL) * 100)}%` }} />
         </div>
-        <span className="pill">{speed ? `⏱ ${left}s` : `${i + 1} / ${total}`}</span>
+        {speed ? <span className="pill">⏱ {left}s</span> : <span className="pill" title="Learned this session">🎓 {learnedNow}</span>}
         <span className={`pill combo${combo >= 3 ? ' hot' : ''}`}>🔥 {combo}</span>
         <span className="pill xp">+{xp} XP</span>
       </div>
 
       <section className={`card boot-q${result ? (result.ok ? ' ok' : ' bad') : ''}`}>
-        <div className="eyebrow">
-          {CAT_ICON[card.cat] ?? '📦'} {card.cat}
-          {q.format === 'type' ? ' · TYPE IT' : q.format === 'versus' ? ' · HIGHER OR LOWER' : ''}
-          {!p.cards[card.id] && !speed ? ' · NEW' : ''}
+        <div className="row between">
+          <div className="eyebrow">
+            {CAT_ICON[card.cat] ?? '📦'} {card.cat}
+            {q.format === 'type' ? ' · TYPE IT' : q.format === 'versus' ? ' · HIGHER OR LOWER' : ''}
+            {isNew ? ' · NEW' : isReview ? ' · REVIEW' : ''}
+          </div>
+          {!speed && (
+            <div className="run-dots" title={`${runNow} of ${LEARN_RUN} right in a row`}>
+              {Array.from({ length: LEARN_RUN }, (_, k) => (
+                <i key={k} className={k < runNow ? 'on' : ''} />
+              ))}
+            </div>
+          )}
         </div>
 
         {q.format === 'versus' ? (
@@ -412,14 +446,14 @@ function Play({
 
         {q.format === 'choice' && (
           <div className="options">
-            {q.options.map((o, n) => (
+            {q.options.map((o, i) => (
               <button
                 key={o}
                 disabled={!!result}
-                className={`option${result ? (n === q.correct ? ' correct' : n === result.picked ? ' wrong' : '') : ''}`}
-                onClick={() => answer(n === q.correct, n)}
+                className={`option${result ? (i === q.correct ? ' correct' : i === result.picked ? ' wrong' : '') : ''}`}
+                onClick={() => answer(i === q.correct, i)}
               >
-                <span className="key">{n + 1}</span> {o}
+                <span className="key">{i + 1}</span> {o}
               </button>
             ))}
           </div>
@@ -467,7 +501,13 @@ function Play({
 
         {result && !speed && (
           <div className={`boot-feedback ${result.ok ? 'ok' : 'bad'}`}>
-            <strong>{result.ok ? pick(PRAISE, i) : pick(MISS, i)}</strong>
+            <strong>
+              {result.graduated
+                ? `🎓 Learned! ${LEARN_RUN} in a row (+30 XP). A new fact joins the rotation.`
+                : result.ok
+                  ? `${pick(PRAISE, n)} ${result.run}/${LEARN_RUN} in a row.`
+                  : `${pick(MISS, n)} It'll keep coming back until you get it ${LEARN_RUN} times in a row.`}
+            </strong>
             {q.format === 'type' && typeof result.picked === 'string' && result.picked && !result.ok && <span className="soft"> You typed “{result.picked}”.</span>}
             <div className="answer-line">
               Answer: <b>{card.a}</b>
@@ -491,5 +531,5 @@ function Play({
 }
 
 const PRAISE = ['Nailed it.', 'Correct.', 'Locked in.', "That's the one.", 'Easy money.', 'Right on.'];
-const MISS = ['Not this time. Lock it in:', 'Close, but no. Remember this:', "This one's coming back:", 'Learn it now:'];
+const MISS = ['Not this time.', 'Close, but no.', 'Not quite.', 'Lock this one in.'];
 const pick = (xs: string[], n: number) => xs[n % xs.length];

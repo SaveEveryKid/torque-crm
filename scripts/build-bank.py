@@ -140,6 +140,44 @@ for (base, field, _), m in merged.items():
     label = LABEL.get(field, field.lower())
     add(id=f'spec-{base}-{field}-{m["v"]}', cat=m['cat'], topic=topic, kind='type' if m['n'] is not None else 'choice', q=ASKED.get(field + (' Polaris' if m['cat'] == 'Polaris' and field == 'Length' else ''), ASKED.get(field, 'What is the {l} of the {t}?')).format(t=topic, l=label), a=m['v'], **({'num': m['n']} if m['n'] is not None else {}), field=field, why=f'{topic}: {label} {m["v"].rstrip(".")}.' + (f' Same on: {", ".join(models[1:4])}{"…" if len(models) > 4 else ""}.' if len(models) > 1 else ''), src=m['src'])
 
+# Comparisons, the way customers shop: "Of these RANGERs, which tows the most?"
+import random as _random
+_rng = _random.Random(27)
+FAMILY = [('RANGER', r'\branger\b'), ('RZR', r'\brzr\b'), ('GENERAL', r'\bgeneral\b'), ('Sportsman', r'\bsportsman\b'), ('XPEDITION', r'\bxpedition\b'),
+          ('side-by-side', r'\b(ranger|rzr|general|xpedition)\b'), ('Bennington', r'\bbennington\b'), ('Lowe', r'\blowe\b'), ('boat', r'\b(bennington|lowe|hurricane|caymas|bayliner|alumacraft)\b'), ('Mercury outboard', r'\bmercury\b')]
+COMPARE = {
+    'Horsepower': ('has the most horsepower', max), 'Power': ('has the most horsepower', max), 'Towing Capacity': ('tows the most', max),
+    'Cargo Box Capacity': ('has the biggest cargo box', max), 'Capacity': ('carries the most payload', max), 'Ground Clearance': ('has the most ground clearance', max),
+    'Width': ('is the narrowest (best for tight trails)', min), 'Seating': ('seats the most people', max), 'Seating Capacity': ('holds the most people', max),
+    'Fuel Capacity': ('holds the most gas', max), 'Length': ('is the longest', max), 'Dry Weight': ('is the lightest', min),
+}
+values = {}
+for (base, field, _), m in merged.items():
+    if m['n'] is None or field not in COMPARE: continue
+    name = re.sub(r'\s+', ' ', TRIM.sub('', sorted(m['models'], key=len)[0])).strip()
+    values.setdefault(field, {}).setdefault(name, m['n'])
+for field, by_model in values.items():
+    phrase, best = COMPARE[field]
+    for fam, pat in FAMILY:
+        pool = [(k, v) for k, v in by_model.items() if re.search(pat, k, re.I)]
+        if len({v for _, v in pool}) < 4: continue
+        for i in range(min(8, len(pool) // 2)):
+            pick, used = [], set()
+            for k, v in _rng.sample(pool, len(pool)):
+                if v not in used: pick.append((k, v)); used.add(v)
+                if len(pick) == 4: break
+            if len(pick) < 4: continue
+            win = best(pick, key=lambda kv: kv[1])
+            unit = LABEL.get(field, field.lower())
+            add(id=f'cmp-{fam}-{field}-{i}', cat='Compare', topic=fam, kind='choice', q=f'Of these {fam}s, which one {phrase}?', a=win[0], field='Compare ' + field,
+                why='; '.join(f'{k}: {v:,g}' for k, v in sorted(pick, key=lambda kv: -kv[1])) + f' ({unit}).', wrong=[k for k, _ in pick if k != win[0]])
+
+# "Will it fit a 50-inch trail?"
+narrow = sorted({k for k, v in values.get('Width', {}).items() if v <= 50 and re.search(r'ranger|rzr|general|xpedition', k, re.I)})
+wide = sorted({k for k, v in values.get('Width', {}).items() if v >= 60 and re.search(r'ranger|rzr|general|xpedition', k, re.I)})
+for i, k in enumerate(narrow):
+    add(id=f'trail50-{i}', cat='Compare', topic=k, kind='choice', q='A customer rides 50-inch trails. Which of these side-by-sides fits?', a=k, field='Trail 50', why=f"{k} is {values['Width'][k]:g} in. wide: under 50. The others are 60 in. or wider.", wrong=_rng.sample(wide, min(3, len(wide))))
+
 # Colors: "What colors does it come in?"
 def model_of(r):
     v = r['variant']

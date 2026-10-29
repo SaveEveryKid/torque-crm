@@ -433,3 +433,6 @@ table.table { width: 100%; border-collapse: collapse; }
 }
 .boot-nudge { display: flex; align-items: center; gap: 14px; padding: 14px 20px; color: var(--text); text-decoration: none; border-color: rgba(242, 100, 25, 0.35); background: linear-gradient(90deg, rgba(242, 100, 25, 0.12), transparent 60%), var(--panel); }
 .boot-nudge:hover { text-decoration: none; border-color: var(--accent); }
+.run-dots { display: flex; gap: 5px; }
+.run-dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--hover); border: 1px solid var(--border-2); display: block; }
+.run-dots i.on { background: var(--green); border-color: var(--green); box-shadow: 0 0 8px rgba(18, 183, 106, 0.5); }

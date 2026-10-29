@@ -31,6 +31,10 @@ export interface CardState {
   due: string;
   seen: number;
   misses: number;
+  /** Right answers in a row. */
+  run?: number;
+  /** Got right 5 times in a row at least once (then it's on the spaced schedule). */
+  learned?: boolean;
 }
 
 export interface Progress {
@@ -44,14 +48,14 @@ export interface Progress {
   bestCombo: number;
   sessions: number;
   perfect: number;
-  /** New facts per daily session. */
+  /** How many facts are in rotation at once while learning. */
   newPerDay: number;
   /** Which categories new facts come from ([] = all). */
   focus: string[];
   speedBest: number;
 }
 
-export const EMPTY_PROGRESS: Progress = { cards: {}, xp: 0, streak: 0, lastGoalDay: null, days: {}, bestCombo: 0, sessions: 0, perfect: 0, newPerDay: 10, focus: [], speedBest: 0 };
+export const EMPTY_PROGRESS: Progress = { cards: {}, xp: 0, streak: 0, lastGoalDay: null, days: {}, bestCombo: 0, sessions: 0, perfect: 0, newPerDay: 6, focus: [], speedBest: 0 };
 
 /** Days until a card comes back, by box. */
 export const INTERVALS = [0, 1, 2, 4, 7, 14, 30, 60];
@@ -106,7 +110,7 @@ export function distractors(card: Card, bank: Card[], rnd: Rng = Math.random, n 
 /** How to ask this card now: easier while it's new, harder once you know it. */
 export function questionFor(card: Card, state: CardState | undefined, bank: Card[], rnd: Rng = Math.random): Question {
   if (card.kind === 'flash') return { format: 'flash', card };
-  const box = state?.box ?? 0;
+  const box = Math.max(state?.box ?? 0, state?.run ?? 0);
   if (card.num !== undefined && box >= 1 && rnd() < 0.2) {
     const peers = bank.filter((c) => c.field === card.field && c.num !== undefined && c.id !== card.id && c.topic !== card.topic);
     if (peers.length) {
@@ -143,10 +147,115 @@ export function checkTyped(card: Card, typed: string): boolean {
 
 /* ---------- scheduling ---------- */
 
+/** Right this many times in a row = learned. */
+export const LEARN_RUN = 5;
+
 export function grade(state: CardState | undefined, ok: boolean, today: string): CardState {
   const s = state ?? { box: 0, due: today, seen: 0, misses: 0 };
   const box = ok ? Math.min(INTERVALS.length - 1, s.box + 1) : Math.max(0, Math.min(1, s.box - 2));
-  return { box, due: addDays(today, ok ? INTERVALS[box] : 1), seen: s.seen + 1, misses: s.misses + (ok ? 0 : 1) };
+  const run = ok ? (s.run ?? 0) + 1 : 0;
+  const learned = !!s.learned || run >= LEARN_RUN;
+  // Still learning (or just missed): back tomorrow. Learned: the spaced schedule.
+  const due = learned && ok ? addDays(today, INTERVALS[box]) : addDays(today, 1);
+  return { box, due, seen: s.seen + 1, misses: s.misses + (ok ? 0 : 1), run, learned: learned && (ok || !!s.learned) };
+}
+
+/** Started but not yet right 5 times in a row. */
+export const inProgress = (s: CardState | undefined) => !!s && (s.run ?? 0) < LEARN_RUN && !(s.learned && (s.run ?? 0) > 0);
+
+/**
+ * THE LEARNING LOOP: a small set of facts in rotation. A missed fact comes
+ * back within a few questions, again and again, until it's right 5 times in
+ * a row; then it graduates and a new fact takes its place. Facts learned
+ * earlier come back on their spaced schedule (every 4th question or so).
+ */
+export class Trainer {
+  working: string[] = [];
+  private reviews: string[] = [];
+  private fresh: string[] = [];
+  private cooldown = new Map<string, number>();
+  private last: string | null = null;
+  private n = 0;
+  learnedNow: string[] = [];
+  private byId: Map<string, Card>;
+
+  constructor(
+    bank: Card[],
+    private cards: () => Record<string, CardState>,
+    private opts: { today: string; size: number; rnd?: Rng; filter?: (c: Card) => boolean; focus?: string[]; noNew?: boolean; seed?: Card[] },
+  ) {
+    const rnd = opts.rnd ?? Math.random;
+    this.byId = new Map(bank.map((c) => [c.id, c]));
+    const pool = bank.filter((c) => !opts.filter || opts.filter(c));
+    const st = cards();
+    const started = opts.seed ?? pool.filter((c) => inProgress(st[c.id])).sort((a, b) => st[b.id].misses - st[a.id].misses);
+    this.working = started.slice(0, opts.size).map((c) => c.id);
+    this.reviews = pool
+      .filter((c) => st[c.id]?.learned && !inProgress(st[c.id]) && st[c.id].due <= opts.today)
+      .sort((a, b) => st[b.id].misses - st[a.id].misses)
+      .map((c) => c.id);
+    if (!opts.noNew) {
+      const unseen = pool.filter((c) => !st[c.id] && (!opts.focus?.length || opts.focus.includes(c.cat)));
+      // A model's facts together: pick topics, then their facts.
+      const topics = shuffle([...new Set(unseen.map((c) => c.topic))], rnd);
+      const byTopic = new Map<string, string[]>();
+      for (const c of unseen) byTopic.set(c.topic, [...(byTopic.get(c.topic) ?? []), c.id]);
+      this.fresh = topics.flatMap((t) => byTopic.get(t)!);
+    }
+    while (this.working.length < opts.size && this.fresh.length) this.working.push(this.fresh.shift()!);
+  }
+
+  get remainingNew() {
+    return this.fresh.length;
+  }
+  get reviewsLeft() {
+    return this.reviews.length;
+  }
+
+  /** The next card, or null when there's nothing left. */
+  next(): Card | null {
+    const rnd = this.opts.rnd ?? Math.random;
+    this.n++;
+    if (this.reviews.length && (this.n % 4 === 0 || !this.working.length)) {
+      const i = this.reviews.findIndex((id) => id !== this.last);
+      if (i >= 0) return this.show(this.reviews.splice(i, 1)[0]);
+    }
+    if (!this.working.length) return null;
+    const ready = this.working.filter((id) => (this.cooldown.get(id) ?? 0) <= 0 && id !== this.last);
+    const pool = ready.length ? ready : this.working.filter((id) => id !== this.last).length ? this.working.filter((id) => id !== this.last) : this.working;
+    const st = this.cards();
+    const lowest = Math.min(...pool.map((id) => st[id]?.run ?? 0));
+    const pick = shuffle(pool.filter((id) => (st[id]?.run ?? 0) === lowest), rnd)[0];
+    return this.show(pick);
+  }
+
+  private show(id: string) {
+    this.last = id;
+    return this.byId.get(id)!;
+  }
+
+  /** After grading: missed → back in 2-3 questions; right → a little later each time; 5 in a row → graduates. */
+  answered(card: Card, ok: boolean, after: CardState): { graduated: boolean } {
+    const rnd = this.opts.rnd ?? Math.random;
+    for (const [id, n] of this.cooldown) this.cooldown.set(id, n - 1);
+    if (!this.working.includes(card.id)) {
+      // A review that's missed goes back into rotation until it's solid again.
+      if (!ok) {
+        this.working.push(card.id);
+        this.cooldown.set(card.id, 2);
+      }
+      return { graduated: false };
+    }
+    if (ok && (after.run ?? 0) >= LEARN_RUN) {
+      this.working = this.working.filter((id) => id !== card.id);
+      this.cooldown.delete(card.id);
+      this.learnedNow.push(card.id);
+      if (this.fresh.length) this.working.push(this.fresh.shift()!);
+      return { graduated: true };
+    }
+    this.cooldown.set(card.id, ok ? 1 + (after.run ?? 0) : 2 + Math.floor(rnd() * 2));
+    return { graduated: false };
+  }
 }
 
 export const isDue = (s: CardState | undefined, today: string) => !!s && s.due <= today;
@@ -235,7 +344,7 @@ export function mastery(bank: Card[], p: Progress) {
     .map((cat) => {
       const cards = bank.filter((c) => c.cat === cat);
       const seen = cards.filter((c) => p.cards[c.id]).length;
-      const mastered = cards.filter((c) => (p.cards[c.id]?.box ?? 0) >= MASTERED).length;
+      const mastered = cards.filter((c) => p.cards[c.id]?.learned).length;
       return { cat, total: cards.length, seen, mastered };
     })
     .sort((a, b) => b.total - a.total);
