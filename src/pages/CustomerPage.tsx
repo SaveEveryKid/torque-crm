@@ -19,7 +19,7 @@ import {
 import { STAGES, STAGE_LABEL, TASK_LABEL, type Activity, type Customer, type Stage, type Task, type TaskKind } from '../crm/types';
 import { CustomerForm } from '../ui/CustomerForm';
 import { DraftPanel } from '../ui/DraftPanel';
-import { smsReady } from '../crm/server';
+import { loadStatus, smsReady, smsSetup } from '../crm/server';
 import { quietHours, sendText, statusLabel, unreadCount, useSms } from '../crm/sms';
 import { InventoryPicker } from './Inventory';
 import { Avatar, copy, daysFromToday, Empty, go, Icon, localInput, Modal, tomorrowAt, when } from '../ui/kit';
@@ -88,12 +88,7 @@ export function CustomerPage({ id }: { id: string }) {
             <button className="btn primary" disabled={!c.phone || c.doNotContact} onClick={call} title={aiReady() ? 'Call through your dialer' : 'Practice call (set up the dialer in Settings for real calls)'}>
               <Icon name="phone" size={16} /> Call
             </button>
-            <button
-              className="btn primary"
-              disabled={!c.phone || c.doNotText || c.doNotContact || !smsReady()}
-              onClick={() => setTexting(true)}
-              title={c.doNotText || c.doNotContact ? 'Marked do not text' : smsReady() ? 'Text from your SignalWire number' : 'Set up texting in Settings first'}
-            >
+            <button className="btn primary" onClick={() => setTexting(true)} title="Text from your SignalWire number">
               <Icon name="text" size={16} /> Text
             </button>
             {c.email && (
@@ -572,6 +567,17 @@ function QuickText({ customer: c, onClose }: { customer: Customer; onClose: () =
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Re-check the texting setup now (settings added on Cloudflare since the app opened).
+  const [checked, setChecked] = useState(false);
+  useEffect(() => void loadStatus().finally(() => setChecked(true)), []);
+  const missing = smsSetup().missing ?? [];
+  const why = !c.phone
+    ? 'This customer has no phone number. Add one with Edit.'
+    : c.doNotText || c.doNotContact
+      ? `${c.firstName || 'This customer'} is marked do not text (Edit to change it).`
+      : checked && !smsReady()
+        ? `Texting isn't set up yet${missing.length ? `: missing ${missing.join(', ')}` : ''}. Add ${missing.length === 1 ? 'it' : 'them'} in Cloudflare → torque-crm → Settings → Variables and Secrets, then try again.`
+        : null;
   const send = async () => {
     if (!text.trim()) return;
     if (quietHours() && !confirm("It's outside 8 AM–9 PM. Send anyway?")) return;
@@ -595,7 +601,7 @@ function QuickText({ customer: c, onClose }: { customer: Customer; onClose: () =
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn primary" disabled={!text.trim() || busy} onClick={() => void send()}>
+          <button className="btn primary" disabled={!text.trim() || busy || !!why || !checked} onClick={() => void send()}>
             <Icon name="text" size={15} /> {busy ? 'Sending…' : 'Send text'}
           </button>
         </>
@@ -615,6 +621,7 @@ function QuickText({ customer: c, onClose }: { customer: Customer; onClose: () =
           See the whole conversation
         </button>
       </div>
+      {why && <p className="notice">{why}</p>}
       {error && <p className="error">{error}</p>}
     </Modal>
   );
