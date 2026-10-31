@@ -58,10 +58,10 @@ describe('business drafts: quotes only, and the store is where it is', () => {
     const evidence = ctx.sections.map((x) => x.versions[0]).join('\n');
     const c = (body: string) => checkDraft(draft(body), { text: false, email: true }, evidence, toRecord(blankCustomer({ company: 'Metro Parks' }), 'Byron Green'));
     expect(c("Martin, I'm Byron with Shoals Outdoor Sports, a local Polaris side-by-side and ATV dealer.")).toContain('email calls the store local; name the town it\'s in instead');
-    expect(c("Martin, I'm Byron with Shoals Outdoor Sports in Tuscumbia, Alabama.").filter((w) => /local/.test(w))).toEqual([]);
+    expect(c("Martin, I'm Byron with Shoals Outdoor Sports in Florence, Alabama.").filter((w) => /local/.test(w))).toEqual([]);
   });
   it('Claude is told exactly where the store is', () => {
     const ctx = buildCustomerContext(toRecord(blankCustomer({ company: 'Summit', address: 'Nashville, TN' }), 'Byron Green'), { writer: writerOf(DEFAULT_SETTINGS), today: new Date(), canText: false, sent: [] });
-    expect(ctx.sections.map((s) => s.versions[0]).join('\n')).toContain('Store location: Tuscumbia, Alabama (the Shoals). Only ever say the store is here');
+    expect(ctx.sections.map((s) => s.versions[0]).join('\n')).toContain('Store location: Florence, Alabama (the Shoals). Only ever say the store is here');
   });
 });

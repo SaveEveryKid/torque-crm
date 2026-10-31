@@ -252,7 +252,7 @@ export function classifyMessageMode(m: ModeInput, today = new Date()): MessageMo
 export interface Writerish {
   name: string;
   dealership: string;
-  /** Where the store is, e.g. "Tuscumbia, Alabama (the Shoals)". */
+  /** Where the store is, e.g. "Florence, Alabama (the Shoals)". */
   location?: string;
 }
 
