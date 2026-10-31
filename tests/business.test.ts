@@ -19,6 +19,8 @@ describe('commercial / fleet customers', () => {
     expect(businessSection(writerOf(DEFAULT_SETTINGS, person))).not.toContain('no contact person');
     expect(businessSection(writerOf(DEFAULT_SETTINGS, shop))).toContain("There is no contact person's name: write to the business");
     expect(businessSection(writerOf(DEFAULT_SETTINGS, retail))).toBe('');
+    expect(businessSection(writerOf(DEFAULT_SETTINGS, person))).toContain('Never offer to bring a unit out, a demo');
+    expect(businessSection(writerOf(DEFAULT_SETTINGS, person))).not.toMatch(/demo unit brought/);
   });
 
   it('it rides with the customer details, so the system prompt still fits the dialer (8,000 characters)', async () => {

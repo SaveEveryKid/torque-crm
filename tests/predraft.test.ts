@@ -34,6 +34,9 @@ describe('pre-drafting a whole list', () => {
     const ctx = listContext({ listType: 'cold_opener', listNote: '' } as never);
     expect(ctx).toMatch(/who handles their UTV or equipment purchases/);
     expect(ctx).toMatch(/Never pretend we've talked/);
+    // Quotes only: never a demo or bringing a unit out.
+    expect(ctx).toMatch(/The only offer is a quote/);
+    expect(ctx).not.toMatch(/bring a unit out for|crew to try|demo unit brought/);
   });
 
   it('someone we have never been in touch with is a first contact, not a follow-up', () => {
