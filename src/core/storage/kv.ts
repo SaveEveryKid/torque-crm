@@ -11,7 +11,7 @@
 type Listener = (changed: string[]) => void;
 
 /** Saved one row per entry, so one customer's change doesn't re-send everyone. */
-const SPLIT = new Set(['customers', 'sentMessages', 'sms', 'trainingCards']);
+const SPLIT = new Set(['customers', 'sentMessages', 'sms', 'trainingCards', 'drafts']);
 /** Bigger values are saved in parts. */
 const CHUNK = 400_000;
 /** How often to check for changes (and new texts) while the window is open. */

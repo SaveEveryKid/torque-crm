@@ -208,9 +208,10 @@ export function extractMeaningfulHistory(rows: ActivityRow[]): HistoryItem[] {
 
 // ------------------------------------------------------------------ message mode
 
-export type MessageMode = 'CUSTOMER_REPLY' | 'ACTIVE_FOLLOWUP' | 'STALE_FOLLOWUP' | 'REACTIVATION' | 'FINAL_CHECKIN';
+export type MessageMode = 'FIRST_CONTACT' | 'CUSTOMER_REPLY' | 'ACTIVE_FOLLOWUP' | 'STALE_FOLLOWUP' | 'REACTIVATION' | 'FINAL_CHECKIN';
 
 export const MODE_GUIDANCE: Record<MessageMode, string> = {
+  FIRST_CONTACT: 'We have never been in touch with them. Introduce yourself; there is no earlier conversation to build on, so never imply one.',
   CUSTOMER_REPLY: 'They wrote last. Answer what they actually said first, then make the next small move.',
   ACTIVE_FOLLOWUP: 'Recent activity, no new reply yet. Build on the latest conversation with one easy next step.',
   STALE_FOLLOWUP:
@@ -234,6 +235,7 @@ export interface ModeInput {
 
 export function classifyMessageMode(m: ModeInput, today = new Date()): MessageMode {
   if (m.finalCheckin) return 'FINAL_CHECKIN';
+  if (!m.lastCustomerAt && !m.lastUsAt && (m.listType === 'cold_opener' || m.attemptsSinceReply === 0)) return 'FIRST_CONTACT';
   const sinceReply = daysBetween(m.lastCustomerAt, today);
   const sinceAny = daysBetween([m.lastCustomerAt, m.lastUsAt].filter(Boolean).sort().pop() ?? null, today);
   const theyWroteLast = !!m.lastCustomerAt && (!m.lastUsAt || m.lastCustomerAt > m.lastUsAt);

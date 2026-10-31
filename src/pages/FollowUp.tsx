@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ListType } from '../core/analysis/customList';
+import { LIST_TYPES, type ListType } from '../core/analysis/customList';
+import { startRun, stopRun, targets, useDrafts, useRun, type PreDraft } from '../crm/predraft';
 import { applyView, placeOf, useView } from '../crm/listView';
-import { fullName, lastContact, useCustomers } from '../crm/store';
+import { fullName, lastContact, useCustomers, useSettings } from '../crm/store';
 import { STAGES, type Customer, type Stage } from '../crm/types';
 import { DraftPanel } from '../ui/DraftPanel';
 import { EmailComposer } from '../ui/EmailComposer';
@@ -37,8 +38,27 @@ export function FollowUp() {
   // Someone you just contacted stays in the queue (checked) until you move on.
   const [keep, setKeep] = useState<string | null>(null);
   const queueRef = useRef<HTMLDivElement>(null);
+  const drafts = useDrafts();
+  const run = useRun();
+  const settings = useSettings();
+  const [mode, setMode] = useState<ListType | '' | 'auto'>('auto');
+  const [redo, setRedo] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
 
-  const queue = useMemo(() => applyView(list, v).filter((c) => !c.doNotContact && (!hideDone || !doneToday(c) || c.id === keep)), [list, v, hideDone, keep]);
+  const viewList = useMemo(() => applyView(list, v), [list, v]);
+  const queue = useMemo(
+    () =>
+      viewList.filter(
+        (c) => !c.doNotContact && (reviewing ? drafts[c.id]?.status === 'ready' : !hideDone || !doneToday(c) || c.id === keep),
+      ),
+    [viewList, hideDone, keep, reviewing, drafts],
+  );
+  const toDraft = useMemo(() => targets(viewList, drafts, redo), [viewList, drafts, redo]);
+  const tally = useMemo(() => {
+    const t: Record<PreDraft['status'], number> = { ready: 0, sent: 0, denied: 0, skipped: 0, error: 0 };
+    for (const d of Object.values(drafts)) t[d.status]++;
+    return t;
+  }, [drafts]);
   const c = (selected && customers[selected]) || queue[0] || null;
   const i = c ? queue.findIndex((x) => x.id === c.id) : -1;
   const sentToday = useMemo(() => list.filter(doneToday).length, [list]);
@@ -72,6 +92,73 @@ export function FollowUp() {
         <span className="soft small">{sentToday} reached today</span>
       </div>
 
+      <section className="card card-pad predraft">
+        <div className="row between">
+          <div className="stack tight">
+            <h2 className="row">
+              <Icon name="sparkle" /> Pre-draft emails
+            </h2>
+            <p className="soft small">
+              Claude writes an email for everyone in the list on the left, from their history. Then review them: approve, edit or deny. Every one teaches it.
+            </p>
+          </div>
+          <div className="tabs">
+            <button className={!reviewing ? 'on' : ''} onClick={() => setReviewing(false)}>
+              Everyone
+            </button>
+            <button className={reviewing ? 'on' : ''} onClick={() => (setReviewing(true), pick(null))}>
+              Review drafts <span className="muted">{tally.ready}</span>
+            </button>
+          </div>
+        </div>
+        {run.running ? (
+          <div className="stack tight">
+            <div className="progress">
+              <div style={{ width: `${run.total ? Math.round((run.done / run.total) * 100) : 0}%` }} />
+            </div>
+            <div className="row between">
+              <span className="small soft">
+                {run.stopping ? 'Stopping after the current ones…' : `Writing ${run.done + 1}–${Math.min(run.total, run.done + run.current.length)} of ${run.total}`}
+                {run.errors ? ` · ${run.errors} didn't work` : ''} · keep this tab open; you can use other pages meanwhile
+              </span>
+              <button className="btn sm" disabled={run.stopping} onClick={stopRun}>
+                Stop
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="row predraft-go">
+            <select value={mode} onChange={(e) => setMode(e.target.value as ListType | '' | 'auto')} aria-label="Write them as">
+              <option value="auto">Auto: Cold opener if we've never talked, follow-up for the rest</option>
+              <option value="">Regular follow-up</option>
+              {Object.entries(LIST_TYPES).map(([k, t]) => (
+                <option key={k} value={k}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <label className="check small">
+              <input type="checkbox" checked={redo} onChange={(e) => setRedo(e.target.checked)} /> Redo ones already drafted
+            </label>
+            <button
+              className="btn primary"
+              disabled={!toDraft.length}
+              onClick={() => {
+                if (toDraft.length > 25 && !confirm(`Write ${toDraft.length} emails? It takes a few seconds each (about ${Math.max(1, Math.round((toDraft.length * 9) / 2 / 60))} min), and uses Claude through your dialer.`)) return;
+                void startRun(toDraft, settings, mode, shared.note);
+              }}
+            >
+              <Icon name="sparkle" size={16} /> Pre-draft {toDraft.length} email{toDraft.length === 1 ? '' : 's'}
+            </button>
+          </div>
+        )}
+        {run.message && <p className="error">{run.message}</p>}
+        <p className="muted small">
+          {tally.ready} ready to review · {tally.sent} approved · {tally.denied} denied{tally.skipped ? ` · ${tally.skipped} Claude said to skip` : ''}
+          {tally.error ? ` · ${tally.error} didn't work (Pre-draft tries them again)` : ''}. Only customers with an email address are drafted.
+        </p>
+      </section>
+
       <div className="followup">
         <aside className="card fu-queue">
           <div className="card-pad stack tight">
@@ -97,10 +184,22 @@ export function FollowUp() {
                   <span className="name">{fullName(x)}</span>
                   <span className="line">{[`${x.firstName}${x.lastName}`.trim() ? x.company : x.title, placeOf(x).city].filter(Boolean).join(' · ') || x.phone}</span>
                 </span>
-                {doneToday(x) ? <Icon name="check" size={15} /> : x.email ? <Icon name="mail" size={13} /> : null}
+                {doneToday(x) ? (
+                  <Icon name="check" size={15} />
+                ) : drafts[x.id]?.status === 'ready' ? (
+                  <span className="badge ready" title="Draft ready">
+                    Draft
+                  </span>
+                ) : x.email ? (
+                  <Icon name="mail" size={13} />
+                ) : null}
               </button>
             ))}
-            {!queue.length && <p className="muted small card-pad">No one left in this list. Change the filters, or untick “Hide anyone already reached today”.</p>}
+            {!queue.length && (
+              <p className="muted small card-pad">
+                {reviewing ? 'No drafts waiting in this list. Pre-draft some above, or switch to Everyone.' : 'No one left in this list. Change the filters, or untick “Hide anyone already reached today”.'}
+              </p>
+            )}
           </div>
         </aside>
 
@@ -153,7 +252,15 @@ export function FollowUp() {
                   </span>
                 </div>
               </section>
-              <DraftPanel key={c.id} customer={c} shared={{ ...shared, set: (p) => setShared((x) => ({ ...x, ...p })) }} onLogged={() => setKeep(c.id)} />
+              <DraftPanel
+                key={c.id}
+                customer={c}
+                pre={drafts[c.id]}
+                shared={{ ...shared, set: (p) => setShared((x) => ({ ...x, ...p })) }}
+                onLogged={() => setKeep(c.id)}
+                // Approved as written or denied: straight on to the next one. Edited: stay so you can say why.
+                onDecided={(outcome, edited) => (outcome === 'denied' || !edited) && setTimeout(next, 700)}
+              />
               {emailing && <EmailComposer customer={c} onClose={() => (setEmailing(false), setKeep(c.id))} />}
             </>
           )}

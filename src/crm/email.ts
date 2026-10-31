@@ -33,9 +33,17 @@ export function composeUrl(m: Compose, app: Settings['emailApp']): string {
   return `mailto:${encodeURIComponent(to).replace(/%40/g, '@')}${q ? `?${q}` : ''}`;
 }
 
-/** Open the new message: Outlook on the web in a new tab, the Outlook app through mailto:. */
-export function openCompose(m: Compose, s: Pick<Settings, 'emailApp'>): void {
-  const url = composeUrl(m, s.emailApp);
+/** The message with your signature at the end (once). */
+export function withSignature(body: string, signature: string | undefined): string {
+  const sig = (signature ?? '').trim();
+  const b = body.trimEnd();
+  if (!sig || b.endsWith(sig)) return b;
+  return `${b}\n\n${sig}`;
+}
+
+/** Open the new message (your signature added): Outlook on the web in a new tab, the Outlook app through mailto:. */
+export function openCompose(m: Compose, s: Pick<Settings, 'emailApp' | 'signature'>): void {
+  const url = composeUrl({ ...m, body: m.body === undefined ? undefined : withSignature(m.body, s.signature) }, s.emailApp);
   if (s.emailApp === 'outlook-web') window.open(url, '_blank', 'noopener');
   else location.href = url;
 }

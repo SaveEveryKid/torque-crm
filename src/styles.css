@@ -505,3 +505,9 @@ table.table { width: 100%; border-collapse: collapse; }
 .fu-list .line { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fu-notes { margin-top: 10px; white-space: pre-wrap; max-height: 90px; overflow: auto; }
 @media (max-width: 900px) { .followup { grid-template-columns: 1fr; } .fu-queue { position: static; max-height: 360px; } }
+.deny { border-top: 1px solid var(--border); padding-top: 10px; }
+.predraft .tabs { flex-shrink: 0; }
+.predraft-go select { flex: 1 1 320px; width: auto; min-width: 0; }
+.progress { height: 8px; background: var(--hover); border-radius: 99px; overflow: hidden; }
+.progress > div { height: 100%; background: var(--accent); transition: width 0.4s; }
+.badge.ready { background: var(--accent-soft); color: var(--accent-text); font-size: 11px; }

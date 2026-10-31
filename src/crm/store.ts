@@ -168,7 +168,7 @@ export async function saveSettings(patch: Partial<Settings>): Promise<void> {
 }
 
 /** Re-render when any of these stored keys change. */
-function useStored<T>(keys: string[], read: () => Promise<T>, initial: T): T {
+export function useStored<T>(keys: string[], read: () => Promise<T>, initial: T): T {
   const [v, setV] = useState<T>(initial);
   useEffect(() => {
     let live = true;

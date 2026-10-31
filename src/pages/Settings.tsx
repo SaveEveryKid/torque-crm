@@ -73,6 +73,7 @@ function EmailSetup({ s }: { s: Settings }) {
       </p>
       <div className="form-grid">
         <Text label="Your email" k="email" s={s} type="email" placeholder="you@dealership.com" />
+        <Text label="Your phone" k="phone" s={s} type="tel" placeholder="(256) 555-1234" />
         <label className="field">
           Open emails in
           <select value={s.emailApp} onChange={(e) => void saveSettings({ emailApp: e.target.value as Settings['emailApp'] })}>
@@ -86,12 +87,24 @@ function EmailSetup({ s }: { s: Settings }) {
           ? 'Uses your computer’s default email app: in Windows, Settings → Apps → Default apps, search “MAILTO” and pick Outlook.'
           : `Opens outlook.office.com in a new tab; sign in there with ${s.email || 'your work email'} once.`}
       </p>
+      <Signature s={s} />
       <div>
         <button className="btn sm" disabled={!s.email} onClick={() => openCompose({ to: s.email, subject: 'Torque CRM test', body: 'If this opened in Outlook, email is set up.' }, s)}>
           <Icon name="mail" size={14} /> Send yourself a test
         </button>
       </div>
     </section>
+  );
+}
+
+function Signature({ s }: { s: Settings }) {
+  const [v, setV] = useState(s.signature ?? '');
+  useEffect(() => setV(s.signature ?? ''), [s.signature]);
+  return (
+    <label className="field">
+      Signature (added to the end of emails opened in Outlook; clear it if Outlook already adds yours)
+      <textarea rows={4} value={v} onChange={(e) => setV(e.target.value)} onBlur={() => void saveSettings({ signature: v.trim() })} />
+    </label>
   );
 }
 

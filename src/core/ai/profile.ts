@@ -47,6 +47,7 @@ export function profileInput(current: string, examples: StyleExample[], winners:
     const lines = edits.map((e) => {
       const where = e.situation ? ` [customer ${SITUATION_LABEL[e.situation]}]` : '';
       const why = [...(e.reasons ?? []), e.note ?? ''].filter(Boolean).join('; ');
+      if (e.denied) return `AI wrote${where}: ${clip(flat(e.ai), 220)}\nHe threw it out (sent nothing)${why ? `\nWhy: ${why}` : ''}`;
       return `AI wrote${where}: ${clip(flat(e.ai), 220)}\nHe sent: ${clip(flat(e.sent), 220)}${why ? `\nWhy: ${why}` : ''}`;
     });
     const ok = approved.map((e) => `Sent as written${e.situation ? ` [customer ${SITUATION_LABEL[e.situation]}]` : ''}: ${clip(flat(e.sent), 220)}`);

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { DraftResult } from '../core/ai/followUp';
 import { LIST_TYPES, type ListType } from '../core/analysis/customList';
 import { situationFor } from '../core/analysis/situation';
 import { recordSent } from '../core/storage/sentLog';
-import { EDIT_REASONS, recordEdit, setReasons } from '../core/storage/styleMemory';
+import { EDIT_REASONS, recordDenial, recordEdit, setReasons } from '../core/storage/styleMemory';
+import { setDraftStatus, type PreDraft } from '../crm/predraft';
 import { aiReady, draftFor, maybeProposeProfile, replyFor } from '../crm/ai';
 import { toRecord } from '../crm/record';
 import { logActivity, useSettings } from '../crm/store';
@@ -22,12 +23,18 @@ export function DraftPanel({
   customer: c,
   shared,
   onLogged,
+  pre,
+  onDecided,
 }: {
   customer: Customer;
   /** Kind of follow-up + note kept from one customer to the next (AI Follow-up). */
   shared?: { type: ListType | ''; note: string; set: (p: { type?: ListType | ''; note?: string }) => void };
   /** After a text or email is sent or logged. */
   onLogged?: () => void;
+  /** A draft Claude wrote ahead of time (Pre-draft), ready to review. */
+  pre?: PreDraft;
+  /** You approved (sent / opened in Outlook) or denied the draft; `edited` when you changed it first. */
+  onDecided?: (outcome: 'sent' | 'denied', edited: boolean) => void;
 }) {
   const settings = useSettings();
   const [ownType, setOwnType] = useState<ListType | ''>('');
@@ -46,6 +53,19 @@ export function DraftPanel({
   const [edited, setEdited] = useState<string[]>([]);
   const [reasons, setReasonsOn] = useState<string[]>([]);
   const [done, setDone] = useState<string | null>(null);
+  const [denying, setDenying] = useState(false);
+  const [denyWhy, setDenyWhy] = useState<string[]>([]);
+  const [denyNote, setDenyNote] = useState('');
+
+  // A pre-written draft (from Pre-draft) loads ready to review, unless you already started one.
+  useEffect(() => {
+    if (!pre || pre.status !== 'ready' || res || reply) return;
+    setRes({ draft: { skip: false, skipReason: null, text: pre.text || null, emailSubject: pre.subject, emailBody: pre.body, why: pre.why }, warnings: pre.warnings, attempts: 1 });
+    setText(pre.text);
+    setSubject(pre.subject);
+    setBody(pre.body);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pre?.at, pre?.status]);
 
   const latest = c.activities.find((a) => a.direction !== 'INTERNAL');
   const theyWroteLast = latest?.direction === 'INBOUND' && (latest.channel === 'TEXT' || latest.channel === 'EMAIL') && !!latest.text;
@@ -116,8 +136,23 @@ export function DraftPanel({
     if (!viaSms) await logActivity(c.id, { channel: kind === 'text' ? 'TEXT' : 'EMAIL', direction: 'OUTBOUND', outcome: kind === 'email' && subject ? `Subject: ${subject}` : null, text: sent });
     if (id) setEdited((x) => [...x, id]);
     onLogged?.();
+    if (pre?.status === 'ready') await setDraftStatus(c.id, 'sent');
+    onDecided?.('sent', !!id);
     setDone(viaSms ? 'Text sent.' : outlook ? 'Opened in Outlook and saved to the timeline. Press Send in Outlook.' : kind === 'text' ? 'Text logged.' : 'Email logged.');
     void maybeProposeProfile(settings).catch(() => undefined);
+  };
+
+  /** Throw the draft out; why you did teaches Claude as much as an edit. */
+  const deny = async () => {
+    const situation = situationFor(toRecord(c, settings.name));
+    const ai = res?.draft.emailBody || res?.draft.text;
+    await recordDenial(res?.draft.emailBody ? 'email' : 'text', ai, c.firstName, denyWhy, denyNote, new Date(), situation);
+    if (pre) await setDraftStatus(c.id, 'denied');
+    setDenying(false);
+    setRes(null);
+    setDone('Denied. Claude will learn from it.');
+    void maybeProposeProfile(settings).catch(() => undefined);
+    onDecided?.('denied', false);
   };
 
   const saveReasons = async (r: string[]) => {
@@ -164,6 +199,11 @@ export function DraftPanel({
         )}
         {res && (
           <>
+            {pre?.status === 'ready' && (
+              <p className="small soft">
+                Pre-drafted as <strong>{pre.type ? LIST_TYPES[pre.type].label : 'Regular follow-up'}</strong>. Approve, edit, or deny it below.
+              </p>
+            )}
             <p className="why">{res.draft.why}</p>
             {res.draft.skip && <p className="notice">Not needed today: {res.draft.skipReason}</p>}
             {res.warnings.length > 0 && <p className="small muted">Check: {res.warnings.join('; ')}</p>}
@@ -198,14 +238,38 @@ export function DraftPanel({
               <span className="grow" />
               {c.email && (
                 <button className="btn sm primary" onClick={() => void markSent('email', false, true)} title="Opens it in Outlook and saves it to the timeline">
-                  <Icon name="mail" size={14} /> Open in Outlook
+                  <Icon name="mail" size={14} /> {pre?.status === 'ready' ? 'Approve · open in Outlook' : 'Open in Outlook'}
                 </button>
               )}
               <button className="btn sm" onClick={() => void copy(`${body}`)}>
                 <Icon name="copy" size={14} /> Copy
               </button>
-              <button className="btn sm green" onClick={() => void markSent('email')}>
+              <button className="btn sm" onClick={() => void markSent('email')} title="Sent it another way: just save it to the timeline">
                 <Icon name="check" size={14} /> Mark sent
+              </button>
+              <button className="btn sm ghost danger" onClick={() => setDenying((x) => !x)} title="Throw this draft out (teaches Claude)">
+                <Icon name="x" size={14} /> Deny
+              </button>
+            </div>
+          </div>
+        )}
+        {denying && res && (
+          <div className="stack tight deny">
+            <p className="small soft">What was wrong with it? (teaches Claude)</p>
+            <div className="chips">
+              {[...EDIT_REASONS, 'Wrong person / not a fit', 'Not the right time'].map((r) => (
+                <button key={r} className={`chip${denyWhy.includes(r) ? ' on' : ''}`} onClick={() => setDenyWhy((x) => (x.includes(r) ? x.filter((y) => y !== r) : [...x, r]))}>
+                  {r}
+                </button>
+              ))}
+            </div>
+            <input value={denyNote} onChange={(e) => setDenyNote(e.target.value)} placeholder="Anything else? (optional)" />
+            <div className="row">
+              <button className="btn sm" onClick={() => setDenying(false)}>
+                Cancel
+              </button>
+              <button className="btn sm danger" onClick={() => void deny()}>
+                Deny draft
               </button>
             </div>
           </div>

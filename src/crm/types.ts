@@ -104,6 +104,8 @@ export interface Settings {
   email: string;
   /** Where the Email buttons open a new message. */
   emailApp: 'outlook-app' | 'outlook-web';
+  /** Added to the end of emails opened in Outlook (blank if Outlook adds yours). */
+  signature: string;
   claudeQuality: 'fast' | 'better';
   voicemail: 'connect' | 'hangup';
   dialDelaySeconds: number;
@@ -116,9 +118,10 @@ export const DEFAULT_SETTINGS: Settings = {
   name: 'Byron Green',
   dealership: 'Shoals Outdoor Sports',
   sells: 'powersports and outdoor equipment: ATVs, side-by-sides (UTVs), boats and outboard motors, trailers and riding mowers',
-  phone: '',
+  phone: '(256) 762-0959',
   email: 'byrong@shoalsoutdoorsports.com',
   emailApp: 'outlook-app',
+  signature: 'Byron Green\nShoals Outdoor Sports\n(256) 762-0959\nbyrong@shoalsoutdoorsports.com',
   claudeQuality: 'fast',
   voicemail: 'connect',
   dialDelaySeconds: 5,

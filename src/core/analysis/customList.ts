@@ -57,6 +57,7 @@ export interface CustomList {
  * Claude what the follow-up is for, before it reads each customer's history.
  */
 export type ListType =
+  | 'cold_opener'
   | 'first_contact'
   | 'warm'
   | 'cold'
@@ -71,6 +72,17 @@ export type ListType =
   | 'other';
 
 export const LIST_TYPES: Record<ListType, { label: string; hint: string }> = {
+  cold_opener: {
+    label: 'Cold opener',
+    hint: `The FIRST email to someone we have never spoken with, usually a business that could use side-by-sides (UTVs) or ATVs for work. The only goal is to start a conversation: a reply, or the name of the right person. Not a sales pitch.
+- Professional but warm: a real person at a local dealership writing one person, not a marketing email. About 80-130 words, short paragraphs, easy to read on a phone.
+- Open with who you are in one line: first name, the dealership, that it's local to them. Never pretend we've talked or met before.
+- Then one specific, honest reason you're writing to THEM, from their kind of work (crews and job sites, right-of-way and line work, grounds and facilities, farm, rental fleet): the dealership sells and services Polaris side-by-sides and ATVs (RANGER, GENERAL, Sportsman) and keeps them running with service and parts.
+- One small, concrete offer: bring a unit out for their crew to try, put a quote together, or help with service on what they run now. Never invent prices, promotions, fleet discounts or availability.
+- Close with the ask, easy to answer or forward: who handles their UTV or equipment purchases, or whether they're the right person. One question only.
+- No "I hope this email finds you well", no "reaching out", no hype, no guessing facts about their company.
+- Subject: 3-6 plain words, specific to them (their company name works). Text: one short line saying who you are and asking who handles equipment purchases.`,
+  },
   first_contact: {
     label: 'New leads: first contact',
     hint: "New leads we haven't really talked to yet. Open the safety gate: recognition and one easy question about their situation. No appointment ask in the first message.",

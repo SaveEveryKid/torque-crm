@@ -26,6 +26,8 @@ export interface StyleExample {
   sent: string;
   /** True when you sent it without changing a word. */
   approved?: boolean;
+  /** True when you threw the draft out instead of sending it (sent is empty). */
+  denied?: boolean;
   situation?: Situation;
   /** Why you changed it (tapped after DONE / COPY). */
   reasons?: string[];
@@ -66,6 +68,24 @@ export async function recordEdit(
   list.push({ id, at: now.toISOString(), kind, ai: anonymize(ai, firstName), sent: anonymize(sent, firstName), ...(approved ? { approved: true } : {}), ...(situation ? { situation } : {}) });
   await kv.set({ [KEY]: list.slice(-MAX) });
   return approved ? null : id;
+}
+
+/** You threw a draft out (Deny): it teaches as much as an edit, especially with a reason. */
+export async function recordDenial(kind: StyleKind, ai: string | null | undefined, firstName: string, reasons: string[], note = '', now = new Date(), situation?: Situation): Promise<void> {
+  if (!ai?.trim()) return;
+  const list = await getStyleExamples();
+  list.push({
+    id: crypto.randomUUID(),
+    at: now.toISOString(),
+    kind,
+    ai: anonymize(ai, firstName),
+    sent: '',
+    denied: true,
+    ...(reasons.length ? { reasons } : {}),
+    ...(note.trim() ? { note: anonymize(note.trim(), firstName).slice(0, 200) } : {}),
+    ...(situation ? { situation } : {}),
+  });
+  await kv.set({ [KEY]: list.slice(-MAX) });
 }
 
 /** Add why you changed a draft. */
@@ -132,6 +152,7 @@ export function styleBlock(
     const where = e.situation ? ` [customer ${SITUATION_LABEL[e.situation]}]` : '';
     if (e.approved) return `${me} sent this as written${where}: ${clip(flat(e.sent), 320)}`;
     const why = [...(e.reasons ?? []), e.note ?? ''].filter(Boolean).join('; ');
+    if (e.denied) return `AI wrote${where}: ${clip(flat(e.ai), 320)}\n${me} threw it out and sent nothing${why ? `. Why: ${why}` : ''}`;
     return `AI wrote${where}: ${clip(flat(e.ai), 320)}\n${me} sent: ${clip(flat(e.sent), 320)}${why ? `\nWhy he changed it: ${why}` : ''}`;
   });
   return `${since ? `RECENT EDITS NOT YET IN ${me.toUpperCase()}'S PROFILE` : `HOW ${me.toUpperCase()} EDITS AI DRAFTS`} (his real changes to other customers' messages; names changed). Match his voice and his reasoning. Never copy these lines.\n${lines.join('\n\n')}\n\n---\n\n`;
