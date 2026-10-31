@@ -56,13 +56,15 @@ export async function suggestReply(opts: {
   /** Your profile (never cut) + optional extras. */
   style?: string | LearningParts;
   today?: Date;
+  /** About this customer, before the conversation (e.g. the commercial / fleet guidance). */
+  context?: string;
 }): Promise<{ suggestion: ReplySuggestion; warnings: string[] }> {
-  const { thread, record, writer, complete, style = '', today = new Date() } = opts;
+  const { thread, record, writer, complete, style = '', today = new Date(), context = '' } = opts;
   const pasted = thread.trim().slice(-MAX_THREAD);
   if (!pasted) throw new Error('Paste what the customer said first.');
   const history = record ? `\n\nCUSTOMER HISTORY (older):\n${customerTranscript(record, writer, today)}` : `\n\nToday: ${today.toISOString().slice(0, 10)} (${today.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })})`;
   const system = replyPrompt(writer);
-  const rest = `CONVERSATION (pasted by ${firstName(writer)}, most recent last):\n${pasted}${history}`;
+  const rest = `${context}CONVERSATION (pasted by ${firstName(writer)}, most recent last):\n${pasted}${history}`;
   const user = learningText(style, FIRST_TRY_BUDGET - system.length - rest.length) + rest;
   const messages: ChatMessage[] = [
     { role: 'system', content: system },

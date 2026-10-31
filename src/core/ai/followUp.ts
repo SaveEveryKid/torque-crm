@@ -31,6 +31,8 @@ export interface Writer {
   phone: string;
   /** What the store sells, e.g. "ATVs, side-by-sides, boats…" (so drafts don't talk like a car lot). */
   sells?: string;
+  /** Set when the customer is a business contact: switches drafts to commercial / fleet selling. */
+  business?: { company: string; title: string; person: boolean } | null;
 }
 
 export interface FollowUpDraft {

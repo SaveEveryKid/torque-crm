@@ -1,6 +1,6 @@
 import { draftFollowUp, type DraftResult, type Writer } from '../core/ai/followUp';
 import type { ChatMessage } from '../core/ai/localEngine';
-import { firstName } from '../core/ai/playbook';
+import { businessSection, firstName } from '../core/ai/playbook';
 import { buildProfile } from '../core/ai/profile';
 import { suggestReply } from '../core/ai/replyHelper';
 import { draftAppointmentText, type AppointmentTextKind } from '../core/ai/appointmentTexts';
@@ -23,7 +23,13 @@ import type { Customer, Settings } from './types';
  */
 export type Complete = (messages: ChatMessage[]) => Promise<unknown>;
 
-export const writerOf = (s: Settings): Writer => ({ name: s.name, dealership: s.dealership, phone: s.phone, sells: s.sells });
+export const writerOf = (s: Settings, c?: Customer): Writer => ({
+  name: s.name,
+  dealership: s.dealership,
+  phone: s.phone,
+  sells: s.sells,
+  business: c?.company?.trim() ? { company: c.company.trim(), title: c.title?.trim() ?? '', person: !!`${c.firstName}${c.lastName}`.trim() } : null,
+});
 export const meOf = (s: Settings) => firstName(writerOf(s));
 
 /** Claude goes through your dialer, set up on Cloudflare. */
@@ -75,8 +81,8 @@ export async function draftFor(c: Customer, s: Settings, opts: DraftOptions = {}
   const record = toRecord(c, s.name);
   const situation = situationFor(record);
   const list = opts.listType ? listContext({ listType: opts.listType, listNote: opts.note ?? '' } as Parameters<typeof listContext>[0]) : '';
-  const info = list || (opts.note?.trim() ? `ABOUT THIS FOLLOW-UP (from the salesperson): ${opts.note.trim()}\n\n` : '');
-  return draftFollowUp(record, writerOf(s), completeFor(s), new Date(), !c.doNotText && !!c.phone, 'claude', await learningFor(s, situation), await getSent(c.id), info, {
+  const info = businessSection(writerOf(s, c)) + (list || (opts.note?.trim() ? `ABOUT THIS FOLLOW-UP (from the salesperson): ${opts.note.trim()}\n\n` : ''));
+  return draftFollowUp(record, writerOf(s, c), completeFor(s), new Date(), !c.doNotText && !!c.phone, 'claude', await learningFor(s, situation), await getSent(c.id), info, {
     listType: opts.listType ?? null,
     finalCheckin: opts.finalCheckin,
   });
@@ -85,7 +91,8 @@ export async function draftFor(c: Customer, s: Settings, opts: DraftOptions = {}
 /** Paste what they just said → the reply Claude would send. */
 export async function replyFor(c: Customer, s: Settings, thread: string) {
   const record = toRecord(c, s.name);
-  return suggestReply({ thread, record, writer: writerOf(s), complete: completeFor(s), style: await learningFor(s, situationFor(record, thread), 'short') });
+  const writer = writerOf(s, c);
+  return suggestReply({ thread, record, writer, complete: completeFor(s), style: await learningFor(s, situationFor(record, thread), 'short'), context: businessSection(writer) });
 }
 
 export async function appointmentTextFor(c: Customer, s: Settings, kind: AppointmentTextKind, at: string) {
@@ -94,7 +101,7 @@ export async function appointmentTextFor(c: Customer, s: Settings, kind: Appoint
     kind,
     info: { customerFirstName: c.firstName, vehicle: c.vehicle?.title || c.interest || null, at, note: null },
     record,
-    writer: writerOf(s),
+    writer: writerOf(s, c),
     complete: completeFor(s),
     style: await learningFor(s, null, 'short'),
   });

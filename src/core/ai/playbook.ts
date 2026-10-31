@@ -39,6 +39,29 @@ function sellsLine(w: Writer): string {
   return `\n- ${storeName(w)} sells ${sells}. It is NOT a car dealer: never call what they're shopping for a car, truck, SUV or "vehicle" unless the customer did. Use what they'd call it (an ATV, a side-by-side, a four-wheeler, the boat, the mower, or the model name). They come to see it or ride it, not test drive it.`;
 }
 
+/**
+ * Business contacts (a business name on the customer): sell to the work, not the weekend.
+ * Sent with the customer's details, not in the system prompt (which is near the dialer's 8,000-character cap).
+ */
+export function businessSection(w: Writer): string {
+  const b = w.business;
+  if (!b?.company.trim()) return '';
+  const who = [b.title.trim(), b.company.trim()].filter(Boolean).join(' at ');
+  return `COMMERCIAL / FLEET CUSTOMER: ${who}
+- This is a business buyer, not a retail shopper. They buy machines to get work done for a crew: job sites, right-of-way and line work, grounds, farms, rental fleets.
+- Talk about the work: hauling and towing on the job, moving a crew (the 6-seat Crew models), getting into places a truck can't, durability, uptime, warranty, and how fast ${storeName(w)} handles service and parts.
+- Offer one concrete, useful thing: a demo unit brought to their site, a quote for one or several units, or a spec sheet. Never invent fleet discounts, pricing, commercial terms, financing or availability; offer to put a quote together instead.
+- Tone: brief, plain and professional, peer to peer. Respect their time. No hype, no emojis, and no weekend-fun angle unless they bring it up.
+- First contact: one line on who you are and the dealership, why you're reaching out to them in particular (their kind of work), then one easy question, such as what they run now or who handles equipment purchases.${
+    b.person
+      ? ''
+      : `\n- There is no contact person's name: write to the business (no "Hi [name]"), and ask who handles equipment or fleet purchases. Never guess a name.`
+  }
+- Utilities, cities and counties often buy through a bid or procurement process: ask how they buy rather than assuming, and never pressure.
+
+`;
+}
+
 export function voiceSection(w: Writer): string {
   const me = firstName(w);
   return `SOUND LIKE ${me.toUpperCase()}, NOT A TEMPLATE
