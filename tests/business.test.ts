@@ -65,3 +65,12 @@ describe('business drafts: quotes only, and the store is where it is', () => {
     expect(ctx.sections.map((s) => s.versions[0]).join('\n')).toContain('Store location: Florence, Alabama (the Shoals). Only ever say the store is here');
   });
 });
+
+import { draftsTexts } from '../src/crm/ai';
+describe('business customers get emails only', () => {
+  it('no text drafts for a business (office lines), texts still for retail customers with a phone', () => {
+    expect(draftsTexts(blankCustomer({ company: 'Metro Parks', phone: '(615) 555-0100', email: 'a@b.example' }))).toBe(false);
+    expect(draftsTexts(blankCustomer({ firstName: 'Sam', phone: '(256) 555-2601' }))).toBe(true);
+    expect(draftsTexts(blankCustomer({ firstName: 'Sam', phone: '(256) 555-2601', doNotText: true }))).toBe(false);
+  });
+});

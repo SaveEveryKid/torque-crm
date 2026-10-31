@@ -81,7 +81,7 @@ export const LIST_TYPES: Record<ListType, { label: string; hint: string }> = {
 - The only offer is a quote: put one together for whatever they need, one unit or several. Never offer to bring a unit out, a demo, a test drive or a ride. Never invent prices, promotions, fleet discounts or availability.
 - Close with the ask, easy to answer or forward: who handles their UTV or equipment purchases, or whether they're the right person. One question only.
 - No "I hope this email finds you well", no "reaching out", no hype, no guessing facts about their company.
-- Subject: 3-6 plain words, specific to them (their company name works). Text: one short line saying who you are and asking who handles equipment purchases.`,
+- Subject: 3-6 plain words, specific to them (their company name works).`,
   },
   first_contact: {
     label: 'New leads: first contact',

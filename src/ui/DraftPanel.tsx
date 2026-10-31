@@ -5,7 +5,7 @@ import { situationFor } from '../core/analysis/situation';
 import { recordSent } from '../core/storage/sentLog';
 import { EDIT_REASONS, recordDenial, recordEdit, setReasons } from '../core/storage/styleMemory';
 import { setDraftStatus, type PreDraft } from '../crm/predraft';
-import { aiReady, draftFor, maybeProposeProfile, replyFor } from '../crm/ai';
+import { aiReady, draftFor, draftsTexts, maybeProposeProfile, replyFor } from '../crm/ai';
 import { toRecord } from '../crm/record';
 import { logActivity, useSettings } from '../crm/store';
 import { smsReady } from '../crm/server';
@@ -209,7 +209,7 @@ export function DraftPanel({
             {res.warnings.length > 0 && <p className="small muted">Check: {res.warnings.join('; ')}</p>}
           </>
         )}
-        {(reply || (res && !res.draft.skip && res.draft.text !== null)) && (
+        {(reply || (res && !res.draft.skip && res.draft.text !== null && draftsTexts(c))) && (
           <div className="stack tight">
             <h3>Text</h3>
             <textarea value={text} onChange={(e) => setText(e.target.value)} />
