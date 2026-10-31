@@ -10,6 +10,7 @@ import { UpdateBanner } from './ui/UpdateBanner';
 import { daysFromToday, go, Icon, StageBadge, useRoute } from './ui/kit';
 import { Today } from './pages/Today';
 import { Customers } from './pages/Customers';
+import { FollowUp } from './pages/FollowUp';
 import { CustomerPage } from './pages/CustomerPage';
 import { Pipeline } from './pages/Pipeline';
 import { Inventory } from './pages/Inventory';
@@ -20,6 +21,7 @@ const NAV = [
   { path: 'today', label: 'Today', icon: 'today' },
   { path: 'texts', label: 'Texts', icon: 'text' },
   { path: 'customers', label: 'Customers', icon: 'users' },
+  { path: 'followup', label: 'AI Follow-up', icon: 'sparkle' },
   { path: 'pipeline', label: 'Pipeline', icon: 'board' },
   { path: 'inventory', label: 'Inventory', icon: 'car' },
   { path: 'dialer', label: 'Dialer', icon: 'phone' },
@@ -93,7 +95,8 @@ export function App() {
         {page === 'today' && <Today />}
         {page === 'texts' && <Texts id={id} />}
         {page === 'customers' && !id && <Customers />}
-        {page === 'customers' && id && <CustomerPage id={id} />}
+        {page === 'customers' && id && <CustomerPage key={id} id={id} />}
+        {page === 'followup' && <FollowUp />}
         {page === 'pipeline' && <Pipeline />}
         {page === 'inventory' && <Inventory />}
         {page === 'dialer' && <Dialer />}

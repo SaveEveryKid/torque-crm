@@ -100,6 +100,10 @@ export interface Settings {
   /** What you sell, in plain words (Claude uses it so drafts don't sound like a car lot). */
   sells: string;
   phone: string;
+  /** Your work email (Outlook). */
+  email: string;
+  /** Where the Email buttons open a new message. */
+  emailApp: 'outlook-app' | 'outlook-web';
   claudeQuality: 'fast' | 'better';
   voicemail: 'connect' | 'hangup';
   dialDelaySeconds: number;
@@ -113,6 +117,8 @@ export const DEFAULT_SETTINGS: Settings = {
   dealership: 'Shoals Outdoor Sports',
   sells: 'powersports and outdoor equipment: ATVs, side-by-sides (UTVs), boats and outboard motors, trailers and riding mowers',
   phone: '',
+  email: 'byrong@shoalsoutdoorsports.com',
+  emailApp: 'outlook-app',
   claudeQuality: 'fast',
   voicemail: 'connect',
   dialDelaySeconds: 5,

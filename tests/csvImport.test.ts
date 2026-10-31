@@ -58,6 +58,8 @@ describe('importing customers from a CSV', () => {
 
   it('reads names, stages, do-not-text and Excel quirks', () => {
     expect(splitName('Smith, John')).toEqual({ firstName: 'John', lastName: 'Smith' });
+    expect(splitName('Zach & Abby Moore')).toEqual({ firstName: 'Zach & Abby', lastName: 'Moore' });
+    expect(splitName('Steve / Ridge Construction', 'Ridge Construction')).toEqual({ firstName: 'Steve', lastName: '' });
     expect(readStage('Sold')).toBe('sold');
     expect(readStage('Appt set')).toBe('appointment');
     expect(readStage('whatever')).toBeNull();

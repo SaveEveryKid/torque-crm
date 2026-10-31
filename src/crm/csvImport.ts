@@ -167,11 +167,19 @@ const phoneKey = (p: string) => {
   return n.ok ? n.digits : null;
 };
 
-/** "Smith, John" → John Smith; "John Q Smith" → John / Q Smith. */
-export function splitName(full: string): { firstName: string; lastName: string } {
-  const t = full.replace(/\s+/g, ' ').trim();
+/**
+ * "Smith, John" → John / Smith; "John Q Smith" → John / Q Smith;
+ * "Zach & Abby Smith" → Zach & Abby / Smith; "Steve / Ridge Construction"
+ * (a name plus the business it's already filed under) → Steve.
+ */
+export function splitName(full: string, company = ''): { firstName: string; lastName: string } {
+  let t = full.replace(/\s+/g, ' ').trim();
+  const slash = t.split(/\s+\/\s+/);
+  if (slash.length > 1 && companyKey(slash.slice(1).join(' ')) === companyKey(company)) t = slash[0];
   const comma = /^([^,]+),\s*(.+)$/.exec(t);
   if (comma) return { firstName: comma[2], lastName: comma[1] };
+  const couple = /^(\S+ (?:&|and) \S+) (.+)$/i.exec(t);
+  if (couple) return { firstName: couple[1], lastName: couple[2] };
   const [first = '', ...rest] = t.split(' ');
   return { firstName: first, lastName: rest.join(' ') };
 }
@@ -216,7 +224,7 @@ export function planImport(sheet: Sheet, mapping: Field[], existing: Customer[],
         .filter(Boolean)
         .join(f === 'notes' ? '\n' : ' ');
     let { firstName, lastName } = { firstName: get('firstName'), lastName: get('lastName') };
-    if (!firstName && !lastName && get('fullName')) ({ firstName, lastName } = splitName(get('fullName')));
+    if (!firstName && !lastName && get('fullName')) ({ firstName, lastName } = splitName(get('fullName'), get('company')));
     firstName = tidyName(firstName);
     lastName = tidyName(lastName);
     const rawPhone = get('phone');

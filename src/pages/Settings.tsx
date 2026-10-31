@@ -6,6 +6,7 @@ import { aiReady, maybeProposeProfile } from '../crm/ai';
 import { backupFileName, backupJson, download, restoreBackup } from '../crm/backup';
 import { saveSettings, useSettings, useStoredKey } from '../crm/store';
 import type { Settings } from '../crm/types';
+import { openCompose } from '../crm/email';
 import { copy, Icon } from '../ui/kit';
 
 export function SettingsPage() {
@@ -19,6 +20,7 @@ export function SettingsPage() {
         </div>
       </div>
       <Profile s={settings} />
+      <EmailSetup s={settings} />
       <DialerSetup s={settings} />
       <Texting />
       <Learning s={settings} />
@@ -57,6 +59,37 @@ function Profile({ s }: { s: Settings }) {
         </div>
         <Text label="Follow up after (days without contact)" k="followUpDays" s={s} type="number" />
         <Text label="Dealer inventory page" k="inventoryPage" s={s} placeholder="/Inventory/All-Inventory-In-Stock" />
+      </div>
+    </section>
+  );
+}
+
+function EmailSetup({ s }: { s: Settings }) {
+  return (
+    <section className="card card-pad stack">
+      <h2>Email</h2>
+      <p className="soft small">
+        The Email buttons open a new message in Outlook, already filled in, and save it to the customer's timeline. You press Send in Outlook.
+      </p>
+      <div className="form-grid">
+        <Text label="Your email" k="email" s={s} type="email" placeholder="you@dealership.com" />
+        <label className="field">
+          Open emails in
+          <select value={s.emailApp} onChange={(e) => void saveSettings({ emailApp: e.target.value as Settings['emailApp'] })}>
+            <option value="outlook-app">Outlook app on this computer</option>
+            <option value="outlook-web">Outlook on the web (Microsoft 365)</option>
+          </select>
+        </label>
+      </div>
+      <p className="muted small">
+        {s.emailApp === 'outlook-app'
+          ? 'Uses your computer’s default email app: in Windows, Settings → Apps → Default apps, search “MAILTO” and pick Outlook.'
+          : `Opens outlook.office.com in a new tab; sign in there with ${s.email || 'your work email'} once.`}
+      </p>
+      <div>
+        <button className="btn sm" disabled={!s.email} onClick={() => openCompose({ to: s.email, subject: 'Torque CRM test', body: 'If this opened in Outlook, email is set up.' }, s)}>
+          <Icon name="mail" size={14} /> Send yourself a test
+        </button>
       </div>
     </section>
   );

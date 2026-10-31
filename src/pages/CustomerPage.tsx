@@ -19,10 +19,12 @@ import {
 import { STAGES, STAGE_LABEL, TASK_LABEL, type Activity, type Customer, type Stage, type Task, type TaskKind } from '../crm/types';
 import { CustomerForm } from '../ui/CustomerForm';
 import { DraftPanel } from '../ui/DraftPanel';
+import { EmailComposer } from '../ui/EmailComposer';
 import { UnitFinder } from '../ui/UnitFinder';
 import { loadStatus, smsReady, smsSetup } from '../crm/server';
 import { quietHours, sendText, statusLabel, unreadCount, useSms } from '../crm/sms';
 import { InventoryPicker } from './Inventory';
+import { neighbors } from '../crm/listView';
 import { Avatar, copy, daysFromToday, Empty, go, Icon, localInput, Modal, tomorrowAt, when } from '../ui/kit';
 
 export function CustomerPage({ id }: { id: string }) {
@@ -33,7 +35,19 @@ export function CustomerPage({ id }: { id: string }) {
   const [picking, setPicking] = useState(false);
   const [callError, setCallError] = useState<string | null>(null);
   const [texting, setTexting] = useState<false | string>(false);
+  const [emailing, setEmailing] = useState(false);
   const sms = useSms();
+  const nav = neighbors(id);
+  // Alt + ← / → steps through the customer list in the order it was shown.
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (!e.altKey || (e.target as HTMLElement).closest('input, textarea, select')) return;
+      const to = e.key === 'ArrowLeft' ? nav.prev : e.key === 'ArrowRight' ? nav.next : null;
+      if (to) (e.preventDefault(), go(`customers/${to}`));
+    };
+    addEventListener('keydown', k);
+    return () => removeEventListener('keydown', k);
+  }, [nav.prev, nav.next]);
   // Opening a customer marks their texts as read.
   useEffect(() => {
     if (c && unreadCount(c, sms)) void updateCustomer(c.id, { textsReadAt: new Date().toISOString() });
@@ -59,10 +73,23 @@ export function CustomerPage({ id }: { id: string }) {
 
   return (
     <div className="page">
-      <div className="row">
-        <button className="btn ghost sm" onClick={() => history.back()}>
-          <Icon name="back" size={16} /> Back
+      <div className="row between">
+        <button className="btn ghost sm" onClick={() => go('customers')}>
+          <Icon name="back" size={16} /> Customers
         </button>
+        {nav.index >= 0 && (
+          <div className="row">
+            <span className="muted small">
+              {nav.index + 1} of {nav.total}
+            </span>
+            <button className="btn sm" disabled={!nav.prev} onClick={() => nav.prev && go(`customers/${nav.prev}`)} title="Previous customer (Alt + ←)">
+              <Icon name="back" size={14} /> Previous
+            </button>
+            <button className="btn sm" disabled={!nav.next} onClick={() => nav.next && go(`customers/${nav.next}`)} title="Next customer (Alt + →)">
+              Next <Icon name="chevron" size={14} />
+            </button>
+          </div>
+        )}
       </div>
       <section className="card card-pad">
         <div className="row between">
@@ -95,11 +122,9 @@ export function CustomerPage({ id }: { id: string }) {
             <button className="btn primary" onClick={() => setTexting('')} title="Text from your SignalWire number">
               <Icon name="text" size={16} /> Text
             </button>
-            {c.email && (
-              <a className="btn" href={`mailto:${c.email}`}>
-                <Icon name="mail" size={16} /> Email
-              </a>
-            )}
+            <button className="btn" disabled={!c.email || c.doNotContact} onClick={() => setEmailing(true)} title={c.email ? `Email ${c.email} in Outlook` : 'No email address (Edit to add one)'}>
+              <Icon name="mail" size={16} /> Email
+            </button>
             <button className="btn" onClick={() => setEditing(true)}>
               Edit
             </button>
@@ -198,6 +223,7 @@ export function CustomerPage({ id }: { id: string }) {
       </div>
 
       {editing && <CustomerForm customer={c} onClose={() => setEditing(false)} />}
+      {emailing && <EmailComposer customer={c} onClose={() => setEmailing(false)} />}
       {texting !== false && <QuickText customer={c} initial={texting} onClose={() => setTexting(false)} />}
       {picking && (
         <InventoryPicker
@@ -229,6 +255,7 @@ function Composer({ customer: c }: { customer: Customer }) {
   const [dir, setDir] = useState<'OUTBOUND' | 'INBOUND'>('OUTBOUND');
   const [outcome, setOutcome] = useState(CALL_OUTCOMES[0]);
   const [text, setText] = useState('');
+  const [subject, setSubject] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const two = kind === 'TEXT' || kind === 'EMAIL' || kind === 'PHONE';
@@ -255,9 +282,10 @@ function Composer({ customer: c }: { customer: Customer }) {
     await logActivity(c.id, {
       channel: kind === 'VISIT' ? 'APPOINTMENT' : kind,
       direction: kind === 'NOTE' ? 'INTERNAL' : kind === 'VISIT' ? 'INBOUND' : dir,
-      outcome: kind === 'PHONE' ? outcome : kind === 'VISIT' ? 'Showroom visit' : null,
+      outcome: kind === 'PHONE' ? outcome : kind === 'VISIT' ? 'Showroom visit' : kind === 'EMAIL' && subject.trim() ? `Subject: ${subject.trim()}` : null,
       text: text.trim(),
     });
+    setSubject('');
     if (kind === 'VISIT' && ['new', 'contacted', 'appointment'].includes(c.stage)) await setStage(c.id, 'showed', 'Showed');
     setText('');
   };
@@ -283,6 +311,7 @@ function Composer({ customer: c }: { customer: Customer }) {
           </div>
         )}
       </div>
+      {kind === 'EMAIL' && <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject (optional)" aria-label="Email subject" />}
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}

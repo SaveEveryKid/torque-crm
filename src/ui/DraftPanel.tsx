@@ -10,6 +10,7 @@ import { logActivity, useSettings } from '../crm/store';
 import { smsReady } from '../crm/server';
 import { quietHours, sendText } from '../crm/sms';
 import type { Customer } from '../crm/types';
+import { openCompose } from '../crm/email';
 import { copy, go, Icon } from './kit';
 
 /**
@@ -17,10 +18,24 @@ import { copy, go, Icon } from './kit';
  * they just said. You edit, copy and send it yourself, then MARK SENT so it's
  * on the timeline and Claude learns from what you changed.
  */
-export function DraftPanel({ customer: c }: { customer: Customer }) {
+export function DraftPanel({
+  customer: c,
+  shared,
+  onLogged,
+}: {
+  customer: Customer;
+  /** Kind of follow-up + note kept from one customer to the next (AI Follow-up). */
+  shared?: { type: ListType | ''; note: string; set: (p: { type?: ListType | ''; note?: string }) => void };
+  /** After a text or email is sent or logged. */
+  onLogged?: () => void;
+}) {
   const settings = useSettings();
-  const [type, setType] = useState<ListType | ''>('');
-  const [note, setNote] = useState('');
+  const [ownType, setOwnType] = useState<ListType | ''>('');
+  const [ownNote, setOwnNote] = useState('');
+  const type = shared ? shared.type : ownType;
+  const note = shared ? shared.note : ownNote;
+  const setType = (t: ListType | '') => (shared ? shared.set({ type: t }) : setOwnType(t));
+  const setNote = (n: string) => (shared ? shared.set({ note: n }) : setOwnNote(n));
   const [busy, setBusy] = useState<'draft' | 'reply' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [res, setRes] = useState<DraftResult | null>(null);
@@ -81,10 +96,11 @@ export function DraftPanel({ customer: c }: { customer: Customer }) {
   };
 
   /** viaSms: send the text now through your SignalWire number (otherwise you sent it yourself). */
-  const markSent = async (kind: 'text' | 'email', viaSms = false) => {
+  const markSent = async (kind: 'text' | 'email', viaSms = false, outlook = false) => {
     const ai = kind === 'text' ? (reply ? reply.ai : res?.draft.text) : res?.draft.emailBody;
     const sent = kind === 'text' ? text : body;
     if (!sent.trim()) return;
+    if (outlook) openCompose({ to: c.email, subject, body: sent }, settings);
     if (viaSms) {
       if (quietHours() && !confirm("It's outside 8 AM–9 PM. Send anyway?")) return;
       setError(null);
@@ -99,7 +115,8 @@ export function DraftPanel({ customer: c }: { customer: Customer }) {
     await recordSent(c.id, { at: new Date().toISOString(), kind, subject: kind === 'email' ? subject : null, body: sent, source: reply ? 'reply' : 'followup' });
     if (!viaSms) await logActivity(c.id, { channel: kind === 'text' ? 'TEXT' : 'EMAIL', direction: 'OUTBOUND', outcome: kind === 'email' && subject ? `Subject: ${subject}` : null, text: sent });
     if (id) setEdited((x) => [...x, id]);
-    setDone(viaSms ? 'Text sent.' : kind === 'text' ? 'Text logged.' : 'Email logged.');
+    onLogged?.();
+    setDone(viaSms ? 'Text sent.' : outlook ? 'Opened in Outlook and saved to the timeline. Press Send in Outlook.' : kind === 'text' ? 'Text logged.' : 'Email logged.');
     void maybeProposeProfile(settings).catch(() => undefined);
   };
 
@@ -180,9 +197,9 @@ export function DraftPanel({ customer: c }: { customer: Customer }) {
             <div className="row">
               <span className="grow" />
               {c.email && (
-                <a className="btn sm" href={`mailto:${c.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}>
-                  <Icon name="mail" size={14} /> Open in email
-                </a>
+                <button className="btn sm primary" onClick={() => void markSent('email', false, true)} title="Opens it in Outlook and saves it to the timeline">
+                  <Icon name="mail" size={14} /> Open in Outlook
+                </button>
               )}
               <button className="btn sm" onClick={() => void copy(`${body}`)}>
                 <Icon name="copy" size={14} /> Copy
