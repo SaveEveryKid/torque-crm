@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { kv } from '../core/storage/kv';
 import { normalizeUsPhone } from '../core/analysis/phone';
+import { afterActivity, autoStop } from './sequence';
 import { DEFAULT_SETTINGS, type Activity, type Customer, type Settings, type Stage, type Task } from './types';
 
 /**
@@ -107,7 +108,8 @@ export function updateCustomer(id: string, patch: Partial<Customer> | ((c: Custo
     const c = m[id];
     if (!c) return;
     const p = typeof patch === 'function' ? patch(c) : patch;
-    m[id] = { ...c, ...p, updatedAt: now() };
+    const next = { ...c, ...p, updatedAt: now() };
+    m[id] = { ...next, ...autoStop(next) };
     await saveAll(m);
   });
 }
@@ -146,6 +148,8 @@ export async function logActivity(id: string, a: Omit<Activity, 'id' | 'at'> & {
     activities: [entry, ...c.activities].sort((x, y) => y.at.localeCompare(x.at)),
     // First outbound contact moves a New customer to Contacted.
     ...(c.stage === 'new' && entry.direction === 'OUTBOUND' ? { stage: 'contacted' as Stage } : {}),
+    // Start / advance / stop the automatic follow-up emails; a reply adds "Reply to them".
+    ...afterActivity(c, entry),
   }));
 }
 

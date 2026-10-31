@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ListType } from '../core/analysis/customList';
 import { kv } from '../core/storage/kv';
 import { draftFor } from './ai';
+import { dueStep, stepType } from './sequence';
 import { serial, useStored } from './store';
 import type { Customer, Settings } from './types';
 
@@ -57,12 +58,29 @@ export const setDraftStatus = (id: string, status: PreDraft['status']) =>
 
 /** Has anything ever been said between us (a text, call, email or visit)? */
 export const talkedTo = (c: Customer) => c.activities.some((a) => a.direction !== 'INTERNAL');
-/** "Auto": a cold opener for anyone never contacted, a follow-up from the history for the rest. */
-export const typeFor = (c: Customer, mode: ListType | '' | 'auto'): ListType | '' => (mode === 'auto' ? (talkedTo(c) ? '' : 'cold_opener') : mode);
+/** The follow-up type that fits right now: the scheduled email that's due, else a cold opener if we've never talked. */
+export function suggestedType(c: Customer, now = new Date()): ListType | '' {
+  const due = dueStep(c, now);
+  if (due) return stepType(due.seq);
+  return talkedTo(c) ? '' : 'cold_opener';
+}
+/** "Auto": the scheduled follow-up that's due, a cold opener for anyone never contacted, a follow-up from the history for the rest. */
+export const typeFor = (c: Customer, mode: ListType | '' | 'auto'): ListType | '' => (mode === 'auto' ? suggestedType(c) : mode);
 
-/** Who gets a draft: has an email, may be contacted, and (unless redoing) has nothing waiting. */
-export function targets(list: Customer[], drafts: Drafts, redo: boolean): Customer[] {
-  return list.filter((c) => c.email.trim() && !c.doNotContact && (redo || !drafts[c.id] || drafts[c.id].status === 'error'));
+/**
+ * Who gets a draft: has an email, may be contacted, and has nothing waiting
+ * (unless redoing). Someone whose last draft was sent or denied gets a new
+ * one when their next scheduled follow-up comes due.
+ */
+export function targets(list: Customer[], drafts: Drafts, redo: boolean, now = new Date()): Customer[] {
+  return list.filter((c) => {
+    if (!c.email.trim() || c.doNotContact) return false;
+    const d = drafts[c.id];
+    if (redo || !d || d.status === 'error') return true;
+    const due = dueStep(c, now);
+    // A different email is due now than the last draft was (e.g. the cold opener went out, #2 is due).
+    return (d.status === 'sent' || d.status === 'denied') && !!due && d.type !== stepType(due.seq);
+  });
 }
 
 export interface RunState {

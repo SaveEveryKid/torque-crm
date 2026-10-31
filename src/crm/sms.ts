@@ -1,3 +1,4 @@
+import { afterActivity } from './sequence';
 import { useEffect } from 'react';
 import { kv } from '../core/storage/kv';
 import { normalizeUsPhone } from '../core/analysis/phone';
@@ -110,6 +111,8 @@ async function mergeTexts(rows: SmsRow[]): Promise<SmsRow[]> {
       ...patch,
       activities: [entry, ...notes, ...c.activities].sort((a, b) => b.at.localeCompare(a.at)),
       ...(c.stage === 'new' && s.direction === 'OUTBOUND' ? { stage: 'contacted' as const } : {}),
+      // They texted: stop the scheduled follow-up emails and add "Reply to their text"; you texted back: that's done.
+      ...afterActivity(c, entry),
       updatedAt: new Date().toISOString(),
     };
     if (s.direction === 'INBOUND') fresh.push(s);

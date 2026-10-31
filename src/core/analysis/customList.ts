@@ -58,6 +58,9 @@ export interface CustomList {
  */
 export type ListType =
   | 'cold_opener'
+  | 'bump'
+  | 'new_angle'
+  | 'breakup'
   | 'first_contact'
   | 'warm'
   | 'cold'
@@ -82,6 +85,28 @@ export const LIST_TYPES: Record<ListType, { label: string; hint: string }> = {
 - Close with the ask, easy to answer or forward: who handles their UTV or equipment purchases, or whether they're the right person. One question only.
 - No "I hope this email finds you well", no "reaching out", no hype, no guessing facts about their company.
 - Subject: 3-6 plain words, specific to them (their company name works).`,
+  },
+  bump: {
+    label: 'Follow-up #2: short bump',
+    hint: `Follow-up email #2, a few days after our first email, which got no answer yet. Write it as a short reply on top of that first email.
+- Subject: "Re: " plus the subject of our last email exactly (see the history).
+- 2-3 short sentences, under 60 words. Assume they're busy, not uninterested. No guilt ("just following up", "did you see my email", "bumping this").
+- Restate the one ask in fresh words: who handles their UTV or equipment purchases, or whether it's them. One question only.
+- Don't repeat the first email's wording, introduction or reasons. Never offer a demo or to bring a unit out; a quote is the only offer.`,
+  },
+  new_angle: {
+    label: 'Follow-up #3: new angle',
+    hint: `Follow-up email #3, about two weeks after our first email; still no answer. Start fresh with a NEW angle (a new subject, not "Re:").
+- Pick one angle the earlier emails didn't use: keeping the machines they already run going (service and parts, any brand they'd ask about), getting set before their busy season (spring grounds work, storm season, hunting season), or how a crew side-by-side (RANGER Crew seats six) cuts trips. Only use what fits their kind of work.
+- 3-4 short sentences, about 60-90 words. One easy question at the end (who handles purchases, or whether it's on their radar this year).
+- Never invent prices, promotions, availability or facts about them. A quote is the only offer; never a demo.`,
+  },
+  breakup: {
+    label: 'Follow-up #4: closing note',
+    hint: `Follow-up email #4, the last one in this run (about a month after our first email); they never answered. Close the loop politely so the door stays open.
+- Subject: short and plain, e.g. "Closing the loop".
+- 2-3 short sentences: you won't keep filling their inbox; if UTVs or ATVs come up for their crews, you're glad to put a quote together; how to reach you is in the signature.
+- Warm, zero guilt, no "last chance", no "since I haven't heard back". You may end with no question at all, or one very easy one (e.g. whether there's someone else you should send this to).`,
   },
   first_contact: {
     label: 'New leads: first contact',

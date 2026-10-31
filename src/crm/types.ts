@@ -58,6 +58,10 @@ export interface Task {
   doneAt?: string | null;
   /** Appointments: did they show? */
   result?: 'showed' | 'no_show' | null;
+  /** Scheduled automatically: follow-up email #2, #3 or #4 after the first email. */
+  seq?: 2 | 3 | 4;
+  /** They wrote back: answer them. */
+  reply?: boolean;
 }
 
 export interface Customer {
@@ -86,6 +90,8 @@ export interface Customer {
   needs?: { use: string; tags: string[]; riders: string; budget: string } | null;
   /** The 3 units Claude suggested from inventory. */
   match?: { at: string; summary: string; picks: { v: VehicleRef; reason: string; inStock: number }[] } | null;
+  /** Automatic follow-up emails after the first one (started when it's sent, stopped once you make contact). */
+  sequence?: { startedAt: string; stoppedAt?: string | null; reason?: string | null } | null;
   /** When you last looked at their texts (for "unread"). */
   textsReadAt?: string | null;
   createdAt: string;

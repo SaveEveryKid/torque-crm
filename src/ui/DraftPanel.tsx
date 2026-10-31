@@ -4,7 +4,8 @@ import { LIST_TYPES, type ListType } from '../core/analysis/customList';
 import { situationFor } from '../core/analysis/situation';
 import { recordSent } from '../core/storage/sentLog';
 import { EDIT_REASONS, recordDenial, recordEdit, setReasons } from '../core/storage/styleMemory';
-import { setDraftStatus, type PreDraft } from '../crm/predraft';
+import { setDraftStatus, suggestedType, type PreDraft } from '../crm/predraft';
+import { dueStep } from '../crm/sequence';
 import { aiReady, draftFor, draftsTexts, maybeProposeProfile, replyFor } from '../crm/ai';
 import { toRecord } from '../crm/record';
 import { logActivity, useSettings } from '../crm/store';
@@ -37,9 +38,11 @@ export function DraftPanel({
   onDecided?: (outcome: 'sent' | 'denied', edited: boolean) => void;
 }) {
   const settings = useSettings();
-  const [ownType, setOwnType] = useState<ListType | ''>('');
+  // Ready for the right email: the scheduled follow-up that's due (#2, #3, #4), or a cold opener if you've never talked.
+  const suggested = suggestedType(c);
+  const [ownType, setOwnType] = useState<ListType | ''>(suggested);
   const [ownNote, setOwnNote] = useState('');
-  const type = shared ? shared.type : ownType;
+  const type = shared ? shared.type || suggested : ownType;
   const note = shared ? shared.note : ownNote;
   const setType = (t: ListType | '') => (shared ? shared.set({ type: t }) : setOwnType(t));
   const setNote = (n: string) => (shared ? shared.set({ note: n }) : setOwnNote(n));
@@ -173,6 +176,11 @@ export function DraftPanel({
         )}
       </div>
       <div className="card-pad draft">
+        {dueStep(c) && (
+          <p className="notice small">
+            {dueStep(c)!.title} is due{new Date(dueStep(c)!.dueAt) < new Date(new Date().setHours(0, 0, 0, 0)) ? ' (overdue)' : ' today'}. It's picked below.
+          </p>
+        )}
         <div className="row">
           <select value={type} onChange={(e) => setType(e.target.value as ListType | '')} className="grow" aria-label="Kind of follow-up">
             <option value="">Regular follow-up</option>

@@ -234,7 +234,7 @@ export interface ModeInput {
 }
 
 export function classifyMessageMode(m: ModeInput, today = new Date()): MessageMode {
-  if (m.finalCheckin) return 'FINAL_CHECKIN';
+  if (m.finalCheckin || m.listType === 'breakup') return 'FINAL_CHECKIN';
   if (!m.lastCustomerAt && !m.lastUsAt && (m.listType === 'cold_opener' || m.attemptsSinceReply === 0)) return 'FIRST_CONTACT';
   const sinceReply = daysBetween(m.lastCustomerAt, today);
   const sinceAny = daysBetween([m.lastCustomerAt, m.lastUsAt].filter(Boolean).sort().pop() ?? null, today);

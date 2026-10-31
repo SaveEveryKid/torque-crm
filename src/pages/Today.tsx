@@ -24,6 +24,7 @@ export function Today() {
     })
     .sort((a, b) => (lastContact(a) ?? '').localeCompare(lastContact(b) ?? ''));
   const late = due.filter(({ t }) => daysFromToday(t.dueAt) < 0).length;
+  const replies = tasks.filter(({ t }) => t.reply).sort((a, b) => a.t.dueAt.localeCompare(b.t.dueAt));
   const month = now.toISOString().slice(0, 7);
   const soldThisMonth = list.filter((c) => c.stage === 'sold' && c.updatedAt.startsWith(month)).length;
   const hello = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
@@ -39,6 +40,33 @@ export function Today() {
         </div>
       </div>
 
+      {replies.length > 0 && (
+        <section className="card needs-reply">
+          <div className="card-head">
+            <h2 className="row">
+              <Icon name="mail" /> Needs a reply
+            </h2>
+            <span className="sub">
+              {replies.length} customer{replies.length === 1 ? '' : 's'} wrote back
+            </span>
+          </div>
+          <div className="list">
+            {replies.map(({ c, t }) => {
+              const said = c.activities.find((a) => a.direction === 'INBOUND' && (a.channel === 'EMAIL' || a.channel === 'TEXT'));
+              return (
+                <div key={t.id} className="list-item click" style={{ cursor: 'pointer' }} onClick={() => go(`customers/${c.id}`)}>
+                  <Avatar first={c.firstName} last={c.lastName} company={c.company} />
+                  <div className="grow" style={{ minWidth: 0 }}>
+                    <div className="title">{fullName(c)}</div>
+                    <div className="muted small ellipsis">{said?.text || t.title}</div>
+                  </div>
+                  <span className="when">{ago(t.dueAt)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
       <BootcampNudge />
       <div className="stats">
         <Stat label="Tasks due" value={due.length} hint={late ? `${late} overdue` : due.length ? 'due today' : 'all caught up'} />

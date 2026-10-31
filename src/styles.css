@@ -514,3 +514,7 @@ table.table { width: 100%; border-collapse: collapse; }
 .btn.danger-fill { background: var(--red, #d64545); border-color: var(--red, #d64545); color: #fff; }
 .btn.danger-fill:disabled { opacity: 0.45; }
 .success-text { color: var(--green-text); }
+.seq-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--panel-2); color: var(--text-2); margin: 0; }
+.list-item.reply { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.list-item.reply .title { color: var(--text); font-weight: 650; }
+.needs-reply { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }

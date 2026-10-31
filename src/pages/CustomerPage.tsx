@@ -25,6 +25,7 @@ import { loadStatus, smsReady, smsSetup } from '../crm/server';
 import { quietHours, sendText, statusLabel, unreadCount, useSms } from '../crm/sms';
 import { InventoryPicker } from './Inventory';
 import { neighbors } from '../crm/listView';
+import { running, stopSequence } from '../crm/sequence';
 import { Avatar, copy, daysFromToday, Empty, go, Icon, localInput, Modal, tomorrowAt, when } from '../ui/kit';
 
 export function CustomerPage({ id }: { id: string }) {
@@ -442,6 +443,21 @@ function Tasks({ customer: c }: { customer: Customer }) {
           <Icon name="plus" size={14} /> Add
         </button>
       </div>
+      {running(c) ? (
+        <div className="seq-bar">
+          <Icon name="mail" size={14} />
+          <span className="grow small">
+            Follow-up emails are scheduled. They stop on their own when you make contact.
+          </span>
+          <button className="btn sm" onClick={() => confirm('Stop the scheduled follow-up emails for this customer?') && void updateCustomer(c.id, (x) => stopSequence(x, 'Stopped by you'))}>
+            Stop
+          </button>
+        </div>
+      ) : c.sequence?.stoppedAt ? (
+        <p className="seq-bar muted small">
+          Follow-up emails stopped {when(c.sequence.stoppedAt)}: {c.sequence.reason?.toLowerCase()}.
+        </p>
+      ) : null}
       {adding && (
         <div className="composer">
           <div className="row">
@@ -473,7 +489,7 @@ function Tasks({ customer: c }: { customer: Customer }) {
           {open.map((t) => {
             const late = daysFromToday(t.dueAt) < 0 || (daysFromToday(t.dueAt) === 0 && new Date(t.dueAt) < new Date());
             return (
-              <div key={t.id} className="list-item">
+              <div key={t.id} className={`list-item${t.reply ? ' reply' : ''}`}>
                 {t.kind !== 'appointment' && <input type="checkbox" aria-label="Done" onChange={() => void updateTask(c.id, t.id, { done: true, doneAt: new Date().toISOString() })} />}
                 <div className="grow">
                   <div className="title">{t.title}</div>
