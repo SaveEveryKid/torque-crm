@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
-import { addCustomers, fullName, lastContact, openTasks, useCustomers } from '../crm/store';
-import { importCsv } from '../crm/record';
+import { useMemo, useState } from 'react';
+import { fullName, lastContact, openTasks, useCustomers } from '../crm/store';
+import { ImportCustomers } from '../ui/ImportCustomers';
 import { STAGES, type Stage } from '../crm/types';
 import { ago, Avatar, Empty, go, Icon, StageBadge, when } from '../ui/kit';
 
@@ -14,33 +14,19 @@ export function Customers() {
   const [sort, setSort] = useState<Sort>('recent');
   const [q, setQ] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const file = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
 
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
     return list
       .filter((c) => (filter === 'all' ? true : filter === 'open' ? !['sold', 'lost'].includes(c.stage) : c.stage === filter))
-      .filter((c) => !s || [fullName(c), c.phone, c.email, c.interest, c.vehicle?.title ?? ''].some((v) => v.toLowerCase().includes(s)))
+      .filter((c) => !s || [fullName(c), c.company ?? '', c.title ?? '', c.address, c.phone, c.email, c.interest, c.vehicle?.title ?? ''].some((v) => v.toLowerCase().includes(s)))
       .sort((a, b) =>
         sort === 'name' ? fullName(a).localeCompare(fullName(b)) : sort === 'contact' ? (lastContact(a) ?? '').localeCompare(lastContact(b) ?? '') : b.updatedAt.localeCompare(a.updatedAt),
       );
   }, [list, filter, sort, q]);
 
   const count = (f: Filter) => list.filter((c) => (f === 'all' ? true : f === 'open' ? !['sold', 'lost'].includes(c.stage) : c.stage === f)).length;
-
-  const onFile = async (f: File | undefined) => {
-    if (!f) return;
-    const res = importCsv(await f.text(), f.name, list);
-    if (!res.ok) return setMsg({ ok: false, text: res.error });
-    await addCustomers(res.customers);
-    setMsg({
-      ok: true,
-      text: `Imported ${res.customers.length} customer${res.customers.length === 1 ? '' : 's'}${res.withHistory ? ` (${res.withHistory} with their eLead history)` : ''}.${
-        res.duplicates ? ` ${res.duplicates} already here (same phone) were left alone.` : ''
-      }${res.skipped ? ` ${res.skipped} rows had no usable phone.` : ''}`,
-    });
-    if (file.current) file.current.value = '';
-  };
 
   return (
     <div className="page">
@@ -50,13 +36,13 @@ export function Customers() {
           <p>Everyone you're working, in one place.</p>
         </div>
         <div className="row">
-          <input ref={file} type="file" accept=".csv,text/csv" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
-          <button className="btn" onClick={() => file.current?.click()} title="A spreadsheet (CSV) with name and phone columns. A Torque “EXPORT LIST + HISTORY” file brings each customer's eLead history.">
+          <button className="btn" onClick={() => setImporting(true)} title="Bring in customers from a spreadsheet (CSV). A Torque “EXPORT LIST + HISTORY” file brings each customer's eLead history.">
             <Icon name="upload" size={16} /> Import CSV
           </button>
         </div>
       </div>
       {msg && <p className={msg.ok ? 'success' : 'error'}>{msg.text}</p>}
+      {importing && <ImportCustomers existing={list} onClose={() => setImporting(false)} onDone={(text) => setMsg({ ok: true, text })} />}
 
       <div className="row between">
         <div className="tabs">
@@ -99,10 +85,12 @@ export function Customers() {
                   <tr key={c.id} onClick={() => go(`customers/${c.id}`)}>
                     <td>
                       <div className="who">
-                        <Avatar first={c.firstName} last={c.lastName} />
+                        <Avatar first={c.firstName} last={c.lastName} company={c.company} />
                         <div style={{ minWidth: 0 }}>
                           <div className="name">{fullName(c)}</div>
-                          <div className="line">{c.phone || c.email || 'no phone'}</div>
+                          <div className="line">
+                            {[`${c.firstName}${c.lastName}`.trim() ? c.company : '', c.phone || c.email || 'no phone'].filter(Boolean).join(' · ')}
+                          </div>
                         </div>
                       </div>
                     </td>

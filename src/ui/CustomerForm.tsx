@@ -11,7 +11,7 @@ export function CustomerForm({ customer, onClose, onSaved }: { customer?: Custom
   const set = <K extends keyof Customer>(k: K, v: Customer[K]) => setC((x) => ({ ...x, [k]: v }));
 
   const save = async () => {
-    if (!c.firstName.trim() && !c.lastName.trim()) return setError('Add a name.');
+    if (!c.firstName.trim() && !c.lastName.trim() && !c.company?.trim()) return setError('Add a name (or a business name).');
     if (c.phone.trim() && !normalizeUsPhone(c.phone).ok) return setError("That phone number doesn't look right (10 digits).");
     if (customer) {
       await updateCustomer(c.id, { ...c, phone: formatPhone(c.phone), altPhone: c.altPhone ? formatPhone(c.altPhone) : '' });
@@ -43,6 +43,14 @@ export function CustomerForm({ customer, onClose, onSaved }: { customer?: Custom
         <label className="field">
           Last name
           <input value={c.lastName} onChange={(e) => set('lastName', e.target.value)} />
+        </label>
+        <label className="field">
+          Business name
+          <input value={c.company ?? ''} onChange={(e) => set('company', e.target.value)} placeholder="For business and fleet customers" />
+        </label>
+        <label className="field">
+          Job title
+          <input value={c.title ?? ''} onChange={(e) => set('title', e.target.value)} />
         </label>
         <label className="field">
           Phone

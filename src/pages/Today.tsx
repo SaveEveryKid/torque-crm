@@ -84,7 +84,7 @@ export function Today() {
             <div className="list">
               {appts.map(({ c, t }) => (
                 <div key={t.id} className="list-item click" onClick={() => go(`customers/${c.id}`)}>
-                  <Avatar first={c.firstName} last={c.lastName} />
+                  <Avatar first={c.firstName} last={c.lastName} company={c.company} />
                   <div className="grow">
                     <div className="title">{fullName(c)}</div>
                     <div className="muted small">{c.vehicle?.title || c.interest || t.title}</div>
@@ -112,7 +112,7 @@ export function Today() {
           <div className="list">
             {followUp.slice(0, 25).map((c) => (
               <div key={c.id} className="list-item click" onClick={() => go(`customers/${c.id}`)}>
-                <Avatar first={c.firstName} last={c.lastName} />
+                <Avatar first={c.firstName} last={c.lastName} company={c.company} />
                 <div className="grow">
                   <div className="title">{fullName(c)}</div>
                   <div className="muted small">{c.vehicle?.title || c.interest || c.source || c.phone}</div>

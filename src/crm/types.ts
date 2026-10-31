@@ -64,6 +64,10 @@ export interface Customer {
   id: string;
   firstName: string;
   lastName: string;
+  /** Business they're with (commercial and fleet customers). */
+  company?: string;
+  /** Their job title there. */
+  title?: string;
   phone: string;
   altPhone: string;
   email: string;

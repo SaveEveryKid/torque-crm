@@ -49,7 +49,7 @@ export function Texts({ id }: { id?: string }) {
               const unread = unreadCount(c, sms);
               return (
                 <div key={c.id} className={`thread-item${open?.id === c.id ? ' on' : ''}${unread ? ' unread' : ''}`} onClick={() => go(`texts/${c.id}`)}>
-                  <Avatar first={c.firstName} last={c.lastName} />
+                  <Avatar first={c.firstName} last={c.lastName} company={c.company} />
                   <div className="grow">
                     <div className="row between">
                       <span className="name">{fullName(c)}</span>
@@ -135,7 +135,7 @@ function Conversation({ c, sms }: { c: Customer; sms: SmsMap }) {
     <div className="convo">
       <div className="card-head">
         <div className="who">
-          <Avatar first={c.firstName} last={c.lastName} />
+          <Avatar first={c.firstName} last={c.lastName} company={c.company} />
           <div>
             <div className="name">{fullName(c)}</div>
             <div className="line">{c.phone}</div>

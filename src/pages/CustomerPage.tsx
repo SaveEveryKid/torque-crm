@@ -67,9 +67,12 @@ export function CustomerPage({ id }: { id: string }) {
       <section className="card card-pad">
         <div className="row between">
           <div className="profile">
-            <Avatar first={c.firstName} last={c.lastName} lg />
+            <Avatar first={c.firstName} last={c.lastName} company={c.company} lg />
             <div className="stack tight">
               <h1>{fullName(c)}</h1>
+              {(c.title || (c.company && `${c.firstName}${c.lastName}`.trim())) && (
+                <div className="soft">{[c.title, `${c.firstName}${c.lastName}`.trim() ? c.company : ''].filter(Boolean).join(' · ')}</div>
+              )}
               <div className="row soft">
                 {c.phone && <span>{c.phone}</span>}
                 {c.email && <span>· {c.email}</span>}

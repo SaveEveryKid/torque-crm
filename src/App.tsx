@@ -127,7 +127,7 @@ function GlobalSearch() {
     const digits = s.replace(/\D/g, '');
     return Object.values(customers)
       .filter((c) =>
-        [fullName(c), c.email, c.interest, c.vehicle?.title ?? '', c.vehicle?.stock ?? ''].some((v) => v.toLowerCase().includes(s)) ||
+        [fullName(c), c.company ?? '', c.email, c.interest, c.vehicle?.title ?? '', c.vehicle?.stock ?? ''].some((v) => v.toLowerCase().includes(s)) ||
         (digits.length >= 3 && [c.phone, c.altPhone].some((p) => p.replace(/\D/g, '').includes(digits))),
       )
       .slice(0, 8);
@@ -143,7 +143,7 @@ function GlobalSearch() {
       <input
         ref={box}
         value={q}
-        placeholder="Search customers by name, phone, email or vehicle"
+        placeholder="Search customers by name, business, phone, email or vehicle"
         onChange={(e) => (setQ(e.target.value), setSel(0))}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') setSel((n) => Math.min(n + 1, hits.length - 1));

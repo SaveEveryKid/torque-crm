@@ -90,6 +90,17 @@ export function addCustomers(list: Customer[]): Promise<void> {
   });
 }
 
+/** An import: new customers plus fields filled in on existing ones, saved in one go. */
+export function importCustomers(add: Customer[], update: { id: string; patch: Partial<Customer> }[]): Promise<void> {
+  return serial(async () => {
+    const m = await getCustomers();
+    for (const c of add) m[c.id] = c;
+    const t = now();
+    for (const u of update) if (m[u.id]) m[u.id] = { ...m[u.id], ...u.patch, updatedAt: t };
+    await saveAll(m);
+  });
+}
+
 export function updateCustomer(id: string, patch: Partial<Customer> | ((c: Customer) => Partial<Customer>)): Promise<void> {
   return serial(async () => {
     const m = await getCustomers();
@@ -177,7 +188,8 @@ export const useCustomers = () => useStored([CUSTOMERS], getCustomers, {});
 export const useSettings = () => useStored([SETTINGS], getSettings, DEFAULT_SETTINGS);
 export const useStoredKey = <T,>(key: string, fallback: T) => useStored([key], async () => ((await kv.get(key))[key] as T | undefined) ?? fallback, fallback);
 
-export const fullName = (c: Pick<Customer, 'firstName' | 'lastName'>) => `${c.firstName} ${c.lastName}`.trim() || 'No name';
+/** Their name; for a business contact with no person's name, the business. */
+export const fullName = (c: Pick<Customer, 'firstName' | 'lastName'> & { company?: string }) => `${c.firstName} ${c.lastName}`.trim() || c.company?.trim() || 'No name';
 
 /** Last time you reached out (text, call, email, visit), if ever. */
 export function lastContact(c: Customer): string | null {

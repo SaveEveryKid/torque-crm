@@ -51,8 +51,9 @@ export function StageBadge({ stage }: { stage: Stage }) {
   return <span className={`badge ${stage}`}>{STAGE_LABEL[stage]}</span>;
 }
 
-export function Avatar({ first, last, lg }: { first: string; last: string; lg?: boolean }) {
-  const i = `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase() || '?';
+export function Avatar({ first, last, company, lg }: { first: string; last: string; company?: string; lg?: boolean }) {
+  const biz = (company ?? '').split(/\s+/).filter((w) => /^[a-z0-9]/i.test(w));
+  const i = (`${first[0] ?? ''}${last[0] ?? ''}` || `${biz[0]?.[0] ?? ''}${biz[1]?.[0] ?? ''}`).toUpperCase() || '?';
   return <div className={`avatar${lg ? ' lg' : ''}`}>{i}</div>;
 }
 

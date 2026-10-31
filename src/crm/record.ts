@@ -75,6 +75,7 @@ export function toRecord(c: Customer, me: string): CustomerRecord {
     },
     crmAiSummary:
       [
+        c.company && `Business customer: ${[c.title, c.company].filter(Boolean).join(' at ')}${`${c.firstName} ${c.lastName}`.trim() ? '' : " (no contact person's name yet: write to the business)"}`,
         c.notes && `Salesperson's notes: ${c.notes}`,
         c.needs && `What they want it for: ${[c.needs.use, c.needs.tags.join(', '), c.needs.riders && `riders: ${c.needs.riders}`].filter(Boolean).join('; ')}`,
         c.match?.picks.length && `Units suggested to them: ${c.match.picks.map((p) => p.v.title).join('; ')}`,
