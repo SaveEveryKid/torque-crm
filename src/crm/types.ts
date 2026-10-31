@@ -97,6 +97,8 @@ export interface Customer {
 export interface Settings {
   name: string;
   dealership: string;
+  /** Where the store is (Claude never places it anywhere else). */
+  location: string;
   /** What you sell, in plain words (Claude uses it so drafts don't sound like a car lot). */
   sells: string;
   phone: string;
@@ -117,6 +119,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   name: 'Byron Green',
   dealership: 'Shoals Outdoor Sports',
+  location: 'Tuscumbia, Alabama (the Shoals)',
   sells: 'powersports and outdoor equipment: ATVs, side-by-sides (UTVs), boats and outboard motors, trailers and riding mowers',
   phone: '(256) 762-0959',
   email: 'byrong@shoalsoutdoorsports.com',

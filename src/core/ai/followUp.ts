@@ -31,6 +31,8 @@ export interface Writer {
   phone: string;
   /** What the store sells, e.g. "ATVs, side-by-sides, boats…" (so drafts don't talk like a car lot). */
   sells?: string;
+  /** Where the store is (drafts must never place it anywhere else). */
+  location?: string;
   /** Set when the customer is a business contact: switches drafts to commercial / fleet selling. */
   business?: { company: string; title: string; person: boolean } | null;
 }
@@ -325,6 +327,9 @@ const inHistory = (m: string, transcript: string) => {
 };
 const COUNTING = /\b(\d+|several|many|multiple|numerous|a few)\s+(times|calls|messages|texts|emails|attempts|voicemails)\b/i;
 const EMOJI = /\p{Extended_Pictographic}/u;
+/** Business customers: the only offer is a quote (the guidance says so); catch a demo / "bring one out" anyway. */
+const NO_DEMOS = /Never offer to bring a unit out/;
+const DEMO = /\bbring (?:a|one|the|some|a couple)?\s*(?:\w+\s){0,2}?(?:unit|machine|ranger|general|sportsman|side-by-side|utv|atv|demo)s?\b[^.?!]{0,40}\b(?:out|by|over)\b|\bdemo(?:s|ed)?\b|\btest[- ](?:drive|ride)|\b(?:try|ride|test) (?:it|one|them|it out)\b|\bcrew (?:can|could) try\b/i;
 const PLACEHOLDER = /\[[^\]]*\]|\{[^}]*\}|<[^>]*>/;
 
 /** Rule check. Errors trigger one retry; anything left is shown to the salesperson as a warning. */
@@ -348,6 +353,7 @@ export function checkDraft(d: FollowUpDraft, channels: DraftChannels, transcript
     if (PLACEHOLDER.test(s)) errors.push(`${label} has a placeholder in brackets`);
     if (lastName.length > 1 && new RegExp(`\\b${lastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(s)) errors.push(`${label} uses the customer's last name`);
     if ((s.match(/!/g) ?? []).length > 1) errors.push(`${label} has more than one "!"`);
+    if (NO_DEMOS.test(transcript) && DEMO.test(s)) errors.push(`${label} offers to bring a unit out or a demo; the only offer is a quote`);
   }
   if (d.text && d.text.length > 320) errors.push('text is too long (keep it under 240 characters)');
   if (d.emailSubject && d.emailSubject.split(/\s+/).length > 9) errors.push('emailSubject is too long');

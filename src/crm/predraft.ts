@@ -106,6 +106,8 @@ export async function startRun(list: Customer[], settings: Settings, mode: ListT
     for (let attempt = 0; attempt < 2 && !state.stopping; attempt++) {
       try {
         const r = await draftFor(c, settings, { listType: type || null, note });
+        // Still offering a demo after Claude's own retry: try again rather than queue it for review.
+        if (r.warnings.some((w) => /bring a unit out/.test(w))) throw new Error('Claude kept offering a demo instead of a quote.');
         const d = r.draft;
         await saveDraft(c.id, {
           at: new Date().toISOString(),

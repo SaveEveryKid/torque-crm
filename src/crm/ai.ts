@@ -28,6 +28,7 @@ export const writerOf = (s: Settings, c?: Customer): Writer => ({
   dealership: s.dealership,
   phone: s.phone,
   sells: s.sells,
+  location: s.location,
   business: c?.company?.trim() ? { company: c.company.trim(), title: c.title?.trim() ?? '', person: !!`${c.firstName}${c.lastName}`.trim() } : null,
 });
 export const meOf = (s: Settings) => firstName(writerOf(s));

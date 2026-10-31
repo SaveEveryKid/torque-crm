@@ -76,7 +76,7 @@ export const LIST_TYPES: Record<ListType, { label: string; hint: string }> = {
     label: 'Cold opener',
     hint: `The FIRST email to someone we have never spoken with, usually a business that could use side-by-sides (UTVs) or ATVs for work. The only goal is to start a conversation: a reply, or the name of the right person. Not a sales pitch.
 - Professional but warm: a real person at a local dealership writing one person, not a marketing email. About 80-130 words, short paragraphs, easy to read on a phone.
-- Open with who you are in one line: first name, the dealership, that it's local to them. Never pretend we've talked or met before.
+- Open with who you are in one line: first name and the dealership. Say where the store is only exactly as given under Store location; never guess it or say we're in or near their town. Never pretend we've talked or met before.
 - Then one specific, honest reason you're writing to THEM, from their kind of work (crews and job sites, right-of-way and line work, grounds and facilities, farm, rental fleet): the dealership sells and services Polaris side-by-sides and ATVs (RANGER, GENERAL, Sportsman) and keeps them running with service and parts.
 - The only offer is a quote: put one together for whatever they need, one unit or several. Never offer to bring a unit out, a demo, a test drive or a ride. Never invent prices, promotions, fleet discounts or availability.
 - Close with the ask, easy to answer or forward: who handles their UTV or equipment purchases, or whether they're the right person. One question only.

@@ -39,3 +39,22 @@ describe('commercial / fleet customers', () => {
     expect(toRecord(shop, 'Byron Green').crmAiSummary).toContain("Business customer: Summit Equipment Rental (no contact person's name yet: write to the business)");
   });
 });
+
+import { checkDraft } from '../src/core/ai/followUp';
+import { buildCustomerContext } from '../src/core/ai/customerContext';
+describe('business drafts: quotes only, and the store is where it is', () => {
+  const rule = businessSection(writerOf(DEFAULT_SETTINGS, blankCustomer({ company: 'Summit Equipment Rental' })));
+  const draft = (emailBody: string) => ({ skip: false, skipReason: null, text: null, emailSubject: 'Polaris UTVs', emailBody, why: 'x' });
+  const check = (body: string) => checkDraft(draft(body), { text: false, email: true }, rule, toRecord(blankCustomer({ company: 'Summit' }), 'Byron Green'));
+  it('a draft that offers to bring a unit out is sent back to Claude', () => {
+    const bad = "Martin, I'm Byron at Shoals Outdoor Sports. I'd like to bring a unit out so your crew can try it on the work you actually do. Who handles equipment purchases on your side?";
+    expect(check(bad)).toContain('email offers to bring a unit out or a demo; the only offer is a quote');
+    expect(check('Happy to set up a demo for your team.').length).toBeGreaterThan(0);
+    expect(check('Could I bring a couple of RANGERs by next week?').length).toBeGreaterThan(0);
+    expect(check('I can put a quote together for one unit or several. Who handles equipment purchases there?').filter((w) => /demo/.test(w))).toEqual([]);
+  });
+  it('Claude is told exactly where the store is', () => {
+    const ctx = buildCustomerContext(toRecord(blankCustomer({ company: 'Summit', address: 'Nashville, TN' }), 'Byron Green'), { writer: writerOf(DEFAULT_SETTINGS), today: new Date(), canText: false, sent: [] });
+    expect(ctx.sections.map((s) => s.versions[0]).join('\n')).toContain('Store location: Tuscumbia, Alabama (the Shoals). Only ever say the store is here');
+  });
+});

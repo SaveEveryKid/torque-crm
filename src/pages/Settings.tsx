@@ -54,6 +54,7 @@ function Profile({ s }: { s: Settings }) {
       <div className="form-grid">
         <Text label="Your name" k="name" s={s} />
         <Text label="Dealership" k="dealership" s={s} />
+        <Text label="Where the store is (Claude never says anywhere else)" k="location" s={s} placeholder="Tuscumbia, Alabama (the Shoals)" />
         <div className="full">
           <Text label="What you sell (Claude uses this)" k="sells" s={s} placeholder="ATVs, side-by-sides, boats…" />
         </div>
