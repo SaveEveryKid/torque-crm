@@ -511,3 +511,6 @@ table.table { width: 100%; border-collapse: collapse; }
 .progress { height: 8px; background: var(--hover); border-radius: 99px; overflow: hidden; }
 .progress > div { height: 100%; background: var(--accent); transition: width 0.4s; }
 .badge.ready { background: var(--accent-soft); color: var(--accent-text); font-size: 11px; }
+.btn.danger-fill { background: var(--red, #d64545); border-color: var(--red, #d64545); color: #fff; }
+.btn.danger-fill:disabled { opacity: 0.45; }
+.success-text { color: var(--green-text); }

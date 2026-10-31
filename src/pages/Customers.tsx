@@ -3,6 +3,7 @@ import { applyView, baseFilter, matchesStage, PAGE_SIZE, placeOf, rememberOrder,
 import { fullName, lastContact, openTasks, useCustomers } from '../crm/store';
 import { STAGES } from '../crm/types';
 import { ImportCustomers } from '../ui/ImportCustomers';
+import { DeleteCustomers } from '../ui/DeleteCustomers';
 import { ListFilters } from '../ui/ListFilters';
 import { ago, Avatar, Empty, go, Icon, StageBadge, when } from '../ui/kit';
 
@@ -14,6 +15,7 @@ export function Customers() {
   const [v, set] = useView('customers');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
 
   const base = useMemo(() => baseFilter(list, v), [list, v]);
@@ -54,9 +56,13 @@ export function Customers() {
           <button className="btn" onClick={() => setImporting(true)} title="Bring in customers from a spreadsheet (CSV). A Torque “EXPORT LIST + HISTORY” file brings each customer's eLead history.">
             <Icon name="upload" size={16} /> Import CSV
           </button>
+          <button className="btn ghost danger" disabled={!shown.length} onClick={() => setDeleting(true)} title="Delete everyone the list is showing (all customers with no filters)">
+            <Icon name="trash" size={16} /> {shown.length === list.length ? 'Delete all' : `Delete these ${shown.length}`}
+          </button>
         </div>
       </div>
       {msg && <p className={msg.ok ? 'success' : 'error'}>{msg.text}</p>}
+      {deleting && <DeleteCustomers list={shown} everyone={shown.length === list.length} onClose={() => setDeleting(false)} onDone={(text) => setMsg({ ok: true, text })} />}
       {importing && <ImportCustomers existing={list} onClose={() => setImporting(false)} onDone={(text) => setMsg({ ok: true, text })} />}
 
       <div className="tabs scroll-x">

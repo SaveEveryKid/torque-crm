@@ -311,3 +311,15 @@ export const SAMPLE_CSV =
   'Name,Business Name,Title,Phone Number,Email,Location,Looking For,Notes\r\n' +
   'John Smith,Smith Farms,Owner,(256) 555-0142,john@example.com,"120 Main St, Florence, AL",Ranger XP 1000,Needs two for the farm crew\r\n' +
   ',Valley Rentals,,256-555-0187,,"Muscle Shoals, AL",,Main line\r\n';
+
+const cell = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+/** Customers as a CSV this importer reads back (Customers → Delete… → Download them first). */
+export function customersCsv(list: Customer[]): string {
+  const head = ['First Name', 'Last Name', 'Business Name', 'Title', 'Phone', 'Other Phone', 'Email', 'Address', 'Looking For', 'Trade', 'Notes', 'Source', 'Stage', 'Do Not Text'];
+  const rows = list.map((c) =>
+    [c.firstName, c.lastName, c.company ?? '', c.title ?? '', c.phone, c.altPhone, c.email, c.address, c.interest, c.trade, c.notes, c.source, STAGES.find((s) => s.id === c.stage)?.label ?? c.stage, c.doNotText ? 'yes' : '']
+      .map((v) => cell(v ?? ''))
+      .join(','),
+  );
+  return `\uFEFF${[head.join(','), ...rows].join('\r\n')}\r\n`;
+}

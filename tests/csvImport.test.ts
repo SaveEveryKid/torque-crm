@@ -69,3 +69,18 @@ describe('importing customers from a CSV', () => {
     expect(readSheet('Name,Phone\r\n')).toEqual({ error: 'The file has a header row but no customers under it.' });
   });
 });
+
+import { customersCsv } from '../src/crm/csvImport';
+describe('downloading customers before deleting them', () => {
+  it('the CSV imports back with the same details', () => {
+    const list = [
+      blankCustomer({ firstName: 'Beth', lastName: 'Carter', company: 'Riverbend Paving, Inc.', title: 'President', phone: '(256) 555-2201', email: 'beth@riverbend.example', address: '100 Mill Rd, Florence, AL', notes: 'Said "call after 3"', stage: 'contacted', doNotText: true }),
+      blankCustomer({ company: 'Summit Equipment Rental', phone: '(256) 555-2301' }),
+    ];
+    const p = quickPlan(customersCsv(list), [], opts);
+    if ('error' in p) throw new Error(p.error);
+    expect(p.add).toHaveLength(2);
+    expect(p.add[0]).toMatchObject({ firstName: 'Beth', lastName: 'Carter', company: 'Riverbend Paving, Inc.', title: 'President', phone: '(256) 555-2201', email: 'beth@riverbend.example', address: '100 Mill Rd, Florence, AL', notes: 'Said "call after 3"', stage: 'contacted', doNotText: true });
+    expect(p.add[1]).toMatchObject({ company: 'Summit Equipment Rental', firstName: '', phone: '(256) 555-2301' });
+  });
+});

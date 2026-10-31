@@ -40,6 +40,15 @@ function saveDraft(id: string, d: PreDraft | null): Promise<void> {
     await kv.set({ [KEY]: m });
   });
 }
+/** Drop the drafts of deleted customers. */
+export const removeDrafts = (ids: string[]) =>
+  serial(async () => {
+    const m = await getDrafts();
+    if (!ids.some((id) => m[id])) return;
+    for (const id of ids) delete m[id];
+    await kv.set({ [KEY]: m });
+  });
+
 export const setDraftStatus = (id: string, status: PreDraft['status']) =>
   serial(async () => {
     const m = await getDrafts();

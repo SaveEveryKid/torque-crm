@@ -120,6 +120,15 @@ export function deleteCustomer(id: string): Promise<void> {
   });
 }
 
+/** Delete many customers in one save (Customers → Delete…). */
+export function deleteCustomers(ids: string[]): Promise<void> {
+  return serial(async () => {
+    const m = await getCustomers();
+    for (const id of ids) delete m[id];
+    await saveAll(m);
+  });
+}
+
 /** Moving to Appointment / Showed / Sold etc. is logged on the timeline. */
 export async function setStage(id: string, stage: Stage, label: string): Promise<void> {
   await updateCustomer(id, (c) =>
