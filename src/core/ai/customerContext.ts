@@ -272,7 +272,7 @@ function currentState(record: CustomerRecord, w: Writerish, today: Date, canText
     ['Lead age', f.leadAgeDays !== null ? `${f.leadAgeDays} days${o.dateIn ? ` (in ${day(o.dateIn)})` : ''}` : null],
     ['CRM status', o.salesStatus],
     ['Salesperson', `${me} at ${w.dealership || 'the dealership'}`],
-    ['Store location', w.location?.trim() ? `${w.location.trim()}. Only ever say the store is here; never place it anywhere else or near the customer's town.` : 'unknown: never say where the store is'],
+    ['Store location', w.location?.trim() ? `${w.location.trim()}. Only ever say the store is here; never place it anywhere else or near the customer's town, and don't call it "local" or "nearby" (name the town instead).` : 'unknown: never say where the store is'],
     ['Last customer reply', lastCustomer ? ago(lastCustomer.row.at) : 'never replied'],
     ['Last message from us', lastUs ? `${ago(lastUs.row.at)} (${lastUs.row.channel.toLowerCase()})` : null],
     ['Attempts since their last reply', attempts ? `${attempts}${unanswered ? ` (${unanswered} unanswered calls)` : ''}` : null],

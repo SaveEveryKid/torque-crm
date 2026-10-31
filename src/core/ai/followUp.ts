@@ -354,6 +354,7 @@ export function checkDraft(d: FollowUpDraft, channels: DraftChannels, transcript
     if (lastName.length > 1 && new RegExp(`\\b${lastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(s)) errors.push(`${label} uses the customer's last name`);
     if ((s.match(/!/g) ?? []).length > 1) errors.push(`${label} has more than one "!"`);
     if (NO_DEMOS.test(transcript) && DEMO.test(s)) errors.push(`${label} offers to bring a unit out or a demo; the only offer is a quote`);
+    if (/don't call it "local"/.test(transcript) && /\b(?:a |your )?(?:local|nearby)\b(?=[^.?!]{0,40}\b(?:dealer|dealership|shop|store|polaris))/i.test(s)) errors.push(`${label} calls the store local; name the town it's in instead`);
   }
   if (d.text && d.text.length > 320) errors.push('text is too long (keep it under 240 characters)');
   if (d.emailSubject && d.emailSubject.split(/\s+/).length > 9) errors.push('emailSubject is too long');

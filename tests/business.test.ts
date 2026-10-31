@@ -53,6 +53,13 @@ describe('business drafts: quotes only, and the store is where it is', () => {
     expect(check('Could I bring a couple of RANGERs by next week?').length).toBeGreaterThan(0);
     expect(check('I can put a quote together for one unit or several. Who handles equipment purchases there?').filter((w) => /demo/.test(w))).toEqual([]);
   });
+  it('the store is never called "local": the town is named instead', () => {
+    const ctx = buildCustomerContext(toRecord(blankCustomer({ company: 'Metro Parks' }), 'Byron Green'), { writer: writerOf(DEFAULT_SETTINGS), today: new Date(), canText: false, sent: [] });
+    const evidence = ctx.sections.map((x) => x.versions[0]).join('\n');
+    const c = (body: string) => checkDraft(draft(body), { text: false, email: true }, evidence, toRecord(blankCustomer({ company: 'Metro Parks' }), 'Byron Green'));
+    expect(c("Martin, I'm Byron with Shoals Outdoor Sports, a local Polaris side-by-side and ATV dealer.")).toContain('email calls the store local; name the town it\'s in instead');
+    expect(c("Martin, I'm Byron with Shoals Outdoor Sports in Tuscumbia, Alabama.").filter((w) => /local/.test(w))).toEqual([]);
+  });
   it('Claude is told exactly where the store is', () => {
     const ctx = buildCustomerContext(toRecord(blankCustomer({ company: 'Summit', address: 'Nashville, TN' }), 'Byron Green'), { writer: writerOf(DEFAULT_SETTINGS), today: new Date(), canText: false, sent: [] });
     expect(ctx.sections.map((s) => s.versions[0]).join('\n')).toContain('Store location: Tuscumbia, Alabama (the Shoals). Only ever say the store is here');
