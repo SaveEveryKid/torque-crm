@@ -209,7 +209,7 @@ export function DraftPanel({
             {res.warnings.length > 0 && <p className="small muted">Check: {res.warnings.join('; ')}</p>}
           </>
         )}
-        {(reply || (res && !res.draft.skip && res.draft.text !== null && draftsTexts(c))) && (
+        {(reply || (res && !res.draft.skip && res.draft.text !== null && draftsTexts(c, settings))) && (
           <div className="stack tight">
             <h3>Text</h3>
             <textarea value={text} onChange={(e) => setText(e.target.value)} />

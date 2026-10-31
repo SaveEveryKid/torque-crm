@@ -89,6 +89,10 @@ function EmailSetup({ s }: { s: Settings }) {
           : `Opens outlook.office.com in a new tab; sign in there with ${s.email || 'your work email'} once.`}
       </p>
       <Signature s={s} />
+      <label className="check">
+        <input type="checkbox" checked={!!s.draftTexts} onChange={(e) => void saveSettings({ draftTexts: e.target.checked })} /> Claude also writes a text with each follow-up
+        (never for business customers)
+      </label>
       <div>
         <button className="btn sm" disabled={!s.email} onClick={() => openCompose({ to: s.email, subject: 'Torque CRM test', body: 'If this opened in Outlook, email is set up.' }, s)}>
           <Icon name="mail" size={14} /> Send yourself a test

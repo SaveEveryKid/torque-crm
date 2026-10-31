@@ -78,15 +78,15 @@ export interface DraftOptions {
   finalCheckin?: boolean;
 }
 
-/** Draft a text too? Not for business customers: their numbers are office lines you can't text. */
-export const draftsTexts = (c: Customer) => !c.doNotText && !!c.phone && !c.company?.trim();
+/** Draft a text too? Only when turned on in Settings, and never for business customers (office lines you can't text). */
+export const draftsTexts = (c: Customer, s: Pick<Settings, 'draftTexts'>) => !!s.draftTexts && !c.doNotText && !!c.phone && !c.company?.trim();
 
 export async function draftFor(c: Customer, s: Settings, opts: DraftOptions = {}): Promise<DraftResult> {
   const record = toRecord(c, s.name);
   const situation = situationFor(record);
   const list = opts.listType ? listContext({ listType: opts.listType, listNote: opts.note ?? '' } as Parameters<typeof listContext>[0]) : '';
   const info = businessSection(writerOf(s, c)) + (list || (opts.note?.trim() ? `ABOUT THIS FOLLOW-UP (from the salesperson): ${opts.note.trim()}\n\n` : ''));
-  return draftFollowUp(record, writerOf(s, c), completeFor(s), new Date(), draftsTexts(c), 'claude', await learningFor(s, situation), await getSent(c.id), info, {
+  return draftFollowUp(record, writerOf(s, c), completeFor(s), new Date(), draftsTexts(c, s), 'claude', await learningFor(s, situation), await getSent(c.id), info, {
     listType: opts.listType ?? null,
     finalCheckin: opts.finalCheckin,
   });

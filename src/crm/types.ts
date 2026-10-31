@@ -108,6 +108,8 @@ export interface Settings {
   emailApp: 'outlook-app' | 'outlook-web';
   /** Added to the end of emails opened in Outlook (blank if Outlook adds yours). */
   signature: string;
+  /** Claude writes a text with each follow-up too (off: emails only). */
+  draftTexts: boolean;
   claudeQuality: 'fast' | 'better';
   voicemail: 'connect' | 'hangup';
   dialDelaySeconds: number;
@@ -124,6 +126,7 @@ export const DEFAULT_SETTINGS: Settings = {
   phone: '(256) 762-0959',
   email: 'byrong@shoalsoutdoorsports.com',
   emailApp: 'outlook-app',
+  draftTexts: false,
   signature: 'Byron Green\nShoals Outdoor Sports\n(256) 762-0959\nbyrong@shoalsoutdoorsports.com',
   claudeQuality: 'fast',
   voicemail: 'connect',

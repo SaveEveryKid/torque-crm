@@ -68,9 +68,11 @@ describe('business drafts: quotes only, and the store is where it is', () => {
 
 import { draftsTexts } from '../src/crm/ai';
 describe('business customers get emails only', () => {
-  it('no text drafts for a business (office lines), texts still for retail customers with a phone', () => {
-    expect(draftsTexts(blankCustomer({ company: 'Metro Parks', phone: '(615) 555-0100', email: 'a@b.example' }))).toBe(false);
-    expect(draftsTexts(blankCustomer({ firstName: 'Sam', phone: '(256) 555-2601' }))).toBe(true);
-    expect(draftsTexts(blankCustomer({ firstName: 'Sam', phone: '(256) 555-2601', doNotText: true }))).toBe(false);
+  it('emails only by default; texts only when turned on, and never for a business (office lines)', () => {
+    const retail = blankCustomer({ firstName: 'Sam', phone: '(256) 555-2601' });
+    expect(draftsTexts(retail, DEFAULT_SETTINGS)).toBe(false);
+    expect(draftsTexts(retail, { draftTexts: true })).toBe(true);
+    expect(draftsTexts(blankCustomer({ company: 'Metro Parks', phone: '(615) 555-0100', email: 'a@b.example' }), { draftTexts: true })).toBe(false);
+    expect(draftsTexts({ ...retail, doNotText: true }, { draftTexts: true })).toBe(false);
   });
 });
