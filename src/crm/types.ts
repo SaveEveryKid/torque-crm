@@ -114,8 +114,10 @@ export interface Settings {
   email: string;
   /** Where the Email buttons open a new message. */
   emailApp: 'outlook-app' | 'outlook-web';
-  /** Added to the end of emails opened in Outlook (blank if Outlook adds yours). */
+  /** Added to the end of every email opened in Outlook. */
   signature: string;
+  /** You've set the signature yourself (so the default isn't put back). */
+  signatureSet?: boolean;
   /** Claude writes a text with each follow-up too (off: emails only). */
   draftTexts: boolean;
   claudeQuality: 'fast' | 'better';
@@ -128,6 +130,21 @@ export interface Settings {
   inventoryLocation: string;
 }
 
+/** Your email signature, added to the end of every email opened in Outlook. */
+export const DEFAULT_SIGNATURE = [
+  'Byron Green',
+  '',
+  'Sales Consultant-Florence',
+  '',
+  '3516 Florence Blvd',
+  'Florence, AL  35634',
+  '',
+  '256.389.8150  Ext. 314',
+  '256.263.4614 Fax',
+  '',
+  'www.shoalsoutdoorsports.com',
+].join('\n');
+
 export const DEFAULT_SETTINGS: Settings = {
   name: 'Byron Green',
   dealership: 'Shoals Outdoor Sports',
@@ -137,7 +154,7 @@ export const DEFAULT_SETTINGS: Settings = {
   email: 'byrong@shoalsoutdoorsports.com',
   emailApp: 'outlook-app',
   draftTexts: false,
-  signature: '',
+  signature: DEFAULT_SIGNATURE,
   claudeQuality: 'fast',
   voicemail: 'connect',
   dialDelaySeconds: 5,

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { kv } from '../core/storage/kv';
 import { normalizeUsPhone } from '../core/analysis/phone';
 import { afterActivity, autoStop } from './sequence';
-import { DEFAULT_SETTINGS, type Activity, type Customer, type Settings, type Stage, type Task } from './types';
+import { DEFAULT_SETTINGS, DEFAULT_SIGNATURE, type Activity, type Customer, type Settings, type Stage, type Task } from './types';
 
 /**
  * Your CRM data, on this computer only (IndexedDB through kv). Nothing here
@@ -172,12 +172,14 @@ export async function deleteTask(id: string, taskId: string): Promise<void> {
   await updateCustomer(id, (c) => ({ tasks: c.tasks.filter((t) => t.id !== taskId) }));
 }
 
-/** The signature the CRM used to add by default; Outlook adds yours, so a saved copy of it is dropped. */
+/** The signature the CRM used to add by default (a saved copy of it is replaced with your current one). */
 const OLD_DEFAULT_SIGNATURE = 'Byron Green\nShoals Outdoor Sports\n(256) 762-0959\nbyrong@shoalsoutdoorsports.com';
 
 export async function getSettings(): Promise<Settings> {
   const s: Settings = { ...DEFAULT_SETTINGS, ...((await kv.get(SETTINGS))[SETTINGS] as Partial<Settings> | undefined) };
-  return s.signature === OLD_DEFAULT_SIGNATURE ? { ...s, signature: '' } : s;
+  // Until you set one yourself: your signature (it replaces the old blank or default one).
+  if (!s.signatureSet && (s.signature === '' || s.signature === OLD_DEFAULT_SIGNATURE)) return { ...s, signature: DEFAULT_SIGNATURE };
+  return s;
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {

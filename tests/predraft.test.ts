@@ -57,8 +57,8 @@ describe('learning from every decision', () => {
 
 describe('your signature', () => {
   it('is added once to emails opened in Outlook', () => {
-    // Outlook adds Byron's signature: the CRM adds none by default.
-    expect(withSignature('Hello,\n\nQuick question.', DEFAULT_SETTINGS.signature)).toBe('Hello,\n\nQuick question.');
+    // Byron's signature is added by the CRM (Outlook doesn't add it to these).
+    expect(withSignature('Hello,\n\nQuick question.', DEFAULT_SETTINGS.signature)).toBe(`Hello,\n\nQuick question.\n\n${DEFAULT_SETTINGS.signature}`);
     expect(withSignature(withSignature('Hi', 'Byron'), 'Byron')).toBe('Hi\n\nByron');
     expect(withSignature('Hi', '')).toBe('Hi');
     expect(composeUrl({ to: 'a@b.example', body: withSignature('Hi', 'Byron') }, 'outlook-app')).toContain('Hi%0D%0A%0D%0AByron');
