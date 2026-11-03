@@ -1,8 +1,10 @@
+import { MarketplaceDialog } from '../ui/MarketplaceDialog';
+import { useListed } from '../crm/lister';
 import { useEffect, useState } from 'react';
 import { money, readUnit, searchConfig, searchInventory, toVehicleRef, usefulFacets, type SearchResult, type Unit } from '../crm/inventory';
 import { fullName, logActivity, updateCustomer, useCustomers, useSettings } from '../crm/store';
 import type { VehicleRef } from '../crm/types';
-import { copy, Empty, go, Icon, Modal } from '../ui/kit';
+import { copy, Empty, go, Icon, Modal, when } from '../ui/kit';
 
 /** Search state + results, shared by the Inventory page and the picker. */
 function useInventory() {
@@ -98,9 +100,10 @@ function useInventory() {
   return { res, error, loading, controls, pager, refresh, units: (res?.hits ?? []).map(readUnit) };
 }
 
-function UnitCard({ u, onClick }: { u: Unit; onClick: () => void }) {
+function UnitCard({ u, onClick, listed }: { u: Unit; onClick: () => void; listed?: string }) {
   return (
     <div className="card unit" onClick={onClick}>
+      {listed && <span className="badge ready mp-listed" title={`Sent to Marketplace ${when(listed)}`}>Listed</span>}
       <div className="img">{u.image ? <img src={u.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <Icon name="car" size={28} />}</div>
       <div className="body">
         <div className="title">{u.title}</div>
@@ -117,6 +120,8 @@ function UnitCard({ u, onClick }: { u: Unit; onClick: () => void }) {
 export function Inventory() {
   const inv = useInventory();
   const [open, setOpen] = useState<Unit | null>(null);
+  const [listing, setListing] = useState<Unit | null>(null);
+  const listed = useListed();
   return (
     <div className="page">
       <div className="page-head">
@@ -133,16 +138,17 @@ export function Inventory() {
       {inv.res && inv.units.length === 0 && <Empty title="No units match">Try fewer filters.</Empty>}
       <div className="units">
         {inv.units.map((u) => (
-          <UnitCard key={u.id} u={u} onClick={() => setOpen(u)} />
+          <UnitCard key={u.id} u={u} onClick={() => setOpen(u)} listed={listed[u.id]?.at} />
         ))}
       </div>
       {inv.pager}
-      {open && <UnitDetails u={open} onClose={() => setOpen(null)} />}
+      {open && <UnitDetails u={open} onClose={() => setOpen(null)} onList={() => (setListing(open), setOpen(null))} />}
+      {listing && <MarketplaceDialog u={listing} onClose={() => setListing(null)} />}
     </div>
   );
 }
 
-function UnitDetails({ u, onClose }: { u: Unit; onClose: () => void }) {
+function UnitDetails({ u, onClose, onList }: { u: Unit; onClose: () => void; onList: () => void }) {
   const customers = useCustomers();
   const [who, setWho] = useState('');
   const [raw, setRaw] = useState(false);
@@ -183,6 +189,9 @@ function UnitDetails({ u, onClose }: { u: Unit; onClose: () => void }) {
           ))}
       </dl>
       <div className="row">
+        <button className="btn primary" disabled={!u.photos.length} onClick={onList} title="Fill a Facebook Marketplace draft with this unit and your watermarked photos">
+          <Icon name="upload" size={15} /> List on Marketplace
+        </button>
         {u.url && (
           <a className="btn" href={u.url} target="_blank" rel="noreferrer">
             <Icon name="external" size={15} /> Open on website
