@@ -6,7 +6,7 @@
 
   // The description on every listing, exactly as written.
   var description = [
-    "✅️ NO DEALER FEES! ✅️",
+    "✅️ NO HIDDEN FEES! ✅️",
     "",
     "Optional accessories not included in pricing...message for more details.",
     "",
@@ -32,7 +32,7 @@
     LISTING_STATE_KEY: "torqueMarketplaceListing",
     // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
     LISTED_KEY: "torqueListedUnits",
-    VERSION: "0.5.1",
+    VERSION: "0.5.2",
     // The three watermarks on every photo: a little see-through, nothing else changed.
     // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).
     // If a photo has the store's logo in another corner, the watermark from that
