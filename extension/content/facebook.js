@@ -57,7 +57,10 @@
     if (unit.model) results.push(await form.setIfPresent(["Model"], unit.model));
     if (unit.price) results.push(await form.setIfPresent(["Price", "Asking price"], String(unit.price)));
     results.push(await setLocation(C.LOCATION));
-    results.push(await form.setIfPresent(["Description", "Describe your item"], C.DESCRIPTION));
+    // Close the location list before moving on, then type the description once.
+    if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
+    await utils.sleep(300);
+    results.push(await form.setLongText(["Description", "Describe your item"], C.DESCRIPTION));
     return results;
   }
 

@@ -76,6 +76,38 @@
     return true;
   }
 
+  /**
+   * Long text (the description): typed in like a person would, once. Focus the
+   * box, select what's there and insert the text, so Facebook's own editor
+   * handles it (no fake blur, no repeated events). Left alone if it already
+   * says exactly that.
+   */
+  function typeText(element, value) {
+    if (!element) return false;
+    var text = String(value);
+    var current = element.value != null ? element.value : element.textContent;
+    if (utils.normalizeText(current) === utils.normalizeText(text)) return true;
+    element.focus();
+    var typed = false;
+    try {
+      if (typeof element.select === "function") element.select();
+      else document.execCommand("selectAll", false);
+      typed = document.execCommand("insertText", false, text);
+    } catch (e) {
+      typed = false;
+    }
+    var now = element.value != null ? element.value : element.textContent;
+    if (!typed || utils.normalizeText(now) !== utils.normalizeText(text)) {
+      var prototype = element.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      var setter = Object.getOwnPropertyDescriptor(prototype, "value");
+      if (element.value != null && setter && setter.set) setter.set.call(element, text);
+      else if (element.value != null) element.value = text;
+      else element.textContent = text;
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    return true;
+  }
+
   function clickElement(element) {
     if (!element) return false;
     element.click();
@@ -127,6 +159,14 @@
     return { field: labels[0], method: "text", value: value };
   }
 
+  /** The description: a long text box, typed in once. */
+  async function setLongText(labels, value) {
+    var control = findControl(labels);
+    if (!control) return { field: labels[0], skipped: true };
+    typeText(control, value);
+    return { field: labels[0], method: "typed", value: value };
+  }
+
   async function ensureVehicleMode() {
     if (/\/create\/vehicle/i.test(location.pathname)) return true;
     var clicked = clickText(["Vehicle", "Vehicle for sale"]);
@@ -157,6 +197,8 @@
     waitFor: waitFor,
     setText: setText,
     setIfPresent: setIfPresent,
+    setLongText: setLongText,
+    typeText: typeText,
     ensureVehicleMode: ensureVehicleMode,
     uploadFiles: uploadFiles
   };

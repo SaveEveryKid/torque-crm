@@ -111,6 +111,7 @@
   }
 
   var SMALL = 240;
+  var MAX_SIDE = 2048;
   var LOGO_SIZES = [0.12, 0.15, 0.18, 0.21];
 
   function shrinkGray(source, w, h) {
@@ -168,12 +169,18 @@
    */
   async function stamp(bytes, mime, marks, quality, logo) {
     var photo = await createImageBitmap(new Blob([bytes], { type: mime || "image/jpeg" }));
-    var canvas = new OffscreenCanvas(photo.width, photo.height);
+    // Facebook shrinks photos to 2048 px on the long side anyway: save them at
+    // that size (same picture, a fraction of the upload).
+    var scale = Math.min(1, MAX_SIDE / Math.max(photo.width, photo.height));
+    var W = Math.round(photo.width * scale), H = Math.round(photo.height * scale);
+    var canvas = new OffscreenCanvas(W, H);
     var ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) throw new Error("Could not prepare the photo.");
-    ctx.drawImage(photo, 0, 0);
-    var sx = Math.round(photo.width * 0.01), sw = Math.max(1, Math.round(photo.width * 0.06));
-    var sy = Math.round(photo.height * 0.15), sh = Math.max(1, Math.round(photo.height * 0.7));
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(photo, 0, 0, W, H);
+    var sx = Math.round(W * 0.01), sw = Math.max(1, Math.round(W * 0.06));
+    var sy = Math.round(H * 0.15), sh = Math.max(1, Math.round(H * 0.7));
     if (isStoreFramed(ctx.getImageData(sx, sy, sw, sh).data)) {
       photo.close();
       return null;
@@ -181,12 +188,12 @@
     var logoAt = logo ? findLogo(photo, logo.templates) : null;
     var specs = arrange(marks.map(function (m) { return m.spec; }), logoAt, logo && logo.usualCorner);
     marks.forEach(function (m, i) {
-      var p = placement(photo.width, photo.height, m.bitmap.width, m.bitmap.height, specs[i]);
+      var p = placement(W, H, m.bitmap.width, m.bitmap.height, specs[i]);
       ctx.globalAlpha = m.spec.opacity == null ? 0.85 : m.spec.opacity;
       ctx.drawImage(m.bitmap, p.x, p.y, p.w, p.h);
     });
     ctx.globalAlpha = 1;
-    var size = { width: photo.width, height: photo.height };
+    var size = { width: W, height: H };
     photo.close();
     var out = await canvas.convertToBlob({ type: "image/jpeg", quality: quality || 0.92 });
     return { buffer: await out.arrayBuffer(), mime: "image/jpeg", size: size, logoCorner: logoAt };
