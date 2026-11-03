@@ -25,8 +25,9 @@ describe('Torque Marketplace Lister (extension)', () => {
     expect(B.constants.LOCATION).toBe('Florence, Alabama');
     expect(B.constants.MAX_PHOTOS).toBe(20);
     expect(B.constants.DESCRIPTION.startsWith('✅️ NO DEALER FEES! ✅️\n\n⏳️ Message me')).toBe(true);
-    expect(B.constants.DESCRIPTION).toContain('For Sale By Dealer:');
-    expect(B.constants.DESCRIPTION.endsWith('👉 Message me now and let me make it easy!')).toBe(true);
+    expect(B.constants.DESCRIPTION.endsWith('‼️ Follow me on Marketplace for the best deals! ‼️\n\nShoals Outdoor Sports- Florence, AL\nwww.shoalsoutdoorsports.com')).toBe(true);
+    expect(B.constants.DESCRIPTION).not.toContain('Proudly serving');
+    expect(B.constants.DESCRIPTION).not.toContain('For Sale By Dealer');
   });
 
   it('three slightly see-through watermarks, one per corner, leaving bottom-right for the store logo', () => {

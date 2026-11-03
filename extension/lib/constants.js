@@ -12,11 +12,8 @@
     "",
     "‼️ Follow me on Marketplace for the best deals! ‼️",
     "",
-    "🌎 Proudly serving Florence, Muscle Shoals, Tuscumbia, Sheffield, Killen, Huntsville, Decatur, Athens, Madison, and the entire Shoals area!",
-    "",
-    "For Sale By Dealer:",
-    "",
-    "👉 Message me now and let me make it easy!"
+    "Shoals Outdoor Sports- Florence, AL",
+    "www.shoalsoutdoorsports.com"
   ].join("\n");
 
   Byron.constants = {
@@ -31,7 +28,7 @@
     // Photo hosts (the dealer's DX1 image servers).
     PHOTO_HOST: /(^|\.)dx1app\.com$/i,
     LISTING_STATE_KEY: "torqueMarketplaceListing",
-    VERSION: "0.4.0",
+    VERSION: "0.4.1",
     // The three watermarks on every photo: a little see-through, nothing else changed.
     // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).
     // If a photo has the store's logo in another corner, the watermark from that
