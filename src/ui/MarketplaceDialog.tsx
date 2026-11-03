@@ -88,7 +88,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
             );
           })}
         </div>
-        <p className="muted small">The only change to the photos: your two watermarks on top. Click a photo to leave it out.</p>
+        <p className="muted small">The only change to the photos: your watermarks on top, arranged around the store logo. Click a photo to leave it out.</p>
 
         <h3>Description</h3>
         <pre className="mp-desc">{lister ? lister.description : 'Install the extension to see the description.'}</pre>

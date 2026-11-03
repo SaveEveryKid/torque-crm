@@ -31,13 +31,18 @@
     // Photo hosts (the dealer's DX1 image servers).
     PHOTO_HOST: /(^|\.)dx1app\.com$/i,
     LISTING_STATE_KEY: "torqueMarketplaceListing",
-    VERSION: "0.3.0",
-    // The two watermarks on every photo: a little see-through, nothing else changed.
+    VERSION: "0.4.0",
+    // The three watermarks on every photo: a little see-through, nothing else changed.
+    // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).
+    // If a photo has the store's logo in another corner, the watermark from that
+    // corner moves to the free one, so every corner has something in it.
     WATERMARKS: [
-      // "NO DEALER FEES": top-left corner.
-      { file: "watermarks/no-dealer-fees.png", width: 0.34, x: 0.025, y: 0.03, anchor: "top-left", opacity: 0.85 },
-      // "CALL BYRON 256-762-0959": bottom-left, clear of the store's own logo (bottom-right).
-      { file: "watermarks/call-byron.png", width: 0.34, x: 0.025, y: 0.97, anchor: "bottom-left", opacity: 0.85 }
-    ]
+      { file: "watermarks/no-dealer-fees.png", width: 0.34, corner: "top-left", opacity: 0.85 },
+      { file: "watermarks/easy-buying.png", width: 0.25, corner: "top-right", opacity: 0.85 },
+      { file: "watermarks/call-byron.png", width: 0.34, corner: "bottom-left", opacity: 0.85 }
+    ],
+    STORE_LOGO_CORNER: "bottom-right",
+    // A small grey copy of the store's logo, used to find which corner it's in.
+    STORE_LOGO_TEMPLATE: "lib/store-logo.png",
   };
 })();

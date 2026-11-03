@@ -8,7 +8,7 @@ import { useStoredKey } from './store';
  * extension (a website isn't allowed to fill in facebook.com, an extension
  * is). The CRM page and the extension talk with window messages; the
  * extension opens Facebook's vehicle form, fills it, and uploads the photos
- * with the two watermarks. It never publishes: you review and click Publish.
+ * with the watermarks. It never publishes: you review and click Publish.
  */
 export interface ListerInfo {
   version: string;

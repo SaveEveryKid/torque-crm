@@ -11,7 +11,7 @@ var marksPromise = null;
  * TORQUE MARKETPLACE LISTER: Torque CRM (Inventory → List on Marketplace)
  * hands a unit over through content/crm-bridge.js; this opens Facebook's
  * vehicle form, and content/facebook.js fills it and uploads the photos,
- * each with the two watermarks drawn on. Nothing is ever published: you
+ * each with the three watermarks drawn on. Nothing is ever published: you
  * review it on Facebook and click Publish yourself.
  */
 
@@ -42,6 +42,17 @@ function loadMarks() {
   return marksPromise;
 }
 
+var logoPromise = null;
+/** The store-logo template at the sizes it's searched for (to find which corner the logo is in). */
+function loadLogo() {
+  logoPromise = logoPromise || (async function () {
+    var res = await fetch(chrome.runtime.getURL(C.STORE_LOGO_TEMPLATE));
+    if (!res.ok) return null;
+    return { templates: Byron.watermark.logoTemplates(await createImageBitmap(await res.blob())), usualCorner: C.STORE_LOGO_CORNER };
+  })().catch(function () { logoPromise = null; return null; });
+  return logoPromise;
+}
+
 /** Checks what Torque CRM sent: a real unit, with photos from the dealer's image servers. */
 function validUnit(u) {
   if (!u || typeof u !== "object") throw new Error("No unit was sent.");
@@ -69,7 +80,7 @@ async function stampedPhoto(state, index) {
   if (photoCache.has(key)) return photoCache.get(key);
   var res = await fetch(url, { credentials: "omit", cache: "no-store" });
   if (!res.ok) throw new Error("Photo " + (index + 1) + " couldn't be downloaded (" + res.status + ").");
-  var out = await Byron.watermark.stamp(await res.arrayBuffer(), res.headers.get("content-type"), await loadMarks(), 0.92);
+  var out = await Byron.watermark.stamp(await res.arrayBuffer(), res.headers.get("content-type"), await loadMarks(), 0.92, await loadLogo());
   // The store's branded frame: left out, never stamped over.
   if (!out) {
     photoCache.set(key, { skipped: true });
@@ -90,7 +101,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         var marks = await Promise.all(C.WATERMARKS.map(async function (spec) {
           var res = await fetch(chrome.runtime.getURL(spec.file)).catch(function () { return null; });
           if (!res || !res.ok) return null;
-          return { spec: spec, dataUrl: "data:image/png;base64," + arrayBufferToBase64(await res.arrayBuffer()) };
+          return { spec: Byron.watermark.cornerSpec(spec, spec.corner), dataUrl: "data:image/png;base64," + arrayBufferToBase64(await res.arrayBuffer()) };
         }));
         return sendResponse({
           ok: true,
