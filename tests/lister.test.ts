@@ -25,11 +25,12 @@ describe('Torque Marketplace Lister (extension)', () => {
     expect(B.constants.LOCATION).toBe('Florence, Alabama');
     expect(B.constants.MAX_PHOTOS).toBe(20);
     expect(B.constants.describe(96.07)).toBe(
-      '✅️ No Hidden Fees ✅️\nPayments as low as $97/mo (WAC)\n\nOptional accessories not included in pricing...message for more details.\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\nShoals Outdoor Sports- Florence, AL\nwww.shoalsoutdoorsports.com',
+      'Payments as low as $97/mo (WAC)\n✅️ NO HIDDEN FEES! ✅️\n\n\nOptional accessories not included in pricing...message for more details.\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\nShoals Outdoor Sports- Florence, AL\nwww.shoalsoutdoorsports.com',
     );
     expect(B.constants.describe(1234.5)).toContain('Payments as low as $1,235/mo (WAC)');
     // No payment on the website: that line is left out.
     expect(B.constants.describe(null)).toBe(B.constants.describe(96.07).replace('Payments as low as $97/mo (WAC)\n', ''));
+    expect(B.constants.describe(null).startsWith('✅️ NO HIDDEN FEES! ✅️')).toBe(true);
     expect(B.constants.describe(0)).not.toContain('{payment}');
     expect(B.constants.DESCRIPTION).not.toContain('Proudly serving');
     expect(B.constants.DESCRIPTION).not.toContain('DEALER FEES');
