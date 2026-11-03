@@ -23,15 +23,16 @@ describe('Torque Marketplace Lister (extension)', () => {
     expect(B.constants.DESCRIPTION.endsWith('👉 Message me now and let me make it easy!')).toBe(true);
   });
 
-  it('two slightly see-through watermarks: No Dealer Fees top-left, Call Byron bottom-center, inside the photo', () => {
+  it("two slightly see-through watermarks: No Dealer Fees top-left, Call Byron bottom-left (clear of the store's corner logo), inside the photo", () => {
     const [fees, call] = B.constants.WATERMARKS;
     expect(fees.file).toBe('watermarks/no-dealer-fees.png');
     expect(call.file).toBe('watermarks/call-byron.png');
     for (const m of B.constants.WATERMARKS) expect(m.opacity).toBeGreaterThan(0.7), expect(m.opacity).toBeLessThan(1);
     const a = B.watermark.placement(1920, 1440, 1400, 477, fees);
     expect(a).toEqual({ x: 48, y: 43, w: 653, h: 222 });
-    const b = B.watermark.placement(1920, 1440, 1400, 467, call);
-    expect(b.x + b.w / 2).toBeCloseTo(960, -1);
+    const b = B.watermark.placement(1920, 1440, 2027, 866, call);
+    expect(b.x).toBe(48);
+    expect(b.x + b.w).toBeLessThan(960);
     expect(b.y + b.h).toBeLessThanOrEqual(1440);
     // A wide, short photo: the logo is kept under a third of the height.
     expect(B.watermark.placement(3000, 600, 1400, 477, fees).h).toBeLessThanOrEqual(200);

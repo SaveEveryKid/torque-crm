@@ -31,13 +31,13 @@
     // Photo hosts (the dealer's DX1 image servers).
     PHOTO_HOST: /(^|\.)dx1app\.com$/i,
     LISTING_STATE_KEY: "torqueMarketplaceListing",
-    VERSION: "0.2.0",
+    VERSION: "0.3.0",
     // The two watermarks on every photo: a little see-through, nothing else changed.
     WATERMARKS: [
       // "NO DEALER FEES": top-left corner.
       { file: "watermarks/no-dealer-fees.png", width: 0.34, x: 0.025, y: 0.03, anchor: "top-left", opacity: 0.85 },
-      // "Shoals Outdoor Sports · Call Byron Green 256-762-0959": bottom, centered.
-      { file: "watermarks/call-byron.png", width: 0.5, x: 0.5, y: 0.97, anchor: "bottom-center", opacity: 0.85 }
+      // "CALL BYRON 256-762-0959": bottom-left, clear of the store's own logo (bottom-right).
+      { file: "watermarks/call-byron.png", width: 0.34, x: 0.025, y: 0.97, anchor: "bottom-left", opacity: 0.85 }
     ]
   };
 })();
