@@ -97,3 +97,16 @@ describe('Torque Marketplace Lister (extension)', () => {
     expect(readFileSync('extension/content/facebook.js', 'utf8')).not.toMatch(/publish[^\n]*\.click\(/i);
   });
 });
+
+describe('Listed on Marketplace (CRM side)', async () => {
+  const { mergeListed } = await import('../src/crm/lister');
+  it("adds what the extension sent to Facebook, but keeps a newer 'not listed' you set", () => {
+    const ours = { a: { at: '2026-11-02T10:00:00Z', title: 'A' }, b: { at: '2026-11-03T12:00:00Z', title: 'B', off: true } };
+    const theirs = { a: { at: '2026-11-02T10:00:00Z', title: 'A' }, b: { at: '2026-11-03T09:00:00Z', title: 'B' }, c: { at: '2026-11-03T11:00:00Z', title: 'C' } };
+    expect(mergeListed(ours, theirs)).toEqual({ ...ours, c: { at: '2026-11-03T11:00:00Z', title: 'C' } });
+    // Listed again after being unmarked: back on.
+    expect(mergeListed(ours, { b: { at: '2026-11-03T13:00:00Z', title: 'B' } })!.b).toEqual({ at: '2026-11-03T13:00:00Z', title: 'B' });
+    // Nothing new: no save.
+    expect(mergeListed(ours, { a: ours.a })).toBeNull();
+  });
+});

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { kv } from '../core/storage/kv';
 import type { Unit } from './inventory';
 import { useStoredKey } from './store';
@@ -18,6 +18,8 @@ export interface ListerInfo {
   maxPhotos: number;
   watermarks: { dataUrl: string; spec: { width: number; x: number; y: number; anchor: string; opacity: number } }[];
   missingWatermarks: boolean;
+  /** Units the extension has sent to Facebook (id → when, title). */
+  listed?: Listed;
 }
 
 export interface ListingUnit {
@@ -55,7 +57,10 @@ export function useLister(): ListerInfo | false | null {
   useEffect(() => {
     let live = true;
     ask('PING', undefined, 2500)
-      .then((r) => live && setInfo(r.ok ? (r as unknown as ListerInfo) : false))
+      .then((r) => {
+        if (r.ok && r.listed) void syncListed(r.listed);
+        if (live) setInfo(r.ok ? (r as unknown as ListerInfo) : false);
+      })
       .catch(() => live && setInfo(false));
     return () => void (live = false);
   }, []);
@@ -71,10 +76,45 @@ export async function listOnMarketplace(u: ListingUnit): Promise<void> {
     throw new Error(e.message === 'NOT_INSTALLED' ? 'The Torque Marketplace Lister extension isn’t answering. Is it installed and turned on?' : e.message);
   });
   if (!r.ok) throw new Error(r.error || 'The extension couldn’t start the listing.');
-  const m = ((await kv.get('marketplace')).marketplace as Listed | undefined) ?? {};
-  await kv.set({ marketplace: { ...m, [u.id]: { at: new Date().toISOString(), title: u.title } } });
+  await markListed(u.id, u.title);
 }
 
-export type Listed = Record<string, { at: string; title: string }>;
-/** Units you've sent to Marketplace (when, from this CRM). */
-export const useListed = () => useStoredKey<Listed>('marketplace', {});
+/** Units sent to Marketplace: when, and the title then. `off` = you marked it not listed. */
+export type Listed = Record<string, { at: string; title: string; off?: boolean }>;
+
+const readListed = async () => ((await kv.get('marketplace')).marketplace as Listed | undefined) ?? {};
+
+/** Mark a unit listed (or, with off, not listed) on Marketplace. */
+export async function markListed(id: string, title: string, off = false): Promise<void> {
+  const m = await readListed();
+  await kv.set({ marketplace: { ...m, [id]: { at: new Date().toISOString(), title, ...(off ? { off: true } : {}) } } });
+}
+
+/**
+ * The extension's own record of what it sent to Facebook, merged in (so a unit
+ * is marked Listed even if the CRM missed the extension's reply). Only newer
+ * listings count, so a unit you marked "not listed" stays that way until you
+ * list it again.
+ */
+export function mergeListed(ours: Listed, theirs: Listed): Listed | null {
+  let out: Listed | null = null;
+  for (const [id, v] of Object.entries(theirs)) {
+    if (!v || typeof v.at !== 'string') continue;
+    const have = ours[id];
+    if (have && have.at >= v.at) continue;
+    out = out ?? { ...ours };
+    out[id] = { at: v.at, title: String(v.title ?? '') };
+  }
+  return out;
+}
+
+export async function syncListed(theirs: Listed): Promise<void> {
+  const merged = mergeListed(await readListed(), theirs);
+  if (merged) await kv.set({ marketplace: merged });
+}
+
+/** Units on Marketplace (marked listed, not unmarked). */
+export function useListed(): Listed {
+  const all = useStoredKey<Listed>('marketplace', {});
+  return useMemo(() => Object.fromEntries(Object.entries(all).filter(([, v]) => !v.off)), [all]);
+}

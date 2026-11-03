@@ -53,6 +53,20 @@ function loadLogo() {
   return logoPromise;
 }
 
+/** Units sent to Facebook from this browser (kept even if Torque CRM missed the reply). */
+async function getListed() {
+  var r = await chrome.storage.local.get(C.LISTED_KEY);
+  return r[C.LISTED_KEY] || {};
+}
+
+async function rememberListed(unit) {
+  var all = await getListed();
+  all[unit.id] = { at: new Date().toISOString(), title: unit.title };
+  var ids = Object.keys(all).sort(function (a, b) { return all[b].at.localeCompare(all[a].at); });
+  ids.slice(3000).forEach(function (id) { delete all[id]; });
+  await chrome.storage.local.set({ [C.LISTED_KEY]: all });
+}
+
 /** Checks what Torque CRM sent: a real unit, with photos from the dealer's image servers. */
 function validUnit(u) {
   if (!u || typeof u !== "object") throw new Error("No unit was sent.");
@@ -111,6 +125,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
           vehicleType: C.VEHICLE_TYPE,
           maxPhotos: C.MAX_PHOTOS,
           watermarks: marks.filter(Boolean),
+          listed: await getListed(),
           missingWatermarks: marks.some(function (m) { return !m; })
         });
       }
@@ -122,6 +137,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         var state = { runId: "run-" + Date.now() + "-" + Math.random().toString(36).slice(2), unit: validUnit(message.unit), createdAt: new Date().toISOString() };
         await storage().set({ [C.LISTING_STATE_KEY]: state });
         photoCache.clear();
+        await rememberListed(state.unit);
         var tab = await chrome.tabs.create({ url: C.FACEBOOK_CREATE_URL, active: true });
         return sendResponse({ ok: true, tabId: tab.id, runId: state.runId });
       }

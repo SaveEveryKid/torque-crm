@@ -30,7 +30,9 @@
     // Photo hosts (the dealer's DX1 image servers).
     PHOTO_HOST: /(^|\.)dx1app\.com$/i,
     LISTING_STATE_KEY: "torqueMarketplaceListing",
-    VERSION: "0.4.2",
+    // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
+    LISTED_KEY: "torqueListedUnits",
+    VERSION: "0.5.0",
     // The three watermarks on every photo: a little see-through, nothing else changed.
     // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).
     // If a photo has the store's logo in another corner, the watermark from that

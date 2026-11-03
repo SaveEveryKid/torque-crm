@@ -1,5 +1,5 @@
 import { MarketplaceDialog } from '../ui/MarketplaceDialog';
-import { useListed } from '../crm/lister';
+import { markListed, useLister, useListed } from '../crm/lister';
 import { useEffect, useState } from 'react';
 import { money, readUnit, searchConfig, searchInventory, toVehicleRef, usefulFacets, type SearchResult, type Unit } from '../crm/inventory';
 import { fullName, logActivity, updateCustomer, useCustomers, useSettings, saveSettings } from '../crm/store';
@@ -147,6 +147,7 @@ export function Inventory() {
   const [open, setOpen] = useState<Unit | null>(null);
   const [listing, setListing] = useState<Unit | null>(null);
   const listed = useListed();
+  useLister(); // also picks up what the extension has sent to Facebook
   return (
     <div className="page">
       <div className="page-head">
@@ -175,6 +176,7 @@ export function Inventory() {
 
 function UnitDetails({ u, onClose, onList }: { u: Unit; onClose: () => void; onList: () => void }) {
   const customers = useCustomers();
+  const listed = useListed()[u.id];
   const [who, setWho] = useState('');
   const [raw, setRaw] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -213,9 +215,27 @@ function UnitDetails({ u, onClose, onList }: { u: Unit; onClose: () => void; onL
             </div>
           ))}
       </dl>
+      <div className="row mp-status">
+        {listed ? (
+          <>
+            <span className="badge ready">Listed on Marketplace</span>
+            <span className="muted small">{when(listed.at)}</span>
+            <button className="link small" onClick={() => void markListed(u.id, u.title, true)}>
+              Mark not listed
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="muted small">Not on Marketplace yet</span>
+            <button className="link small" onClick={() => void markListed(u.id, u.title)}>
+              Mark as listed
+            </button>
+          </>
+        )}
+      </div>
       <div className="row">
         <button className="btn primary" disabled={!u.photos.length} onClick={onList} title="Fill a Facebook Marketplace draft with this unit and your watermarked photos">
-          <Icon name="upload" size={15} /> List on Marketplace
+          <Icon name="upload" size={15} /> {listed ? 'List again' : 'List on Marketplace'}
         </button>
         {u.url && (
           <a className="btn" href={u.url} target="_blank" rel="noreferrer">
