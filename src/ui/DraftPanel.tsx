@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { DraftResult } from '../core/ai/followUp';
+import { greetingOnOwnLine, type DraftResult } from '../core/ai/followUp';
 import { LIST_TYPES, type ListType } from '../core/analysis/customList';
 import { situationFor } from '../core/analysis/situation';
 import { recordSent } from '../core/storage/sentLog';
@@ -66,7 +66,7 @@ export function DraftPanel({
     setRes({ draft: { skip: false, skipReason: null, text: pre.text || null, emailSubject: pre.subject, emailBody: pre.body, why: pre.why }, warnings: pre.warnings, attempts: 1 });
     setText(pre.text);
     setSubject(pre.subject);
-    setBody(pre.body);
+    setBody(greetingOnOwnLine(pre.body));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pre?.at, pre?.status]);
 

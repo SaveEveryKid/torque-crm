@@ -76,3 +76,16 @@ describe('business customers get emails only', () => {
     expect(draftsTexts({ ...retail, doNotText: true }, { draftTexts: true })).toBe(false);
   });
 });
+
+import { greetingOnOwnLine } from '../src/core/ai/followUp';
+describe('emails look like business emails', () => {
+  it('the greeting sits on its own line with a blank line after it', () => {
+    expect(greetingOnOwnLine("Shaune, it's Byron at Shoals Outdoor Sports.\n\nWho handles it?")).toBe("Shaune,\n\nIt's Byron at Shoals Outdoor Sports.\n\nWho handles it?");
+    expect(greetingOnOwnLine('Hi Martin, quick question.')).toBe('Hi Martin,\n\nQuick question.');
+    expect(greetingOnOwnLine('Hello, this is Byron.')).toBe('Hello,\n\nThis is Byron.');
+    expect(greetingOnOwnLine('Zach & Abby, thanks.')).toBe('Zach & Abby,\n\nThanks.');
+    expect(greetingOnOwnLine('Shaune,\n\nAlready right.')).toBe('Shaune,\n\nAlready right.');
+    // Not a greeting: left alone.
+    expect(greetingOnOwnLine('Quick question, who handles purchases?')).toBe('Quick question, who handles purchases?');
+  });
+});

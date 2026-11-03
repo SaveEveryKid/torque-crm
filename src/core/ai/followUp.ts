@@ -404,7 +404,24 @@ export function repeatProblems(d: FollowUpDraft, previous: string[]): string[] {
 }
 
 /** Remove any sign-off the model added anyway. No signature is added: eLead appends yours when you send. */
+/**
+ * The greeting on its own line, then a blank line, like a business email:
+ * "Shaune, it's Byron…" → "Shaune,\n\nIt's Byron…". Only a name or a
+ * greeting (Hi / Hello / Dear …) counts, not an opening phrase.
+ */
+export function greetingOnOwnLine(body: string): string {
+  const m = /^\s*((?:(?:hi|hello|hey|dear|good (?:morning|afternoon))(?: [A-Z][\w'.&-]*){0,3}|[A-Z][\w'.&-]*(?: (?:&|and) [A-Z][\w'.&-]*)?(?: [A-Z][\w'.&-]*){0,2}),)[ \t]*(\n\s*)?(\S[\s\S]*)$/i.exec(body);
+  if (!m) return body;
+  const [, greet, , rest] = m;
+  const words = greet.slice(0, -1).split(' ');
+  // A real name: every word capitalized (or "&" / "and"); a greeting word may start it.
+  const isGreeting = /^(hi|hello|hey|dear|good)$/i.test(words[0]) || words.every((x) => /^[A-Z]/.test(x) || /^(&|and)$/i.test(x));
+  if (!isGreeting) return body;
+  return `${greet}\n\n${rest.charAt(0).toUpperCase()}${rest.slice(1)}`;
+}
+
 export function finishEmailBody(body: string, w: Writer): string {
+  body = greetingOnOwnLine(body);
   const sigWords = [w.name, firstWord(w.name), w.dealership, w.phone].map((s) => s.trim().toLowerCase()).filter(Boolean);
   const lines = body.replace(/\r/g, '').trimEnd().split('\n');
   while (lines.length) {
