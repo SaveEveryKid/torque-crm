@@ -263,6 +263,7 @@ export const money = (n: number | null) => (n ? `$${Math.round(n).toLocaleString
 /** The filters worth showing, from the facets the index returns. */
 export function usefulFacets(facets: SearchResult['facets']): { name: string; label: string; values: [string, number][] }[] {
   const WANT: [RegExp, string][] = [
+    [/^(dealershipname|dealership|location)$/i, 'Location'],
     [/^(condition|usage|newused)$/i, 'Condition'],
     [/^(producttype|type|vehicletype)$/i, 'Type'],
     [/^(category|industry)$/i, 'Category'],

@@ -15,3 +15,14 @@ describe('a real Shoals Outdoor Sports listing (DX1)', () => {
     expect(u).toMatchObject({ title: "1978 Alumacraft 16' YAMAHA 1997 35OB", price: 3999, stock: 'H4513A', condition: 'Used', type: 'Boat', usage: null });
   });
 });
+
+import { usefulFacets as facetsOf } from '../src/crm/inventory';
+describe('inventory location filter', () => {
+  it('the store (DealershipName) is offered first, as Location', () => {
+    const f = facetsOf({ DealershipName: { 'Shoals Outdoor Sports - Tuscumbia': 330, 'Shoals Outdoor Sports - Florence': 298 }, Condition: { New: 400, Used: 228 } });
+    expect(f.map((x) => [x.name, x.label])).toEqual([
+      ['DealershipName', 'Location'],
+      ['Condition', 'Condition'],
+    ]);
+  });
+});

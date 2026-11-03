@@ -7,7 +7,7 @@ const load = (...files: string[]) => {
   for (const f of files) new Function('self', 'window', readFileSync(`extension/${f}`, 'utf8'))(self, self);
   return self.Byron as {
     constants: { DESCRIPTION: string; VEHICLE_TYPE: string; LOCATION: string; MAX_PHOTOS: number; WATERMARKS: { file: string; width: number; x: number; y: number; anchor: string; opacity: number }[] };
-    watermark: { placement: (pw: number, ph: number, mw: number, mh: number, spec: object) => { x: number; y: number; w: number; h: number } };
+    watermark: { placement: (pw: number, ph: number, mw: number, mh: number, spec: object) => { x: number; y: number; w: number; h: number }; isStoreFramed: (px: Uint8ClampedArray) => boolean };
   };
 };
 
@@ -35,6 +35,19 @@ describe('Torque Marketplace Lister (extension)', () => {
     expect(b.y + b.h).toBeLessThanOrEqual(1440);
     // A wide, short photo: the logo is kept under a third of the height.
     expect(B.watermark.placement(3000, 600, 1400, 477, fees).h).toBeLessThanOrEqual(200);
+  });
+
+  it("photos with the store's branded frame are recognised (and left out), plain photos are not", () => {
+    const fill = (f: (i: number) => [number, number, number]) => {
+      const a = new Uint8ClampedArray(4 * 5000);
+      for (let i = 0; i < 5000; i++) a.set([...f(i), 255], i * 4);
+      return a;
+    };
+    expect(B.watermark.isStoreFramed(fill(() => [207, 216, 223]))).toBe(true);
+    expect(B.watermark.isStoreFramed(fill((i) => [205 + (i % 3), 216, 224]))).toBe(true);
+    // Gravel, grass, sky: not a frame.
+    expect(B.watermark.isStoreFramed(fill((i) => [(i * 37) % 255, (i * 91) % 255, (i * 13) % 255]))).toBe(false);
+    expect(B.watermark.isStoreFramed(fill(() => [120, 170, 230]))).toBe(false);
   });
 
   it('only Torque CRM can start a listing, and only with the dealer’s photos', () => {

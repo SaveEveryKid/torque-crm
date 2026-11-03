@@ -70,6 +70,11 @@ async function stampedPhoto(state, index) {
   var res = await fetch(url, { credentials: "omit", cache: "no-store" });
   if (!res.ok) throw new Error("Photo " + (index + 1) + " couldn't be downloaded (" + res.status + ").");
   var out = await Byron.watermark.stamp(await res.arrayBuffer(), res.headers.get("content-type"), await loadMarks(), 0.92);
+  // The store's branded frame: left out, never stamped over.
+  if (!out) {
+    photoCache.set(key, { skipped: true });
+    return { skipped: true };
+  }
   var result = { base64: arrayBufferToBase64(out.buffer), mime: out.mime, filename: "unit-photo-" + String(index + 1).padStart(2, "0") + ".jpg" };
   photoCache.set(key, result);
   return result;

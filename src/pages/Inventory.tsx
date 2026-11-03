@@ -2,11 +2,16 @@ import { MarketplaceDialog } from '../ui/MarketplaceDialog';
 import { useListed } from '../crm/lister';
 import { useEffect, useState } from 'react';
 import { money, readUnit, searchConfig, searchInventory, toVehicleRef, usefulFacets, type SearchResult, type Unit } from '../crm/inventory';
-import { fullName, logActivity, updateCustomer, useCustomers, useSettings } from '../crm/store';
+import { fullName, logActivity, updateCustomer, useCustomers, useSettings, saveSettings } from '../crm/store';
 import type { VehicleRef } from '../crm/types';
 import { copy, Empty, go, Icon, Modal, when } from '../ui/kit';
 
 /** Search state + results, shared by the Inventory page and the picker. */
+/** The site's store field (DX1): "Shoals Outdoor Sports - Florence". */
+const LOCATION_FACET = 'DealershipName';
+/** "Shoals Outdoor Sports - Florence" → "Florence". */
+export const storeName = (v: string) => v.replace(/^.*\s[-–]\s/, '');
+
 function useInventory() {
   const settings = useSettings();
   const [query, setQuery] = useState('');
@@ -29,7 +34,8 @@ function useInventory() {
     let live = true;
     setLoading(true);
     setError(null);
-    searchInventory(settings.inventoryPage, { query, page, index, filters })
+    // Your store (Settings → Location) on top of the other filters.
+    searchInventory(settings.inventoryPage, { query, page, index, filters: settings.inventoryLocation ? { ...filters, [LOCATION_FACET]: settings.inventoryLocation } : filters })
       .then(async (r) => {
         if (!live) return;
         setRes(r);
@@ -41,7 +47,7 @@ function useInventory() {
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, page, index, filters, settings.inventoryPage, reload]);
+  }, [query, page, index, filters, settings.inventoryPage, settings.inventoryLocation, reload]);
 
   const refresh = async () => {
     await searchConfig(settings.inventoryPage, true).catch((e: Error) => setError(e.message));
@@ -55,16 +61,35 @@ function useInventory() {
         <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Search make, model, stock #…" />
       </div>
       {res &&
-        usefulFacets(res.facets).map((f) => (
-          <select key={f.name} value={filters[f.name] ?? ''} onChange={(e) => (setFilters((x) => ({ ...x, [f.name]: e.target.value })), setPage(0))} aria-label={f.label}>
-            <option value="">{f.label}: any</option>
-            {f.values.map(([v, n]) => (
-              <option key={v} value={v}>
-                {v} ({n})
-              </option>
-            ))}
-          </select>
-        ))}
+        usefulFacets(res.facets).map((f) =>
+          f.name === LOCATION_FACET ? (
+            // Remembered (Settings): the store you list from.
+            <select
+              key={f.name}
+              className={settings.inventoryLocation ? 'on' : ''}
+              value={settings.inventoryLocation}
+              onChange={(e) => (void saveSettings({ inventoryLocation: e.target.value }), setPage(0))}
+              aria-label="Location"
+            >
+              <option value="">Location: every store</option>
+              {[...new Set([settings.inventoryLocation, ...f.values.map(([v]) => v)].filter(Boolean))].map((v) => (
+                <option key={v} value={v}>
+                  {storeName(v)}
+                  {f.values.find(([x]) => x === v) && !settings.inventoryLocation ? ` (${f.values.find(([x]) => x === v)![1]})` : ''}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <select key={f.name} value={filters[f.name] ?? ''} onChange={(e) => (setFilters((x) => ({ ...x, [f.name]: e.target.value })), setPage(0))} aria-label={f.label}>
+              <option value="">{f.label}: any</option>
+              {f.values.map(([v, n]) => (
+                <option key={v} value={v}>
+                  {v} ({n})
+                </option>
+              ))}
+            </select>
+          ),
+        )}
       {sorts.length > 1 && (
         <select value={index} onChange={(e) => (setIndex(e.target.value), setPage(0))} aria-label="Sort">
           {sorts.map((s, i) => (

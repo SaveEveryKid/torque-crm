@@ -64,6 +64,7 @@
   async function photo(index) {
     var response = await send({ type: "GET_PHOTO", index: index });
     if (!response.ok) throw new Error(response.error || "Photo " + (index + 1) + " failed.");
+    if (response.photo.skipped) return null;
     var binary = atob(response.photo.base64);
     var bytes = new Uint8Array(binary.length);
     for (var i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
@@ -91,16 +92,21 @@
       setStatus("filling in " + (state.unit.title || "the unit") + "…");
       var results = await fill(state.unit);
       var files = [];
+      var framed = 0;
       for (var i = 0; i < state.unit.photos.length; i += 1) {
         setStatus("adding watermarks: photo " + (i + 1) + " of " + state.unit.photos.length + "…");
-        files.push(await photo(i));
+        var f = await photo(i);
+        if (f) files.push(f);
+        else framed += 1;
       }
+      if (!files.length) throw new Error("Every photo has the store's branded frame, so none were used. Pick a Florence unit or add photos by hand.");
       await form.uploadFiles(files);
       await send({ type: "LISTING_COMPLETE" });
       var missed = results.filter(function (r) { return r.skipped; }).map(function (r) { return r.field; });
       var loc = results.find(function (r) { return r.field === "Location"; });
       setStatus(
         "draft filled with " + files.length + " watermarked photos." +
+          (framed ? " Left out " + framed + " photo" + (framed === 1 ? "" : "s") + " with the store's branded frame." : "") +
           (missed.length ? " Fill in by hand: " + missed.join(", ") + "." : "") +
           (loc && loc.picked === false ? " Pick Florence, Alabama in the location list." : "") +
           " Check everything, then click Next / Publish yourself."

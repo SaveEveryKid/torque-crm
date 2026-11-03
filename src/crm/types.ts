@@ -124,6 +124,8 @@ export interface Settings {
   /** Days without contact before an open customer shows on "Needs follow-up". */
   followUpDays: number;
   inventoryPage: string;
+  /** Only this store's inventory (the site's DealershipName), '' = every store. */
+  inventoryLocation: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -141,4 +143,5 @@ export const DEFAULT_SETTINGS: Settings = {
   dialDelaySeconds: 5,
   followUpDays: 2,
   inventoryPage: '/Inventory/All-Inventory-In-Stock',
+  inventoryLocation: 'Shoals Outdoor Sports - Florence',
 };
