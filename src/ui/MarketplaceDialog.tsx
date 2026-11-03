@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { money, type Unit } from '../crm/inventory';
-import { listOnMarketplace, toListing, useLister, useListed, type ListerInfo } from '../crm/lister';
+import { describe, listOnMarketplace, toListing, useLister, useListed, type ListerInfo } from '../crm/lister';
 import { Icon, Modal, when } from './kit';
 
 /**
@@ -91,7 +91,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
         <p className="muted small">The only change to the photos: your watermarks on top, arranged around the store logo. Click a photo to leave it out.</p>
 
         <h3>Description</h3>
-        <pre className="mp-desc">{lister ? lister.description : 'Install the extension to see the description.'}</pre>
+        <pre className="mp-desc">{lister ? describe(lister.description, u.payment) : 'Install the extension to see the description.'}</pre>
 
         {error && <p className="error">{error}</p>}
         {sent && (

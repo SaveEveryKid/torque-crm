@@ -29,6 +29,7 @@ export interface ListingUnit {
   make: string | null;
   model: string | null;
   price: number | null;
+  payment: number | null;
   photos: string[];
 }
 
@@ -67,8 +68,14 @@ export function useLister(): ListerInfo | false | null {
   return info;
 }
 
+/** The listing description for a unit (same as the extension: payment filled in, or that line left out). */
+export function describe(template: string, payment: number | null): string {
+  if (!payment || payment <= 0) return template.split('\n').filter((l) => !l.includes('{payment}')).join('\n');
+  return template.replace('{payment}', `$${Math.ceil(payment).toLocaleString('en-US')}/mo`);
+}
+
 export function toListing(u: Unit, photos: string[]): ListingUnit {
-  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, photos };
+  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment: u.payment, photos };
 }
 
 export async function listOnMarketplace(u: ListingUnit): Promise<void> {

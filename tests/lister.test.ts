@@ -6,7 +6,7 @@ const load = (...files: string[]) => {
   const self: Record<string, unknown> = {};
   for (const f of files) new Function('self', 'window', readFileSync(`extension/${f}`, 'utf8'))(self, self);
   return self.Byron as {
-    constants: { DESCRIPTION: string; VEHICLE_TYPE: string; LOCATION: string; MAX_PHOTOS: number; STORE_LOGO_CORNER: string; WATERMARKS: { file: string; width: number; corner: string; opacity: number }[] };
+    constants: { DESCRIPTION: string; describe: (p: number | null) => string; VEHICLE_TYPE: string; LOCATION: string; MAX_PHOTOS: number; STORE_LOGO_CORNER: string; WATERMARKS: { file: string; width: number; corner: string; opacity: number }[] };
     watermark: {
       placement: (pw: number, ph: number, mw: number, mh: number, spec: object) => { x: number; y: number; w: number; h: number };
       isStoreFramed: (px: Uint8ClampedArray) => boolean;
@@ -24,8 +24,13 @@ describe('Torque Marketplace Lister (extension)', () => {
     expect(B.constants.VEHICLE_TYPE).toBe('Other');
     expect(B.constants.LOCATION).toBe('Florence, Alabama');
     expect(B.constants.MAX_PHOTOS).toBe(20);
-    expect(B.constants.DESCRIPTION.startsWith('✅️ NO HIDDEN FEES! ✅️\n\nOptional accessories not included in pricing...message for more details.\n\n⏳️ Message me')).toBe(true);
-    expect(B.constants.DESCRIPTION.endsWith('‼️ Follow me on Marketplace for the best deals! ‼️\n\nShoals Outdoor Sports- Florence, AL\nwww.shoalsoutdoorsports.com')).toBe(true);
+    expect(B.constants.describe(96.07)).toBe(
+      '✅️ No Hidden Fees ✅️\nPayments as low as $97/mo (WAC)\n\nOptional accessories not included in pricing...message for more details.\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\nShoals Outdoor Sports- Florence, AL\nwww.shoalsoutdoorsports.com',
+    );
+    expect(B.constants.describe(1234.5)).toContain('Payments as low as $1,235/mo (WAC)');
+    // No payment on the website: that line is left out.
+    expect(B.constants.describe(null)).toBe(B.constants.describe(96.07).replace('Payments as low as $97/mo (WAC)\n', ''));
+    expect(B.constants.describe(0)).not.toContain('{payment}');
     expect(B.constants.DESCRIPTION).not.toContain('Proudly serving');
     expect(B.constants.DESCRIPTION).not.toContain('DEALER FEES');
     expect(B.constants.DESCRIPTION).not.toContain('For Sale By Dealer');

@@ -82,6 +82,7 @@ function validUnit(u) {
     make: String(u.make || "").slice(0, 60),
     model: String(u.model || "").slice(0, 80),
     price: u.price == null ? null : Math.round(Number(u.price)) || null,
+    payment: Number(u.payment) > 0 ? Math.min(Number(u.payment), 100000) : null,
     title: String(u.title || "").slice(0, 120),
     photos: u.photos.slice(0, C.MAX_PHOTOS)
   };

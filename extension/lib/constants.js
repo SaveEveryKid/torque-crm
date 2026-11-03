@@ -4,23 +4,32 @@
   var root = typeof self !== "undefined" ? self : window;
   var Byron = root.Byron = root.Byron || {};
 
-  // The description on every listing, exactly as written.
+  // The description on every listing, exactly as written. {payment} is the
+  // unit's estimated monthly payment from the dealer's website (that line is
+  // left out when a unit has none).
   var description = [
-    "✅️ NO HIDDEN FEES! ✅️",
+    "✅️ No Hidden Fees ✅️",
+    "Payments as low as {payment} (WAC)",
     "",
     "Optional accessories not included in pricing...message for more details.",
     "",
     "⏳️ Message me with any questions or to set up a time to see this unit! ⏳️",
     "",
-    "‼️ Follow me on Marketplace for the best deals! ‼️",
-    "",
     "Shoals Outdoor Sports- Florence, AL",
     "www.shoalsoutdoorsports.com"
   ].join("\n");
 
+  /** The description for one unit: its monthly payment filled in (rounded up to the dollar). */
+  function describe(payment) {
+    var p = Number(payment);
+    if (!(p > 0)) return description.split("\n").filter(function (l) { return l.indexOf("{payment}") === -1; }).join("\n");
+    return description.replace("{payment}", "$" + Math.ceil(p).toLocaleString("en-US") + "/mo");
+  }
+
   Byron.constants = {
     FACEBOOK_CREATE_URL: "https://www.facebook.com/marketplace/create/vehicle",
     DESCRIPTION: description,
+    describe: describe,
     LOCATION: "Florence, Alabama",
     VEHICLE_TYPE: "Other",
     // Facebook takes up to 20 photos on a vehicle listing.
@@ -32,7 +41,7 @@
     LISTING_STATE_KEY: "torqueMarketplaceListing",
     // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
     LISTED_KEY: "torqueListedUnits",
-    VERSION: "0.5.2",
+    VERSION: "0.5.3",
     // The three watermarks on every photo: a little see-through, nothing else changed.
     // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).
     // If a photo has the store's logo in another corner, the watermark from that

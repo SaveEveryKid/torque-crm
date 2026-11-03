@@ -60,7 +60,7 @@
     // Close the location list before moving on, then type the description once.
     if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
     await utils.sleep(300);
-    results.push(await form.setLongText(["Description", "Describe your item"], C.DESCRIPTION));
+    results.push(await form.setLongText(["Description", "Describe your item"], C.describe(unit.payment)));
     return results;
   }
 

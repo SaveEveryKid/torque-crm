@@ -201,6 +201,8 @@ export interface Unit {
   type: string | null;
   price: number | null;
   msrp: number | null;
+  /** The dealer website's estimated monthly payment. */
+  payment: number | null;
   stock: string | null;
   vin: string | null;
   color: string | null;
@@ -242,6 +244,7 @@ export function readUnit(h: Hit): Unit {
     type: str(pick(h, ['ProductType', 'Category', 'Type', 'VehicleType', 'Industry'])),
     price: sale ?? msrp,
     msrp: msrp && sale && msrp > sale ? msrp : null,
+    payment: num(pick(h, ['CustomMonthlyPrice'])) || num(pick(h, ['EstimateMonthlyPayment'])) || null,
     stock: str(pick(h, ['StockNumber', 'Stock', 'StockNo', 'StockNum'])),
     vin: str(pick(h, ['VIN', 'Vin', 'SerialNumber', 'HullNumber'])),
     color: str(pick(h, ['Color', 'ExteriorColor', 'PrimaryColor'])),
