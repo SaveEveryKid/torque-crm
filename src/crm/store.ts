@@ -172,8 +172,12 @@ export async function deleteTask(id: string, taskId: string): Promise<void> {
   await updateCustomer(id, (c) => ({ tasks: c.tasks.filter((t) => t.id !== taskId) }));
 }
 
+/** The signature the CRM used to add by default; Outlook adds yours, so a saved copy of it is dropped. */
+const OLD_DEFAULT_SIGNATURE = 'Byron Green\nShoals Outdoor Sports\n(256) 762-0959\nbyrong@shoalsoutdoorsports.com';
+
 export async function getSettings(): Promise<Settings> {
-  return { ...DEFAULT_SETTINGS, ...((await kv.get(SETTINGS))[SETTINGS] as Partial<Settings> | undefined) };
+  const s: Settings = { ...DEFAULT_SETTINGS, ...((await kv.get(SETTINGS))[SETTINGS] as Partial<Settings> | undefined) };
+  return s.signature === OLD_DEFAULT_SIGNATURE ? { ...s, signature: '' } : s;
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {

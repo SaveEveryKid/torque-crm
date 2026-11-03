@@ -135,7 +135,7 @@ export const DEFAULT_SETTINGS: Settings = {
   email: 'byrong@shoalsoutdoorsports.com',
   emailApp: 'outlook-app',
   draftTexts: false,
-  signature: 'Byron Green\nShoals Outdoor Sports\n(256) 762-0959\nbyrong@shoalsoutdoorsports.com',
+  signature: '',
   claudeQuality: 'fast',
   voicemail: 'connect',
   dialDelaySeconds: 5,
