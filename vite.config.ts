@@ -31,6 +31,9 @@ const dealerProxy: Record<string, ProxyOptions> = {
 
 export default defineConfig({
   plugins: [react()],
+  // Check for replies reads your exported Inbox (.pst) in the browser: pst-extractor's Node imports get browser stand-ins.
+  resolve: { alias: { fs: '/src/shims/fs.ts' } },
+  worker: { format: 'es' },
   // Always the same address: your data is saved per address (http://localhost:5180).
   server: { port: 5180, strictPort: true, proxy: dealerProxy },
   preview: { port: 5180, strictPort: true, proxy: dealerProxy },

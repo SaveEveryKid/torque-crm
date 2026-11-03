@@ -86,6 +86,8 @@ export interface Customer {
   notes: string;
   doNotText: boolean;
   doNotContact: boolean;
+  /** An email to them bounced (Outlook): the address doesn't work. */
+  emailBounced?: boolean;
   /** The desk interview: what they'll use it for (Find the right unit). */
   needs?: { use: string; tags: string[]; riders: string; budget: string } | null;
   /** The 3 units Claude suggested from inventory. */

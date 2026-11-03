@@ -74,7 +74,7 @@ export const typeFor = (c: Customer, mode: ListType | '' | 'auto'): ListType | '
  */
 export function targets(list: Customer[], drafts: Drafts, redo: boolean, now = new Date()): Customer[] {
   return list.filter((c) => {
-    if (!c.email.trim() || c.doNotContact) return false;
+    if (!c.email.trim() || c.doNotContact || c.emailBounced) return false;
     const d = drafts[c.id];
     if (redo || !d || d.status === 'error') return true;
     const due = dueStep(c, now);

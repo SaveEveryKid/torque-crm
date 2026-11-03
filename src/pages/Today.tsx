@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { fullName, lastContact, openTasks, updateTask, useCustomers, useSettings, useStoredKey } from '../crm/store';
 import { DAILY_GOAL, EMPTY_PROGRESS, currentStreak, dayOf, type CardState, type Progress } from '../training/engine';
 import { OPEN_STAGES, TASK_LABEL, type Customer, type Task } from '../crm/types';
+import { CheckReplies } from '../ui/CheckReplies';
 import { ago, Avatar, daysFromToday, Empty, go, Icon, StageBadge, time, when } from '../ui/kit';
 
 type Due = { c: Customer; t: Task };
@@ -67,6 +68,7 @@ export function Today() {
           </div>
         </section>
       )}
+      <CheckReplies />
       <BootcampNudge />
       <div className="stats">
         <Stat label="Tasks due" value={due.length} hint={late ? `${late} overdue` : due.length ? 'due today' : 'all caught up'} />

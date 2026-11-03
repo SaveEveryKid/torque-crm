@@ -26,6 +26,8 @@
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
+    "buffer": "^6.0.3",
+    "pst-extractor": "^1.12.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   }
