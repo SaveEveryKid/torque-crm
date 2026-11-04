@@ -42,6 +42,8 @@ export interface ListingUnit {
   uploads?: string[];
   /** The accessories and total as equipped, for the description. */
   accessories?: string;
+  /** The whole description, exactly as shown in Torque (the extension types this). */
+  description?: string;
 }
 
 type Reply = { source: 'torque-lister'; id: string | null; ok: boolean; error?: string; type?: string } & Partial<ListerInfo>;
@@ -84,7 +86,14 @@ export function describe(template: string, payment: number | null, accessories =
   let lines = template.split('\n');
   if (!payment || payment <= 0) lines = lines.filter((l) => !l.includes('{payment}'));
   const block = accessories.trim();
-  const at = lines.indexOf('{accessories}');
+  let at = lines.indexOf('{accessories}');
+  // A template without the accessories spot (older extension): they go right
+  // before "Optional accessories…" (or at the end), never left out.
+  if (block && at < 0) {
+    const before = lines.findIndex((l) => /^optional accessories/i.test(l.trim()));
+    at = before >= 0 ? before : lines.length;
+    lines.splice(at, 0, '{accessories}', '');
+  }
   if (!block && at >= 0) lines.splice(at, lines[at + 1] === '' ? 2 : 1);
   return lines
     .join('\n')
@@ -100,10 +109,23 @@ export async function rememberPayment(id: string, payment: number): Promise<void
   if (m[id] !== payment) await kv.set({ marketplacePayments: { ...m, [id]: payment } });
 }
 
-export function toListing(u: Unit, photos: string[], payment: number | null, paymentMark: string | null, accessories = ''): ListingUnit {
+/** The oldest Torque Marketplace Lister that does everything this CRM asks (description as written, Year and Florence picked for you). */
+export const MIN_EXTENSION = '0.9.0';
+
+/** Is version a older than b ("0.8.0" < "0.9.0" < "0.10.0")? */
+export function olderThan(a: string | undefined, b: string): boolean {
+  const pa = String(a ?? '0').split('.').map((n) => Number(n) || 0);
+  const pb = b.split('.').map((n) => Number(n) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) < (pb[i] ?? 0);
+  }
+  return false;
+}
+
+export function toListing(u: Unit, photos: string[], payment: number | null, paymentMark: string | null, accessories = '', description = ''): ListingUnit {
   const uploads: string[] = [];
   const refs = photos.map((p) => (p.startsWith('data:') ? `upload:${uploads.push(p) - 1}` : p));
-  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment, paymentMark, photos: refs, uploads, accessories };
+  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment, paymentMark, photos: refs, uploads, accessories, ...(description ? { description } : {}) };
 }
 
 export async function listOnMarketplace(u: ListingUnit): Promise<void> {

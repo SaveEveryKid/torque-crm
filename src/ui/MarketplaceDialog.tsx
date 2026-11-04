@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { money, type Unit } from '../crm/inventory';
-import { describe, listOnMarketplace, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
+import { describe, listOnMarketplace, MIN_EXTENSION, olderThan, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
 import { accessoryBlock, useUnitAccessories } from '../crm/accessories';
 import { prepareOwnPhoto } from '../crm/ownPhotos';
 import { paymentMark } from '../crm/paymentMark';
@@ -66,6 +66,9 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
     }
   };
   const removeOwn = (p: string) => setOwn((o) => o.filter((x) => x !== p));
+  // The description, written here (accessories and total as equipped included); the extension types it exactly.
+  const description = lister ? describe(lister.description, payment, accessories) : '';
+  const outdated = !!lister && olderThan(lister.version, MIN_EXTENSION);
   const toggle = (p: string) => setOff((s) => (s.has(p) ? new Set([...s].filter((x) => x !== p)) : new Set([...s, p])));
 
   const go = async () => {
@@ -74,7 +77,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
     try {
       if (!payment || !markUrl) throw new Error('Type the monthly payment from your grid first.');
       await rememberPayment(u.id, payment);
-      await listOnMarketplace(toListing(u, chosen, payment, markUrl, accessories));
+      await listOnMarketplace(toListing(u, chosen, payment, markUrl, accessories, description));
       setSent(true);
     } catch (e) {
       setError((e as Error).message);
@@ -94,7 +97,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
             {sent ? 'Close' : 'Cancel'}
           </button>
           {lister && !sent && (
-            <button className="btn primary" disabled={busy || !chosen.length || lister.missingWatermarks || !markUrl} onClick={() => void go()}>
+            <button className="btn primary" disabled={busy || !chosen.length || lister.missingWatermarks || !markUrl || outdated} onClick={() => void go()}>
               <Icon name="external" size={16} /> {busy ? 'Opening Facebook…' : `List on Facebook (${chosen.length} photo${chosen.length === 1 ? '' : 's'})`}
             </button>
           )}
@@ -103,6 +106,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
     >
       <div className="stack mp">
         {lister === false && <InstallSteps />}
+        {outdated && <InstallSteps update={lister.version} />}
         {lister && lister.missingWatermarks && <p className="error">The extension is missing its watermark files. Reinstall the latest Torque Marketplace Lister.</p>}
         {listed && <p className="notice small">You sent this unit to Marketplace {when(listed.at)}.</p>}
 
@@ -185,7 +189,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
 
         <h3>Description</h3>
         {!accessories && <p className="muted small">No accessories on this unit. Add them in the unit window (Accessories on this unit) to list them with the total as equipped.</p>}
-        <pre className="mp-desc">{lister ? describe(lister.description, payment, accessories) : 'Install the extension to see the description.'}</pre>
+        <pre className="mp-desc">{lister ? description : 'Install the extension to see the description.'}</pre>
 
         {error && <p className="error">{error}</p>}
         {sent && (
@@ -224,19 +228,34 @@ function Preview({ photo, lister, paymentMark: pm }: { photo: string; lister: Li
   );
 }
 
-function InstallSteps() {
+function InstallSteps({ update }: { update?: string }) {
   return (
-    <div className="notice stack tight">
-      <strong>One-time setup: install the Torque Marketplace Lister in Chrome</strong>
+    <div className={`notice stack tight${update ? ' mp-update' : ''}`}>
+      <strong>
+        {update
+          ? `Update your Torque Marketplace Lister: you have v${update}, this needs v${MIN_EXTENSION} or newer`
+          : 'One-time setup: install the Torque Marketplace Lister in Chrome'}
+      </strong>
+      {update && (
+        <span className="small">
+          The old one leaves out your accessories and total price, and makes you pick the Year and Florence, AL yourself.
+        </span>
+      )}
       <ol className="small help-steps">
         <li>
           <a href="/torque-marketplace-lister.zip" download>
             Download the extension
           </a>{' '}
-          and unzip it to a folder you'll keep (e.g. Documents).
+          and unzip it {update ? 'over your old Torque Marketplace Lister folder (replace the files).' : "to a folder you'll keep (e.g. Documents)."}
         </li>
-        <li>In Chrome, open chrome://extensions and turn on Developer mode (top right).</li>
-        <li>Click Load unpacked and pick the unzipped folder.</li>
+        {update ? (
+          <li>In Chrome, open chrome://extensions and click the circle-arrow (reload) on Torque Marketplace Lister.</li>
+        ) : (
+          <>
+            <li>In Chrome, open chrome://extensions and turn on Developer mode (top right).</li>
+            <li>Click Load unpacked and pick the unzipped folder.</li>
+          </>
+        )}
         <li>Reload this page. Stay logged in to Facebook in Chrome.</li>
       </ol>
     </div>

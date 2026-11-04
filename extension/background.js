@@ -115,6 +115,7 @@ function validUnit(u) {
     payment: Number(u.payment) > 0 ? Math.min(Number(u.payment), 100000) : null,
     paymentMark: validMark(u.paymentMark),
     accessories: typeof u.accessories === "string" ? u.accessories.slice(0, 3000) : "",
+    description: typeof u.description === "string" ? u.description.slice(0, 9000) : "",
     title: String(u.title || "").slice(0, 120),
     photos: u.photos.slice(0, C.MAX_PHOTOS),
     uploads: uploads

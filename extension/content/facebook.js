@@ -44,7 +44,7 @@
     // Close any open list before moving on, then type the description once.
     if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
     await utils.sleep(300);
-    results.push(await form.setLongText(["Description", "Describe your item"], C.describe(unit.payment, unit.accessories)));
+    results.push(await form.setLongText(["Description", "Describe your item"], unit.description || C.describe(unit.payment, unit.accessories)));
     return results;
   }
 

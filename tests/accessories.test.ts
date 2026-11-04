@@ -82,3 +82,20 @@ describe('accessories', () => {
     expect(adDescription('HD EXTR KICK OUT (2)')).toBe('HD EXTR KICK OUT (2)');
   });
 });
+
+describe('listing description is written by Torque', async () => {
+  const { describe: d, olderThan } = await import('../src/crm/lister');
+  it('puts the accessories and total in even when the extension is older (its template has no spot for them)', () => {
+    const oldTemplate = 'Payments as low as {payment} (WAC)\n✅️ NO HIDDEN FEES! ✅️\n\n\nOptional accessories not included in pricing...message for more details.\n\nShoals Outdoor Sports- Florence, AL';
+    expect(d(oldTemplate, 100, 'Equipped with:\n• DEMO – $10\nTotal price as equipped: $5,709')).toBe(
+      'Payments as low as $100/mo (WAC)\n✅️ NO HIDDEN FEES! ✅️\n\n\nEquipped with:\n• DEMO – $10\nTotal price as equipped: $5,709\n\nOptional accessories not included in pricing...message for more details.\n\nShoals Outdoor Sports- Florence, AL',
+    );
+    expect(d('Hello', null, 'Equipped with:\n• DEMO – $10')).toBe('Hello\nEquipped with:\n• DEMO – $10\n');
+  });
+  it('knows an out-of-date extension', () => {
+    expect(olderThan('0.5.4', '0.9.0')).toBe(true);
+    expect(olderThan('0.9.0', '0.9.0')).toBe(false);
+    expect(olderThan('0.10.0', '0.9.0')).toBe(false);
+    expect(olderThan(undefined, '0.9.0')).toBe(true);
+  });
+});
