@@ -149,12 +149,13 @@ export function money(n: number): string {
 /**
  * The ad's accessory list and total ("" when the unit has none): each
  * accessory by name only (no price per item, labor never mentioned), then the
- * total as equipped. PassTime GPS says it's included at no charge.
+ * total as equipped. PassTime GPS (no charge) is kept on the unit but never
+ * mentioned in the ad.
  */
 export function accessoryBlock(list: UnitAccessory[], unitPrice: number | null): string {
-  const items = list.filter((a) => a.description && (a.free || a.price >= 0));
+  const items = list.filter((a) => a.description && !a.free && a.price >= 0);
   if (!items.length) return '';
-  const lines = items.map((a) => `• ${a.description}${a.free ? ' (included at no charge)' : ''}`);
+  const lines = items.map((a) => `• ${a.description}`);
   const extra = items.reduce((s, a) => s + installed(a), 0);
   const out = ['Equipped with:', ...lines, ''];
   if (unitPrice && unitPrice > 0) {
