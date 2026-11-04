@@ -27,37 +27,21 @@
     panel.style.background = error ? "#991b1b" : "#1f2937";
   }
 
-  /** Facebook's location box suggests places as you type: pick the matching one. */
-  async function setLocation(place) {
-    var r = await form.setIfPresent(["Location", "Item location"], place);
-    if (r.skipped) return r;
-    var town = place.split(",")[0].toLowerCase();
-    try {
-      var option = await form.waitFor(function () {
-        return Array.from(document.querySelectorAll('[role="option"], [role="listbox"] li')).find(function (o) {
-          return form.visible(o) && utils.normalizeText(o.textContent).toLowerCase().indexOf(town) !== -1;
-        });
-      }, 6000, "No location suggestion");
-      option.click();
-      r.picked = true;
-    } catch (e) {
-      r.picked = false;
-    }
-    return r;
-  }
-
   async function fill(unit) {
     var results = [];
     await form.ensureVehicleMode();
     // Vehicle type first: Facebook shows the right fields after it's chosen.
-    results.push(await form.setIfPresent(["Vehicle type", "Type"], C.VEHICLE_TYPE));
-    await utils.sleep(800);
-    if (unit.year) results.push(await form.setIfPresent(["Year"], unit.year));
+    results.push(await form.chooseFromDropdown(["Vehicle type"], C.VEHICLE_TYPE));
+    // The Year list: picked for you (waits for the field to appear).
+    if (unit.year) results.push(await form.chooseFromDropdown(["Year"], unit.year));
     if (unit.make) results.push(await form.setIfPresent(["Make"], unit.make));
     if (unit.model) results.push(await form.setIfPresent(["Model"], unit.model));
     if (unit.price) results.push(await form.setIfPresent(["Price", "Asking price"], String(unit.price)));
-    results.push(await setLocation(C.LOCATION));
-    // Close the location list before moving on, then type the description once.
+    // Location: typed in and the right town clicked in Facebook's suggestions.
+    var loc = await form.chooseFromTypeahead(["Location", "Item location"], C.LOCATION);
+    loc.field = "Location";
+    results.push(loc);
+    // Close any open list before moving on, then type the description once.
     if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
     await utils.sleep(300);
     results.push(await form.setLongText(["Description", "Describe your item"], C.describe(unit.payment)));

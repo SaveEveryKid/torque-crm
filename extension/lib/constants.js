@@ -48,7 +48,7 @@
     LISTING_STATE_KEY: "torqueMarketplaceListing",
     // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
     LISTED_KEY: "torqueListedUnits",
-    VERSION: "0.6.1",
+    VERSION: "0.6.2",
     // The watermarks on every photo: a little see-through, nothing else changed.
     // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).
     // If a photo has the store's logo in another corner, the watermark from that

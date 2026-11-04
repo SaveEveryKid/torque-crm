@@ -86,7 +86,7 @@
     if (!element) return false;
     var text = String(value);
     var current = element.value != null ? element.value : element.textContent;
-    if (utils.normalizeText(current) === utils.normalizeText(text)) return true;
+    if (text && utils.normalizeText(current) === utils.normalizeText(text)) return true;
     element.focus();
     var typed = false;
     try {
@@ -159,6 +159,102 @@
     return { field: labels[0], method: "text", value: value };
   }
 
+  /** A click the way a mouse does it (Facebook's menus listen for the pointer/mouse events, not just click). */
+  function fullClick(element) {
+    if (!element) return false;
+    if (typeof element.scrollIntoView === "function") element.scrollIntoView({ block: "center" });
+    var r = element.getBoundingClientRect();
+    var at = { bubbles: true, cancelable: true, composed: true, view: window, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, button: 0 };
+    ["pointerdown", "mousedown", "pointerup", "mouseup", "click"].forEach(function (type) {
+      var E = /^pointer/.test(type) && typeof PointerEvent === "function" ? PointerEvent : MouseEvent;
+      element.dispatchEvent(new E(type, Object.assign({ pointerId: 1, isPrimary: true }, at)));
+    });
+    return true;
+  }
+
+  function controlText(control) {
+    return utils.normalizeText(control.value != null && control.tagName === "INPUT" ? control.value : control.textContent);
+  }
+
+  /**
+   * Waits for the open list and clicks the entry that matches. Long lists (the
+   * years) only show some rows at a time, so it scrolls down through them.
+   */
+  async function pickOption(matches, timeout) {
+    var end = Date.now() + (timeout || 8000);
+    while (Date.now() < end) {
+      var options = Array.from(document.querySelectorAll('[role="option"], [role="listbox"] li, [role="menuitemradio"]')).filter(visible);
+      var hit = options.find(function (o) { return matches(utils.normalizeText(o.textContent)); });
+      if (hit) {
+        fullClick(hit);
+        return utils.normalizeText(hit.textContent);
+      }
+      var box = Array.from(document.querySelectorAll('[role="listbox"]')).filter(visible).find(function (b) {
+        return b.scrollHeight > b.clientHeight + 2 && b.scrollTop + b.clientHeight < b.scrollHeight - 2;
+      });
+      if (options.length && box) box.scrollTop += Math.max(40, box.clientHeight * 0.8);
+      await utils.sleep(150);
+    }
+    return null;
+  }
+
+  /**
+   * A dropdown (Vehicle type, Year): open it, wait for the list, click the
+   * exact entry, and check it took. Nothing for you to pick by hand.
+   */
+  async function chooseFromDropdown(labels, value, timeout) {
+    var want = utils.normalizeText(String(value)).toLowerCase();
+    var control = await waitFor(function () { return findControl(labels); }, timeout || 8000, "").catch(function () { return null; });
+    if (!control) return { field: labels[0], skipped: true };
+    for (var attempt = 0; attempt < 2; attempt += 1) {
+      if (controlText(control).toLowerCase().split(/\s+/).indexOf(want) !== -1 || controlText(control).toLowerCase() === want) {
+        return { field: labels[0], method: "dropdown", value: value };
+      }
+      fullClick(control);
+      var picked = await pickOption(function (t) { return t.toLowerCase() === want; }, 8000);
+      await utils.sleep(300);
+      if (picked && (controlText(control).toLowerCase().indexOf(want) !== -1 || !document.contains(control))) {
+        return { field: labels[0], method: "dropdown", value: value };
+      }
+      control = findControl(labels) || control;
+    }
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    return { field: labels[0], skipped: true };
+  }
+
+  /**
+   * A typeahead (Location): clear it, type the place, wait for Facebook's
+   * suggestions and click the one in the right state ("Florence, AL", not
+   * Florence, KY).
+   */
+  async function chooseFromTypeahead(labels, place) {
+    var control = findControl(labels);
+    if (!control) return { field: labels[0], skipped: true };
+    var input = control.tagName === "INPUT" ? control : control.querySelector("input") || control;
+    var parts = place.split(",");
+    var town = utils.normalizeText(parts[0]).toLowerCase();
+    var state = utils.normalizeText(parts[1] || "").toLowerCase();
+    var abbr = { alabama: "al" }[state] || "";
+    var right = function (t) {
+      var s = t.toLowerCase();
+      if (s.indexOf(town) === -1) return false;
+      if (!state) return true;
+      return s.indexOf(state) !== -1 || (abbr && new RegExp("\\b" + abbr + "\\b").test(s));
+    };
+    var tries = [place, parts[0]];
+    for (var i = 0; i < tries.length; i += 1) {
+      fullClick(input);
+      typeText(input, "");
+      typeText(input, tries[i]);
+      var picked = await pickOption(right, 8000);
+      if (picked) {
+        await utils.sleep(300);
+        return { field: labels[0], method: "typeahead", value: picked, picked: true };
+      }
+    }
+    return { field: labels[0], method: "typeahead", value: place, picked: false };
+  }
+
   /** The description: a long text box, typed in once. */
   async function setLongText(labels, value) {
     var control = findControl(labels);
@@ -198,6 +294,10 @@
     setText: setText,
     setIfPresent: setIfPresent,
     setLongText: setLongText,
+    fullClick: fullClick,
+    pickOption: pickOption,
+    chooseFromDropdown: chooseFromDropdown,
+    chooseFromTypeahead: chooseFromTypeahead,
     typeText: typeText,
     ensureVehicleMode: ensureVehicleMode,
     uploadFiles: uploadFiles

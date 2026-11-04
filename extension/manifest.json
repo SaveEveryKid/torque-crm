@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Torque Marketplace Lister",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "List a Shoals Outdoor Sports unit from Torque CRM as an unpublished Facebook Marketplace draft (you review and publish).",
   "permissions": ["storage", "tabs"],
   "host_permissions": [
