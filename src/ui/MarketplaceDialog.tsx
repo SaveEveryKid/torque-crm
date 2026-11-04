@@ -41,11 +41,13 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
     };
   }, [payment, settings.name]);
   const markUrl = payment && mark && mark.for === payment ? mark.url : null;
-  // Your own photos (store logo already added), listed before the dealer's.
+  // Your own photos (store logo already added), after the dealer's. They always
+  // make the cut: when there are more than Facebook takes, dealer photos give way.
   const [own, setOwn] = useState<string[]>([]);
   const [adding, setAdding] = useState(0);
-  const photos = [...own, ...u.photos];
-  const chosen = photos.filter((p) => !off.has(p)).slice(0, max);
+  const photos = [...u.photos, ...own];
+  const ownChosen = own.filter((p) => !off.has(p)).slice(0, max);
+  const chosen = [...u.photos.filter((p) => !off.has(p)).slice(0, max - ownChosen.length), ...ownChosen];
   const addOwn = async (files: FileList | null) => {
     const list = [...(files ?? [])].filter((f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic)$/i.test(f.name));
     if (!list.length) return;
