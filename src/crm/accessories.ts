@@ -23,6 +23,8 @@ export interface CatalogItem {
   listed: string;
   /** Which units this labor charge is for (the sheet's vehicle sections, e.g. "05"). */
   sections?: string[];
+  /** Which packages (GOOD / BETTER / BEST) this labor charge is for. */
+  tiers?: string[];
   /** Always $0, shown as "no charge". */
   free?: boolean;
 }
@@ -39,6 +41,8 @@ export interface UnitAccessory {
 
 export const GPS: CatalogItem = { key: 'PASSTIMEGPS', part: 'PASSTIMEGPS', description: 'PASSTIME GPS', listed: 'PASSTIME GPS', labor: 0, free: true };
 export const MAX_ACCESSORIES = 15;
+
+const TIER_ORDER = ['GOOD', 'BETTER', 'BEST'];
 
 const num = (v: string | undefined) => {
   const n = Number(String(v ?? '').replace(/[$,\s]/g, ''));
@@ -64,6 +68,7 @@ export function readCatalog(text: string): { items: CatalogItem[]; skipped: stri
   const iHours = col(/hours/);
   const iRate = col(/rate/);
   const iSections = col(/section/);
+  const iTiers = col(/tier|package/);
   if (iDesc < 0 || (iCost < 0 && iHours < 0)) return { error: 'This file needs a description column and a labor cost (or labor hours) column.' };
   const seen = new Map<string, CatalogItem>();
   const skipped: string[] = [];
@@ -81,19 +86,37 @@ export function readCatalog(text: string): { items: CatalogItem[]; skipped: stri
     if (!(labor >= 0)) labor = 0;
     labor = Math.round(labor * 100) / 100;
     const key = `${part}|${listed}|${labor}`;
-    const sections = iSections >= 0 ? (cells[iSections] ?? '').split(/[;,\s]+/).map((x) => x.trim()).filter(Boolean) : [];
+    const list = (i: number) => (i >= 0 ? (cells[i] ?? '').split(/[;,\s]+/).map((x) => x.trim().toUpperCase()).filter(Boolean) : []);
+    const sections = list(iSections);
+    const tiers = list(iTiers);
     const had = seen.get(key);
-    if (had) had.sections = [...new Set([...(had.sections ?? []), ...sections])].sort();
-    else seen.set(key, { key, part, description: adDescription(listed), listed, labor, sections: [...new Set(sections)].sort() });
+    if (had) {
+      had.sections = [...new Set([...(had.sections ?? []), ...sections])].sort();
+      had.tiers = TIER_ORDER.filter((t) => had.tiers?.includes(t) || tiers.includes(t));
+    } else seen.set(key, { key, part, description: adDescription(listed), listed, labor, sections: [...new Set(sections)].sort(), tiers: TIER_ORDER.filter((t) => tiers.includes(t)) });
   }
-  const items = [...seen.values()].sort((a, b) => a.description.localeCompare(b.description) || a.part.localeCompare(b.part) || a.labor - b.labor);
+  const items = [...seen.values()].sort(byPartNumber);
   if (!items.length) return { error: 'No accessories found in this file.' };
   return { items, skipped };
 }
 
-/** The dropdown choices: PassTime GPS, then your list. Parts that have more than one labor charge show each. */
+/**
+ * In part-number order, numbers as numbers (630-0054, 32100, 2876958…, then
+ * lettered ones like TSK-1908); entries with no part number last, by description.
+ */
+export function byPartNumber(a: CatalogItem, b: CatalogItem): number {
+  if (!a.part !== !b.part) return a.part ? -1 : 1;
+  return (
+    a.part.localeCompare(b.part, 'en', { numeric: true, sensitivity: 'base' }) ||
+    a.listed.localeCompare(b.listed) ||
+    (a.sections ?? []).join().localeCompare((b.sections ?? []).join(), 'en', { numeric: true }) ||
+    a.labor - b.labor
+  );
+}
+
+/** The dropdown choices: PassTime GPS, then your list in part-number order. Parts that have more than one labor charge show each. */
 export function choices(catalog: CatalogItem[]): CatalogItem[] {
-  return [GPS, ...catalog.filter((c) => c.part.toUpperCase() !== GPS.part)];
+  return [GPS, ...catalog.filter((c) => c.part.toUpperCase() !== GPS.part).sort(byPartNumber)];
 }
 
 /**
@@ -107,9 +130,13 @@ export const sectionName = (code: string) => SECTION_UNITS[code] ?? `section ${c
 export function choiceLabel(c: CatalogItem, all: CatalogItem[]): string {
   if (c.free) return 'PASSTIMEGPS — PassTime GPS (no charge)';
   // The same part with a different labor charge per unit: say which unit this one is for.
+  // (and, when that's the same unit, which package: GOOD vs BETTER/BEST).
   const twins = all.filter((o) => o.part === c.part && o.listed === c.listed);
   const units = (c.sections ?? []).map(sectionName).join(', ');
-  return `${c.part || '(no part #)'} — ${c.listed}${twins.length > 1 ? ` (${units ? `for ${units} · ` : ''}labor $${c.labor.toFixed(2)})` : ''}`;
+  const sameUnits = twins.some((o) => o !== c && (o.sections ?? []).some((x) => c.sections?.includes(x)));
+  const pkg = sameUnits && c.tiers?.length ? ` ${c.tiers.join('/')} package` : '';
+  const forWhat = units || pkg ? `for ${units}${pkg} · ` : '';
+  return `${c.part || '(no part #)'} — ${c.listed}${twins.length > 1 ? ` (${forWhat}labor $${c.labor.toFixed(2)})` : ''}`;
 }
 
 export const installed = (a: Pick<UnitAccessory, 'price' | 'labor' | 'free'>) => (a.free ? 0 : Math.round((a.price + a.labor) * 100) / 100);

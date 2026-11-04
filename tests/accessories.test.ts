@@ -61,6 +61,21 @@ describe('accessories', () => {
     expect(describeListing(template, 100, '')).toBe('Payments as low as $100/mo (WAC)\n✅️ NO HIDDEN FEES! ✅️\n\n\nOptional accessories not included in pricing...message for more details.');
   });
 
+  it('the dropdown is in part-number order (numbers as numbers), entries with no part number last', () => {
+    const items = [
+      { part: 'TSK-1908', listed: 'X' },
+      { part: '', listed: 'A KIT' },
+      { part: '2876958', listed: 'Y' },
+      { part: '630-0054', listed: 'Z' },
+      { part: '32100', listed: 'W' },
+      { part: '', listed: '26-INCH TIRE' },
+      { part: '2884648', listed: 'L', labor: 230, sections: ['07'] },
+      { part: '2884648', listed: 'L', labor: 172.5, sections: ['05'] },
+    ].map((i, k) => ({ key: String(k), description: i.listed, labor: 0, ...i }));
+    expect(choices(items).map((c) => c.part || c.listed)).toEqual(['PASSTIMEGPS', '630-0054', '32100', '2876958', '2884648', '2884648', 'TSK-1908', '26-INCH TIRE', 'A KIT']);
+    expect(choices(items).filter((c) => c.part === '2884648').map((c) => c.sections![0])).toEqual(['05', '07']);
+  });
+
   it('cleans install notes off the ad wording', () => {
     expect(adDescription('HD 3500 WINCH - NEEDS BUS BAR')).toBe('HD 3500 WINCH');
     expect(adDescription('BUS BAR - ONLY BASE MODEL')).toBe('BUS BAR');
