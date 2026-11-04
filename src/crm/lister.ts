@@ -40,6 +40,8 @@ export interface ListingUnit {
   photos: string[];
   /** Your own photos (JPEG data URLs, store logo already on). */
   uploads?: string[];
+  /** The accessories and total as equipped, for the description. */
+  accessories?: string;
 }
 
 type Reply = { source: 'torque-lister'; id: string | null; ok: boolean; error?: string; type?: string } & Partial<ListerInfo>;
@@ -78,9 +80,16 @@ export function useLister(): ListerInfo | false | null {
 }
 
 /** The listing description for a unit (same as the extension: payment filled in, or that line left out). */
-export function describe(template: string, payment: number | null): string {
-  if (!payment || payment <= 0) return template.split('\n').filter((l) => !l.includes('{payment}')).join('\n');
-  return template.replace('{payment}', `${paymentText(payment)}/mo`);
+export function describe(template: string, payment: number | null, accessories = ''): string {
+  let lines = template.split('\n');
+  if (!payment || payment <= 0) lines = lines.filter((l) => !l.includes('{payment}'));
+  const block = accessories.trim();
+  const at = lines.indexOf('{accessories}');
+  if (!block && at >= 0) lines.splice(at, lines[at + 1] === '' ? 2 : 1);
+  return lines
+    .join('\n')
+    .replace('{payment}', payment && payment > 0 ? `${paymentText(payment)}/mo` : '')
+    .replace('{accessories}', () => block);
 }
 
 /** The payment you last typed for each unit (so listing again starts with it). */
@@ -91,10 +100,10 @@ export async function rememberPayment(id: string, payment: number): Promise<void
   if (m[id] !== payment) await kv.set({ marketplacePayments: { ...m, [id]: payment } });
 }
 
-export function toListing(u: Unit, photos: string[], payment: number | null, paymentMark: string | null): ListingUnit {
+export function toListing(u: Unit, photos: string[], payment: number | null, paymentMark: string | null, accessories = ''): ListingUnit {
   const uploads: string[] = [];
   const refs = photos.map((p) => (p.startsWith('data:') ? `upload:${uploads.push(p) - 1}` : p));
-  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment, paymentMark, photos: refs, uploads };
+  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment, paymentMark, photos: refs, uploads, accessories };
 }
 
 export async function listOnMarketplace(u: ListingUnit): Promise<void> {

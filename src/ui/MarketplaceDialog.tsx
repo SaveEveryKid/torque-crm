@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { money, type Unit } from '../crm/inventory';
 import { describe, listOnMarketplace, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
+import { accessoryBlock, useUnitAccessories } from '../crm/accessories';
 import { prepareOwnPhoto } from '../crm/ownPhotos';
 import { paymentMark } from '../crm/paymentMark';
 import { useSettings } from '../crm/store';
@@ -20,6 +21,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const settings = useSettings();
+  const accessories = accessoryBlock(useUnitAccessories()[u.id] ?? [], u.price);
   const saved = usePayments()[u.id];
   const [typed, setTyped] = useState<string | null>(null);
   const text = typed ?? (saved ? String(saved) : '');
@@ -72,7 +74,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
     try {
       if (!payment || !markUrl) throw new Error('Type the monthly payment from your grid first.');
       await rememberPayment(u.id, payment);
-      await listOnMarketplace(toListing(u, chosen, payment, markUrl));
+      await listOnMarketplace(toListing(u, chosen, payment, markUrl, accessories));
       setSent(true);
     } catch (e) {
       setError((e as Error).message);
@@ -182,7 +184,8 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
         </p>
 
         <h3>Description</h3>
-        <pre className="mp-desc">{lister ? describe(lister.description, payment) : 'Install the extension to see the description.'}</pre>
+        {!accessories && <p className="muted small">No accessories on this unit. Add them in the unit window (Accessories on this unit) to list them with the total as equipped.</p>}
+        <pre className="mp-desc">{lister ? describe(lister.description, payment, accessories) : 'Install the extension to see the description.'}</pre>
 
         {error && <p className="error">{error}</p>}
         {sent && (

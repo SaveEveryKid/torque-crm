@@ -6,11 +6,14 @@
 
   // The description on every listing, exactly as written. {payment} is the
   // monthly payment you type in Torque CRM (from your grid); that line is left
-  // out when there's none.
+  // out when there's none. {accessories} is the unit's accessories and total
+  // as equipped (from Torque CRM), left out when it has none.
   var description = [
     "Payments as low as {payment} (WAC)",
     "✅️ NO HIDDEN FEES! ✅️",
     "",
+    "",
+    "{accessories}",
     "",
     "Optional accessories not included in pricing...message for more details.",
     "",
@@ -20,11 +23,15 @@
     "🌐 shoalsoutdoorsports dot com"
   ].join("\n");
 
-  /** The description for one unit: its monthly payment filled in (rounded up to the dollar). */
-  function describe(payment) {
+  /** The description for one unit: its monthly payment and accessories filled in. */
+  function describe(payment, accessories) {
     var p = Number(payment);
-    if (!(p > 0)) return description.split("\n").filter(function (l) { return l.indexOf("{payment}") === -1; }).join("\n");
-    return description.replace("{payment}", money(p) + "/mo");
+    var lines = description.split("\n");
+    if (!(p > 0)) lines = lines.filter(function (l) { return l.indexOf("{payment}") === -1; });
+    var block = String(accessories || "").trim();
+    var at = lines.indexOf("{accessories}");
+    if (!block) lines.splice(at, lines[at + 1] === "" ? 2 : 1);
+    return lines.join("\n").replace("{payment}", p > 0 ? money(p) + "/mo" : "").replace("{accessories}", function () { return block; });
   }
 
   /** $100, $99.50, $1,250: the payment exactly as typed. */
@@ -48,7 +55,7 @@
     LISTING_STATE_KEY: "torqueMarketplaceListing",
     // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
     LISTED_KEY: "torqueListedUnits",
-    VERSION: "0.7.0",
+    VERSION: "0.8.0",
     // The watermarks on every photo: a little see-through, nothing else changed.
     // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).
     // If a photo has the store's logo in another corner, the watermark from that

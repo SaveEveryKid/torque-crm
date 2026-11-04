@@ -1,5 +1,6 @@
 import { MarketplaceDialog } from '../ui/MarketplaceDialog';
 import { markListed, useLister, useListed } from '../crm/lister';
+import { AccessoriesEditor } from '../ui/AccessoriesEditor';
 import { useEffect, useState } from 'react';
 import { money, readUnit, searchConfig, searchInventory, toVehicleRef, usefulFacets, type SearchResult, type Unit } from '../crm/inventory';
 import { fullName, logActivity, updateCustomer, useCustomers, useSettings, saveSettings } from '../crm/store';
@@ -215,6 +216,7 @@ function UnitDetails({ u, onClose, onList }: { u: Unit; onClose: () => void; onL
             </div>
           ))}
       </dl>
+      <AccessoriesEditor u={u} />
       <div className="row mp-status">
         {listed ? (
           <>

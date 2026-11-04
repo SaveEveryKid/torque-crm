@@ -539,3 +539,8 @@ table.table { width: 100%; border-collapse: collapse; }
 .error-text { color: var(--red-text); }
 
 .mp-own { position: absolute; left: 4px; bottom: 4px; padding: 1px 6px; border-radius: 6px; background: rgba(0, 0, 0, 0.7); color: #fff; font-size: 11px; cursor: pointer; }
+
+.accessories { border-top: 1px solid var(--border); padding-top: 12px; }
+.acc-row select { min-width: 0; }
+.acc-price { width: 96px; }
+.acc-total { min-width: 120px; }
