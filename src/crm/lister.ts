@@ -87,13 +87,17 @@ export function describe(template: string, payment: number | null, accessories =
   if (!payment || payment <= 0) lines = lines.filter((l) => !l.includes('{payment}'));
   const block = accessories.trim();
   let at = lines.indexOf('{accessories}');
-  // A template without the accessories spot (older extension): they go right
-  // before "Optional accessories…" (or at the end), never left out.
+  // A template without the accessories spot (older extension): they go where
+  // "Optional accessories…" was (or at the end), never left out.
+  const optional = lines.findIndex((l) => /^optional accessories/i.test(l.trim()));
   if (block && at < 0) {
-    const before = lines.findIndex((l) => /^optional accessories/i.test(l.trim()));
-    at = before >= 0 ? before : lines.length;
+    at = optional >= 0 ? optional : lines.length;
     lines.splice(at, 0, '{accessories}', '');
   }
+  // "Optional accessories not included in pricing…" is no longer used (even if an older extension's template still has it).
+  const drop = lines.findIndex((l) => /^optional accessories/i.test(l.trim()));
+  if (drop >= 0) lines.splice(drop, lines[drop + 1] === '' ? 2 : 1);
+  at = lines.indexOf('{accessories}');
   if (!block && at >= 0) lines.splice(at, lines[at + 1] === '' ? 2 : 1);
   return lines
     .join('\n')

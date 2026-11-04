@@ -26,7 +26,7 @@ describe('Torque Marketplace Lister (extension)', () => {
     expect(B.constants.MAX_PHOTOS).toBe(20);
     // The payment you typed, exactly (from your grid).
     expect(B.constants.describe(100)).toBe(
-      'Payments as low as $100/mo (WAC)\n✅️ NO HIDDEN FEES! ✅️\n\n\nOptional accessories not included in pricing...message for more details.\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\nShoals Outdoor Sports- Florence, AL\n🌐 shoalsoutdoorsports dot com',
+      'Payments as low as $100/mo (WAC)\n✅️ NO HIDDEN FEES! ✅️\n\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\nShoals Outdoor Sports- Florence, AL\n🌐 shoalsoutdoorsports dot com',
     );
     expect(B.constants.describe(1234.5)).toContain('Payments as low as $1,234.50/mo (WAC)');
     expect(B.constants.describe(99.99)).toContain('Payments as low as $99.99/mo (WAC)');
