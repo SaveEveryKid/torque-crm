@@ -146,13 +146,17 @@ export function money(n: number): string {
   return `$${n.toLocaleString('en-US', whole ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** The ad's accessory lines and total ("" when the unit has none). Labor is in each price, never mentioned. */
+/**
+ * The ad's accessory list and total ("" when the unit has none): each
+ * accessory by name only (no price per item, labor never mentioned), then the
+ * total as equipped. PassTime GPS says it's included at no charge.
+ */
 export function accessoryBlock(list: UnitAccessory[], unitPrice: number | null): string {
   const items = list.filter((a) => a.description && (a.free || a.price >= 0));
   if (!items.length) return '';
-  const lines = items.map((a) => `• ${a.description} – ${a.free ? 'included at no charge' : money(installed(a))}`);
+  const lines = items.map((a) => `• ${a.description}${a.free ? ' (included at no charge)' : ''}`);
   const extra = items.reduce((s, a) => s + installed(a), 0);
-  const out = ['Equipped with:', ...lines];
+  const out = ['Equipped with:', ...lines, ''];
   if (unitPrice && unitPrice > 0) {
     out.push(extra > 0 ? `Total price as equipped: ${money(unitPrice + extra)} (unit ${money(unitPrice)} + accessories ${money(extra)})` : `Total price as equipped: ${money(unitPrice)}`);
   } else if (extra > 0) {

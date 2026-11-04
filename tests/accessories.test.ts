@@ -38,18 +38,19 @@ describe('accessories', () => {
     expect(choiceLabel(by('1000001', 287.5), all)).toBe('1000001 — DEMO WINCH - NEEDS BUS BAR');
   });
 
-  it('the ad lists each accessory at your price plus labor (labor never mentioned), GPS at no charge, and the total as equipped', () => {
+  it('the ad names each accessory (no price per item, labor never mentioned), GPS at no charge, then the total as equipped', () => {
     const list: UnitAccessory[] = [
+      { key: 'r', part: '1000003', description: 'DEMO RACK EXTENDER', price: 149.99, labor: 34.5 },
       { key: 'w', part: '1000001', description: 'DEMO WINCH', price: 700, labor: 287.5 },
       { key: 'g', part: 'PASSTIMEGPS', description: 'PASSTIME GPS', price: 0, labor: 0, free: true },
     ];
-    expect(installed(list[0])).toBe(987.5);
-    const block = accessoryBlock(list, 11999);
+    expect(installed(list[1])).toBe(987.5);
+    const block = accessoryBlock(list, 5699);
     expect(block).toBe(
-      'Equipped with:\n• DEMO WINCH – $987.50\n• PASSTIME GPS – included at no charge\nTotal price as equipped: $12,986.50 (unit $11,999 + accessories $987.50)',
+      'Equipped with:\n• DEMO RACK EXTENDER\n• DEMO WINCH\n• PASSTIME GPS (included at no charge)\n\nTotal price as equipped: $6,870.99 (unit $5,699 + accessories $1,171.99)',
     );
     expect(block.toLowerCase()).not.toContain('labor');
-    expect(accessoryBlock([list[1]], 11999)).toBe('Equipped with:\n• PASSTIME GPS – included at no charge\nTotal price as equipped: $11,999');
+    expect(accessoryBlock([list[2]], 11999)).toBe('Equipped with:\n• PASSTIME GPS (included at no charge)\n\nTotal price as equipped: $11,999');
     expect(accessoryBlock([], 11999)).toBe('');
   });
 
