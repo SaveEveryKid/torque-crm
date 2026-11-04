@@ -52,6 +52,12 @@ describe('accessories', () => {
     expect(block.toLowerCase()).not.toMatch(/labor|gps|no charge/);
     // Only GPS on the unit: nothing to list.
     expect(accessoryBlock([list[2]], 11999)).toBe('');
+    // Typed in by hand: anything named GPS / PassTime stays out of the ad and the total.
+    const typed: UnitAccessory[] = [
+      { key: 'a', part: '', description: 'Ranger Roof', price: 400, labor: 57.5 },
+      { key: 'b', part: '', description: 'PassTime GPS', price: 0, labor: 0 },
+    ];
+    expect(accessoryBlock(typed, 13999)).toBe('Equipped with:\n• Ranger Roof\n\nTotal price as equipped: $14,456.50 (unit $13,999 + accessories $457.50)');
     expect(accessoryBlock([], 11999)).toBe('');
   });
 

@@ -149,11 +149,13 @@ export function money(n: number): string {
 /**
  * The ad's accessory list and total ("" when the unit has none): each
  * accessory by name only (no price per item, labor never mentioned), then the
- * total as equipped. PassTime GPS (no charge) is kept on the unit but never
- * mentioned in the ad.
+ * total as equipped. GPS (PassTime, the store's no-charge add-on) can be kept
+ * on the unit but is never mentioned in the ad or counted in the total.
  */
+export const isGps = (a: Pick<UnitAccessory, 'description' | 'free'>) => !!a.free || /\bgps\b|passtime/i.test(a.description);
+
 export function accessoryBlock(list: UnitAccessory[], unitPrice: number | null): string {
-  const items = list.filter((a) => a.description && !a.free && a.price >= 0);
+  const items = list.filter((a) => a.description && !isGps(a) && a.price >= 0);
   if (!items.length) return '';
   const lines = items.map((a) => `• ${a.description}`);
   const extra = items.reduce((s, a) => s + installed(a), 0);

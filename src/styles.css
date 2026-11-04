@@ -544,3 +544,8 @@ table.table { width: 100%; border-collapse: collapse; }
 .acc-row select { min-width: 0; }
 .acc-price { width: 96px; }
 .acc-total { min-width: 120px; }
+.acc-num { width: 112px; flex: none; display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
+.acc-num input { flex: 1; width: auto; min-width: 0; }
+.acc-row { flex-wrap: nowrap; align-items: center; }
+.acc-x { flex: none; }
+.acc-head .acc-x { width: 34px; }
