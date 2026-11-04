@@ -122,3 +122,23 @@ describe('Listed on Marketplace (CRM side)', async () => {
     expect(mergeListed(ours, { a: ours.a })).toBeNull();
   });
 });
+
+describe('Your own photos (CRM side)', async () => {
+  const { toListing } = await import('../src/crm/lister');
+  const { logoPlacement } = await import('../src/crm/ownPhotos');
+  it('are sent with the listing, in your order, alongside dealer photos', () => {
+    const u = { id: 'u1', title: '2026 Polaris Sportsman 450', year: '2026', make: 'Polaris', model: 'Sportsman 450', price: 5699, photos: [] } as never;
+    const mine = 'data:image/jpeg;base64,AAAA';
+    const l = toListing(u, [mine, 'https://cdpcdn.dx1app.com/a.jpg', 'data:image/jpeg;base64,BBBB'], 100, null);
+    expect(l.photos).toEqual(['upload:0', 'https://cdpcdn.dx1app.com/a.jpg', 'upload:1']);
+    expect(l.uploads).toEqual([mine, 'data:image/jpeg;base64,BBBB']);
+  });
+  it('get the store logo bottom-right, about a fifth of the width', () => {
+    const p = logoPlacement(2048, 1536, 416, 297);
+    expect(p.w).toBe(430);
+    expect(p.x + p.w).toBe(2048 - 46);
+    expect(p.y + p.h).toBe(1536 - 46);
+    // A tall phone photo: a bit bigger so it reads the same.
+    expect(logoPlacement(1536, 2048, 416, 297).w).toBe(461);
+  });
+});

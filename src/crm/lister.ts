@@ -36,7 +36,10 @@ export interface ListingUnit {
   payment: number | null;
   /** The payment watermark, drawn for this listing (PNG data URL). */
   paymentMark?: string | null;
+  /** Dealer photo URLs, and "upload:N" for your own photos (uploads[N]). */
   photos: string[];
+  /** Your own photos (JPEG data URLs, store logo already on). */
+  uploads?: string[];
 }
 
 type Reply = { source: 'torque-lister'; id: string | null; ok: boolean; error?: string; type?: string } & Partial<ListerInfo>;
@@ -89,7 +92,9 @@ export async function rememberPayment(id: string, payment: number): Promise<void
 }
 
 export function toListing(u: Unit, photos: string[], payment: number | null, paymentMark: string | null): ListingUnit {
-  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment, paymentMark, photos };
+  const uploads: string[] = [];
+  const refs = photos.map((p) => (p.startsWith('data:') ? `upload:${uploads.push(p) - 1}` : p));
+  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment, paymentMark, photos: refs, uploads };
 }
 
 export async function listOnMarketplace(u: ListingUnit): Promise<void> {

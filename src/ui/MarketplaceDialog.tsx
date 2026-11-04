@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { money, type Unit } from '../crm/inventory';
 import { describe, listOnMarketplace, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
+import { prepareOwnPhoto } from '../crm/ownPhotos';
 import { paymentMark } from '../crm/paymentMark';
 import { useSettings } from '../crm/store';
 import { Icon, Modal, when } from './kit';
@@ -40,7 +41,27 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
     };
   }, [payment, settings.name]);
   const markUrl = payment && mark && mark.for === payment ? mark.url : null;
-  const chosen = u.photos.filter((p) => !off.has(p)).slice(0, max);
+  // Your own photos (store logo already added), listed before the dealer's.
+  const [own, setOwn] = useState<string[]>([]);
+  const [adding, setAdding] = useState(0);
+  const photos = [...own, ...u.photos];
+  const chosen = photos.filter((p) => !off.has(p)).slice(0, max);
+  const addOwn = async (files: FileList | null) => {
+    const list = [...(files ?? [])].filter((f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic)$/i.test(f.name));
+    if (!list.length) return;
+    setError(null);
+    setAdding(list.length);
+    for (const f of list) {
+      try {
+        const ready = await prepareOwnPhoto(f);
+        setOwn((o) => [...o, ready]);
+      } catch (e) {
+        setError(`${f.name}: ${(e as Error).message}`);
+      }
+      setAdding((n) => n - 1);
+    }
+  };
+  const removeOwn = (p: string) => setOwn((o) => o.filter((x) => x !== p));
   const toggle = (p: string) => setOff((s) => (s.has(p) ? new Set([...s].filter((x) => x !== p)) : new Set([...s, p])));
 
   const go = async () => {
@@ -111,27 +132,52 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
 
         <div className="row between">
           <h3>
-            Photos <span className="muted small">{chosen.length} of {u.photos.length} chosen{u.photos.length > max ? ` (Facebook takes up to ${max})` : ''}</span>
+            Photos <span className="muted small">{chosen.length} of {photos.length} chosen{photos.length > max ? ` (Facebook takes up to ${max})` : ''}</span>
           </h3>
-          {off.size > 0 && (
-            <button className="link small" onClick={() => setOff(new Set())}>
-              Use all
-            </button>
-          )}
+          <span className="row tight">
+            {own.length > 0 && u.photos.some((p) => !off.has(p)) && (
+              <button className="link small" onClick={() => setOff(new Set(u.photos))}>
+                Use only my photos
+              </button>
+            )}
+            {off.size > 0 && (
+              <button className="link small" onClick={() => setOff(new Set())}>
+                Use all
+              </button>
+            )}
+            <label className="btn sm">
+              <Icon name="upload" size={14} /> {adding ? `Adding ${adding}…` : 'Add your own photos'}
+              <input type="file" accept="image/*" multiple hidden onChange={(e) => (void addOwn(e.target.files), (e.target.value = ''))} />
+            </label>
+          </span>
         </div>
         {lister && lister.watermarks.length > 0 && chosen[0] && <Preview photo={chosen[0]} lister={lister} paymentMark={markUrl} />}
         <div className="mp-photos">
-          {u.photos.map((p, i) => {
+          {photos.map((p, i) => {
             const on = !off.has(p) && chosen.includes(p);
+            const mine = own.includes(p);
             return (
-              <button key={p} className={`mp-thumb${on ? ' on' : ''}`} onClick={() => toggle(p)} title={on ? 'Leave this photo out' : 'Use this photo'}>
-                <img src={p} alt={`Photo ${i + 1}`} loading="lazy" referrerPolicy="no-referrer" />
+              <button key={mine ? `own-${i}` : p} className={`mp-thumb${on ? ' on' : ''}`} onClick={() => toggle(p)} title={on ? 'Leave this photo out' : 'Use this photo'}>
+                <img src={p} alt={`Photo ${i + 1}${mine ? ' (yours)' : ''}`} loading="lazy" referrerPolicy="no-referrer" />
                 <span className="mp-check">{on ? <Icon name="check" size={12} /> : null}</span>
+                {mine && (
+                  <span
+                    className="mp-own"
+                    role="button"
+                    title="Remove this photo"
+                    onClick={(e) => (e.stopPropagation(), removeOwn(p))}
+                  >
+                    Yours ×
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
-        <p className="muted small">The only change to the photos: your watermarks on top, arranged around the store logo. Click a photo to leave it out.</p>
+        <p className="muted small">
+          The only change to the photos: your watermarks on top, arranged around the store logo. Your own photos also get the store logo in the bottom-right, the
+          same one the website uses. Click a photo to leave it out.
+        </p>
 
         <h3>Description</h3>
         <pre className="mp-desc">{lister ? describe(lister.description, payment) : 'Install the extension to see the description.'}</pre>

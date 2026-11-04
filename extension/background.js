@@ -90,7 +90,19 @@ function validUnit(u) {
   if (!u || typeof u !== "object") throw new Error("No unit was sent.");
   if (!Array.isArray(u.photos) || !u.photos.length) throw new Error("This unit has no photos to list.");
   if (u.photos.length > C.MAX_PHOTOS) throw new Error("Facebook takes up to " + C.MAX_PHOTOS + " photos.");
+  var uploads = Array.isArray(u.uploads) ? u.uploads : [];
+  if (uploads.length > C.MAX_PHOTOS) throw new Error("Facebook takes up to " + C.MAX_PHOTOS + " photos.");
+  uploads.forEach(function (d) {
+    if (typeof d !== "string" || d.indexOf("data:image/jpeg;base64,") !== 0) throw new Error("One of your photos didn't come through. Add it again.");
+    if (d.length > 8 * 1024 * 1024) throw new Error("One of your photos is too big.");
+  });
   u.photos.forEach(function (url) {
+    // Your own photo (sent with the listing) or one from the dealer's image server.
+    var own = /^upload:(\d+)$/.exec(String(url));
+    if (own) {
+      if (!uploads[Number(own[1])]) throw new Error("One of your photos is missing. Add it again.");
+      return;
+    }
     var host = new URL(url).hostname;
     if (new URL(url).protocol !== "https:" || !C.PHOTO_HOST.test(host)) throw new Error("A photo isn't from the dealer's image server: " + host);
   });
@@ -103,8 +115,25 @@ function validUnit(u) {
     payment: Number(u.payment) > 0 ? Math.min(Number(u.payment), 100000) : null,
     paymentMark: validMark(u.paymentMark),
     title: String(u.title || "").slice(0, 120),
-    photos: u.photos.slice(0, C.MAX_PHOTOS)
+    photos: u.photos.slice(0, C.MAX_PHOTOS),
+    uploads: uploads
   };
+}
+
+var UPLOAD_KEY = "torqueUpload:";
+
+/** Your own photos for this listing, kept until it's done (they can be big, so not in the listing state). */
+async function saveUploads(uploads) {
+  await clearUploads();
+  var put = {};
+  uploads.forEach(function (d, i) { put[UPLOAD_KEY + i] = d; });
+  if (uploads.length) await chrome.storage.local.set(put);
+}
+
+async function clearUploads() {
+  var all = await chrome.storage.local.get(null);
+  var old = Object.keys(all).filter(function (k) { return k.indexOf(UPLOAD_KEY) === 0; });
+  if (old.length) await chrome.storage.local.remove(old);
 }
 
 async function stampedPhoto(state, index) {
@@ -112,7 +141,13 @@ async function stampedPhoto(state, index) {
   if (!url) throw new Error("Photo " + (index + 1) + " is missing.");
   var key = state.runId + ":" + index;
   if (photoCache.has(key)) return photoCache.get(key);
-  var res = await fetch(url, { credentials: "omit", cache: "no-store" });
+  var own = /^upload:(\d+)$/.exec(url);
+  if (own) {
+    var got = await chrome.storage.local.get(UPLOAD_KEY + own[1]);
+    url = got[UPLOAD_KEY + own[1]];
+    if (!url) throw new Error("Photo " + (index + 1) + " (one of yours) is missing. Start again from Torque CRM.");
+  }
+  var res = await fetch(url, own ? {} : { credentials: "omit", cache: "no-store" });
   if (!res.ok) throw new Error("Photo " + (index + 1) + " couldn't be downloaded (" + res.status + ").");
   var out = await Byron.watermark.stamp(await res.arrayBuffer(), res.headers.get("content-type"), await marksFor(state), 0.92, await loadLogo());
   // The store's branded frame: left out, never stamped over.
@@ -155,7 +190,10 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         var origin = sender.origin || (sender.url && new URL(sender.url).origin);
         if (C.CRM_ORIGINS.indexOf(origin) === -1) throw new Error("Listings can only be started from Torque CRM.");
         await loadMarks();
-        var state = { runId: "run-" + Date.now() + "-" + Math.random().toString(36).slice(2), unit: validUnit(message.unit), createdAt: new Date().toISOString() };
+        var unit = validUnit(message.unit);
+        await saveUploads(unit.uploads);
+        delete unit.uploads;
+        var state = { runId: "run-" + Date.now() + "-" + Math.random().toString(36).slice(2), unit: unit, createdAt: new Date().toISOString() };
         await storage().set({ [C.LISTING_STATE_KEY]: state });
         photoCache.clear();
         await rememberListed(state.unit);
@@ -174,6 +212,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
       if (message.type === "LISTING_COMPLETE") {
         await storage().remove(C.LISTING_STATE_KEY);
+        await clearUploads();
         photoCache.clear();
         return sendResponse({ ok: true });
       }
