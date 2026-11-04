@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { money, type Unit } from '../crm/inventory';
-import { describe, listOnMarketplace, toListing, useLister, useListed, type ListerInfo } from '../crm/lister';
+import { describe, listOnMarketplace, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
+import { paymentMark } from '../crm/paymentMark';
+import { useSettings } from '../crm/store';
 import { Icon, Modal, when } from './kit';
 
 /**
@@ -16,6 +18,28 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const settings = useSettings();
+  const saved = usePayments()[u.id];
+  const [typed, setTyped] = useState<string | null>(null);
+  const text = typed ?? (saved ? String(saved) : '');
+  const amount = Number(text.replace(/[$,\s]/g, ''));
+  const payment = text.trim() && amount > 0 && amount < 100000 ? Math.round(amount * 100) / 100 : null;
+  // The payment watermark for this amount (drawn here, shown in the preview, sent with the listing).
+  const [mark, setMark] = useState<{ for: number; url: string } | null>(null);
+  useEffect(() => {
+    if (!payment) return;
+    let live = true;
+    const t = setTimeout(() => {
+      paymentMark(payment, settings.name)
+        .then((url) => live && setMark({ for: payment, url }))
+        .catch((e: Error) => live && setError(`Couldn't draw the payment watermark: ${e.message}`));
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [payment, settings.name]);
+  const markUrl = payment && mark && mark.for === payment ? mark.url : null;
   const chosen = u.photos.filter((p) => !off.has(p)).slice(0, max);
   const toggle = (p: string) => setOff((s) => (s.has(p) ? new Set([...s].filter((x) => x !== p)) : new Set([...s, p])));
 
@@ -23,7 +47,9 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
     setBusy(true);
     setError(null);
     try {
-      await listOnMarketplace(toListing(u, chosen));
+      if (!payment || !markUrl) throw new Error('Type the monthly payment from your grid first.');
+      await rememberPayment(u.id, payment);
+      await listOnMarketplace(toListing(u, chosen, payment, markUrl));
       setSent(true);
     } catch (e) {
       setError((e as Error).message);
@@ -43,7 +69,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
             {sent ? 'Close' : 'Cancel'}
           </button>
           {lister && !sent && (
-            <button className="btn primary" disabled={busy || !chosen.length || lister.missingWatermarks} onClick={() => void go()}>
+            <button className="btn primary" disabled={busy || !chosen.length || lister.missingWatermarks || !markUrl} onClick={() => void go()}>
               <Icon name="external" size={16} /> {busy ? 'Opening Facebook…' : `List on Facebook (${chosen.length} photo${chosen.length === 1 ? '' : 's'})`}
             </button>
           )}
@@ -66,6 +92,23 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
           <dd>{lister ? lister.location : 'Florence, Alabama'}</dd>
         </dl>
 
+        <label className="field mp-payment">
+          Monthly payment (from your grid)
+          <span className="row tight">
+            <span className="muted">$</span>
+            <input
+              inputMode="decimal"
+              placeholder="100"
+              value={text}
+              onChange={(e) => setTyped(e.target.value)}
+              aria-label="Monthly payment"
+              autoFocus={!saved}
+            />
+            <span className="muted">per month (WAC)</span>
+          </span>
+          {!payment && <span className="muted small">Type it to list: it goes in the description and on the payment watermark.</span>}
+        </label>
+
         <div className="row between">
           <h3>
             Photos <span className="muted small">{chosen.length} of {u.photos.length} chosen{u.photos.length > max ? ` (Facebook takes up to ${max})` : ''}</span>
@@ -76,7 +119,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
             </button>
           )}
         </div>
-        {lister && lister.watermarks.length > 0 && chosen[0] && <Preview photo={chosen[0]} lister={lister} />}
+        {lister && lister.watermarks.length > 0 && chosen[0] && <Preview photo={chosen[0]} lister={lister} paymentMark={markUrl} />}
         <div className="mp-photos">
           {u.photos.map((p, i) => {
             const on = !off.has(p) && chosen.includes(p);
@@ -91,7 +134,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
         <p className="muted small">The only change to the photos: your watermarks on top, arranged around the store logo. Click a photo to leave it out.</p>
 
         <h3>Description</h3>
-        <pre className="mp-desc">{lister ? describe(lister.description, u.payment) : 'Install the extension to see the description.'}</pre>
+        <pre className="mp-desc">{lister ? describe(lister.description, payment) : 'Install the extension to see the description.'}</pre>
 
         {error && <p className="error">{error}</p>}
         {sent && (
@@ -104,13 +147,14 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
   );
 }
 
-/** The first photo with the watermarks where they'll go. */
-function Preview({ photo, lister }: { photo: string; lister: ListerInfo }) {
+/** The first photo with the watermarks where they'll go (the store logo usually bottom-right). */
+function Preview({ photo, lister, paymentMark: pm }: { photo: string; lister: ListerInfo; paymentMark: string | null }) {
+  const marks = [...lister.watermarks, ...(pm && lister.paymentSpec ? [{ dataUrl: pm, spec: lister.paymentSpec }] : [])];
   return (
     <div className="mp-preview">
       <div className="mp-frame">
       <img src={photo} alt="" referrerPolicy="no-referrer" />
-      {lister.watermarks.map((m, i) => {
+      {marks.map((m, i) => {
         const s = m.spec;
         const tx = /center/.test(s.anchor) ? '-50%' : /right/.test(s.anchor) ? '-100%' : '0';
         const ty = /^bottom/.test(s.anchor) ? '-100%' : /^middle/.test(s.anchor) ? '-50%' : '0';

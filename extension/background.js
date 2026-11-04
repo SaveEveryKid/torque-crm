@@ -67,6 +67,24 @@ async function rememberListed(unit) {
   await chrome.storage.local.set({ [C.LISTED_KEY]: all });
 }
 
+/** The payment watermark Torque CRM drew (a PNG), or null. */
+function validMark(dataUrl) {
+  if (typeof dataUrl !== "string" || dataUrl.indexOf("data:image/png;base64,") !== 0) return null;
+  if (dataUrl.length > 4 * 1024 * 1024) throw new Error("The payment watermark is too big.");
+  return dataUrl;
+}
+
+var paymentBitmap = { key: null, promise: null };
+/** The fixed watermarks plus this listing's payment watermark. */
+async function marksFor(state) {
+  var fixed = await loadMarks();
+  if (!state.unit.paymentMark) return fixed;
+  if (paymentBitmap.key !== state.runId) {
+    paymentBitmap = { key: state.runId, promise: fetch(state.unit.paymentMark).then(function (r) { return r.blob(); }).then(createImageBitmap) };
+  }
+  return fixed.concat([{ spec: C.PAYMENT_MARK, bitmap: await paymentBitmap.promise }]);
+}
+
 /** Checks what Torque CRM sent: a real unit, with photos from the dealer's image servers. */
 function validUnit(u) {
   if (!u || typeof u !== "object") throw new Error("No unit was sent.");
@@ -83,6 +101,7 @@ function validUnit(u) {
     model: String(u.model || "").slice(0, 80),
     price: u.price == null ? null : Math.round(Number(u.price)) || null,
     payment: Number(u.payment) > 0 ? Math.min(Number(u.payment), 100000) : null,
+    paymentMark: validMark(u.paymentMark),
     title: String(u.title || "").slice(0, 120),
     photos: u.photos.slice(0, C.MAX_PHOTOS)
   };
@@ -95,7 +114,7 @@ async function stampedPhoto(state, index) {
   if (photoCache.has(key)) return photoCache.get(key);
   var res = await fetch(url, { credentials: "omit", cache: "no-store" });
   if (!res.ok) throw new Error("Photo " + (index + 1) + " couldn't be downloaded (" + res.status + ").");
-  var out = await Byron.watermark.stamp(await res.arrayBuffer(), res.headers.get("content-type"), await loadMarks(), 0.92, await loadLogo());
+  var out = await Byron.watermark.stamp(await res.arrayBuffer(), res.headers.get("content-type"), await marksFor(state), 0.92, await loadLogo());
   // The store's branded frame: left out, never stamped over.
   if (!out) {
     photoCache.set(key, { skipped: true });
@@ -126,6 +145,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
           vehicleType: C.VEHICLE_TYPE,
           maxPhotos: C.MAX_PHOTOS,
           watermarks: marks.filter(Boolean),
+          paymentSpec: Byron.watermark.cornerSpec(C.PAYMENT_MARK, C.PAYMENT_MARK.corner),
           listed: await getListed(),
           missingWatermarks: marks.some(function (m) { return !m; })
         });

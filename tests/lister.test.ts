@@ -6,7 +6,7 @@ const load = (...files: string[]) => {
   const self: Record<string, unknown> = {};
   for (const f of files) new Function('self', 'window', readFileSync(`extension/${f}`, 'utf8'))(self, self);
   return self.Byron as {
-    constants: { DESCRIPTION: string; describe: (p: number | null) => string; VEHICLE_TYPE: string; LOCATION: string; MAX_PHOTOS: number; STORE_LOGO_CORNER: string; WATERMARKS: { file: string; width: number; corner: string; opacity: number }[] };
+    constants: { DESCRIPTION: string; describe: (p: number | null) => string; VEHICLE_TYPE: string; LOCATION: string; MAX_PHOTOS: number; STORE_LOGO_CORNER: string; WATERMARKS: { file?: string; width: number; corner: string; opacity: number }[]; PAYMENT_MARK: { file?: string; width: number; corner: string; opacity: number } };
     watermark: {
       placement: (pw: number, ph: number, mw: number, mh: number, spec: object) => { x: number; y: number; w: number; h: number };
       isStoreFramed: (px: Uint8ClampedArray) => boolean;
@@ -24,12 +24,14 @@ describe('Torque Marketplace Lister (extension)', () => {
     expect(B.constants.VEHICLE_TYPE).toBe('Other');
     expect(B.constants.LOCATION).toBe('Florence, Alabama');
     expect(B.constants.MAX_PHOTOS).toBe(20);
-    expect(B.constants.describe(96.07)).toBe(
-      'Payments as low as $97/mo (WAC)\n✅️ NO HIDDEN FEES! ✅️\n\n\nOptional accessories not included in pricing...message for more details.\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\nShoals Outdoor Sports- Florence, AL\nwww.shoalsoutdoorsports.com',
+    // The payment you typed, exactly (from your grid).
+    expect(B.constants.describe(100)).toBe(
+      'Payments as low as $100/mo (WAC)\n✅️ NO HIDDEN FEES! ✅️\n\n\nOptional accessories not included in pricing...message for more details.\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\nShoals Outdoor Sports- Florence, AL\nwww.shoalsoutdoorsports.com',
     );
-    expect(B.constants.describe(1234.5)).toContain('Payments as low as $1,235/mo (WAC)');
-    // No payment on the website: that line is left out.
-    expect(B.constants.describe(null)).toBe(B.constants.describe(96.07).replace('Payments as low as $97/mo (WAC)\n', ''));
+    expect(B.constants.describe(1234.5)).toContain('Payments as low as $1,234.50/mo (WAC)');
+    expect(B.constants.describe(99.99)).toContain('Payments as low as $99.99/mo (WAC)');
+    // No payment: that line is left out.
+    expect(B.constants.describe(null)).toBe(B.constants.describe(100).replace('Payments as low as $100/mo (WAC)\n', ''));
     expect(B.constants.describe(null).startsWith('✅️ NO HIDDEN FEES! ✅️')).toBe(true);
     expect(B.constants.describe(0)).not.toContain('{payment}');
     expect(B.constants.DESCRIPTION).not.toContain('Proudly serving');
@@ -37,27 +39,28 @@ describe('Torque Marketplace Lister (extension)', () => {
     expect(B.constants.DESCRIPTION).not.toContain('For Sale By Dealer');
   });
 
-  it('three slightly see-through watermarks, one per corner, leaving bottom-right for the store logo', () => {
-    const W = B.constants.WATERMARKS;
-    expect(W.map((m) => [m.file, m.corner])).toEqual([
+  it('three slightly see-through watermarks, one per corner, leaving bottom-right for the store logo (no phone number)', () => {
+    const W = [...B.constants.WATERMARKS, B.constants.PAYMENT_MARK];
+    expect(W.map((m) => [m.file ?? 'payment (drawn per listing)', m.corner])).toEqual([
       ['watermarks/no-dealer-fees.png', 'top-left'],
       ['watermarks/easy-buying.png', 'top-right'],
-      ['watermarks/call-byron.png', 'bottom-left'],
+      ['payment (drawn per listing)', 'bottom-left'],
     ]);
+    expect(JSON.stringify(B.constants)).not.toMatch(/call-byron|762-0959/i);
     expect(B.constants.STORE_LOGO_CORNER).toBe('bottom-right');
     for (const m of W) expect(m.opacity).toBeGreaterThan(0.7), expect(m.opacity).toBeLessThan(1);
     const fees = B.watermark.cornerSpec(W[0], 'top-left');
     expect(B.watermark.placement(1920, 1440, 1400, 477, fees)).toEqual({ x: 48, y: 43, w: 653, h: 222 });
     const tr = B.watermark.placement(1920, 1440, 1477, 864, B.watermark.cornerSpec(W[1], 'top-right'));
     expect(tr.x + tr.w).toBe(1872);
-    const bl = B.watermark.placement(1920, 1440, 2027, 866, B.watermark.cornerSpec(W[2], 'bottom-left'));
+    const bl = B.watermark.placement(1920, 1440, 1400, 434, B.watermark.cornerSpec(W[2], 'bottom-left'));
     expect([bl.x, bl.y + bl.h]).toEqual([48, 1397]);
     // A wide, short photo: the logo is kept under a third of the height.
     expect(B.watermark.placement(3000, 600, 1400, 477, fees).h).toBeLessThanOrEqual(200);
   });
 
   it('when the store logo is in another corner, that watermark moves to the free one', () => {
-    const W = B.constants.WATERMARKS;
+    const W = [...B.constants.WATERMARKS, B.constants.PAYMENT_MARK];
     const corners = (logo: string | null) => B.watermark.arrange(W, logo, 'bottom-right').map((s) => s.corner);
     expect(corners(null)).toEqual(['top-left', 'top-right', 'bottom-left']);
     expect(corners('bottom-right')).toEqual(['top-left', 'top-right', 'bottom-left']);

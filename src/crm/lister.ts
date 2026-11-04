@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { kv } from '../core/storage/kv';
 import type { Unit } from './inventory';
+import { paymentText } from './paymentMark';
 import { useStoredKey } from './store';
 
 /**
@@ -18,6 +19,8 @@ export interface ListerInfo {
   maxPhotos: number;
   watermarks: { dataUrl: string; spec: { width: number; x: number; y: number; anchor: string; opacity: number } }[];
   missingWatermarks: boolean;
+  /** Where the payment watermark goes (newer extensions). */
+  paymentSpec?: { width: number; x: number; y: number; anchor: string; opacity: number };
   /** Units the extension has sent to Facebook (id → when, title). */
   listed?: Listed;
 }
@@ -29,7 +32,10 @@ export interface ListingUnit {
   make: string | null;
   model: string | null;
   price: number | null;
+  /** The monthly payment you typed (from your grid). */
   payment: number | null;
+  /** The payment watermark, drawn for this listing (PNG data URL). */
+  paymentMark?: string | null;
   photos: string[];
 }
 
@@ -71,11 +77,19 @@ export function useLister(): ListerInfo | false | null {
 /** The listing description for a unit (same as the extension: payment filled in, or that line left out). */
 export function describe(template: string, payment: number | null): string {
   if (!payment || payment <= 0) return template.split('\n').filter((l) => !l.includes('{payment}')).join('\n');
-  return template.replace('{payment}', `$${Math.ceil(payment).toLocaleString('en-US')}/mo`);
+  return template.replace('{payment}', `${paymentText(payment)}/mo`);
 }
 
-export function toListing(u: Unit, photos: string[]): ListingUnit {
-  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment: u.payment, photos };
+/** The payment you last typed for each unit (so listing again starts with it). */
+export type Payments = Record<string, number>;
+export const usePayments = () => useStoredKey<Payments>('marketplacePayments', {});
+export async function rememberPayment(id: string, payment: number): Promise<void> {
+  const m = ((await kv.get('marketplacePayments')).marketplacePayments as Payments | undefined) ?? {};
+  if (m[id] !== payment) await kv.set({ marketplacePayments: { ...m, [id]: payment } });
+}
+
+export function toListing(u: Unit, photos: string[], payment: number | null, paymentMark: string | null): ListingUnit {
+  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment, paymentMark, photos };
 }
 
 export async function listOnMarketplace(u: ListingUnit): Promise<void> {
