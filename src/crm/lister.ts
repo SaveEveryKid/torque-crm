@@ -83,7 +83,8 @@ export function useLister(): ListerInfo | false | null {
 
 /** The listing description for a unit (same as the extension: payment filled in, or that line left out). */
 export function describe(template: string, payment: number | null, accessories = ''): string {
-  let lines = template.split('\n');
+  // "NO DEALER FEES!" (even if the extension's template still says NO HIDDEN FEES).
+  let lines = template.split('\n').map((l) => (/no hidden fees/i.test(l) ? '✅️ NO DEALER FEES! ✅️' : l));
   if (!payment || payment <= 0) lines = lines.filter((l) => !l.includes('{payment}'));
   const block = accessories.trim();
   let at = lines.indexOf('{accessories}');
