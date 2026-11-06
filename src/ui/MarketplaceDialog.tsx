@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { money, type Unit } from '../crm/inventory';
-import { describe, listOnMarketplace, MIN_EXTENSION, olderThan, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
+import { listingDescription, listOnMarketplace, MIN_EXTENSION, olderThan, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
 import { accessoryBlock, useUnitAccessories } from '../crm/accessories';
 import { prepareOwnPhoto } from '../crm/ownPhotos';
 import { paymentMark } from '../crm/paymentMark';
@@ -67,7 +67,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
   };
   const removeOwn = (p: string) => setOwn((o) => o.filter((x) => x !== p));
   // The description, written here (accessories and total as equipped included); the extension types it exactly.
-  const description = lister ? describe(lister.description, payment, accessories) : '';
+  const description = listingDescription(payment, accessories, settings.name);
   const outdated = !!lister && olderThan(lister.version, MIN_EXTENSION);
   const toggle = (p: string) => setOff((s) => (s.has(p) ? new Set([...s].filter((x) => x !== p)) : new Set([...s, p])));
 
@@ -189,7 +189,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
 
         <h3>Description</h3>
         {!accessories && <p className="muted small">No accessories on this unit. Add them in the unit window (Accessories on this unit) to list them with the total as equipped.</p>}
-        <pre className="mp-desc">{lister ? description : 'Install the extension to see the description.'}</pre>
+        <pre className="mp-desc">{description}</pre>
 
         {error && <p className="error">{error}</p>}
         {sent && (

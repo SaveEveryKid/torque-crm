@@ -81,6 +81,29 @@ export function useLister(): ListerInfo | false | null {
   return info;
 }
 
+/**
+ * The Marketplace description, as Byron wrote it. {payment}: the monthly
+ * payment you type (that line is left out without one); {accessories}: the
+ * unit's accessories and total as equipped (left out when it has none);
+ * {name}: your name from Settings.
+ */
+export const DESCRIPTION_TEMPLATE = [
+  'Payments as low as {payment} (WAC)',
+  '✅️ NO DEALER FEES! ✅️',
+  '',
+  '{accessories}',
+  '',
+  '⏳️ Message me with any questions or to set up a time to see this unit! ⏳️',
+  '',
+  '‼️Ask for {name}‼️',
+  'Shoals Outdoor Sports',
+  '3516 Florence Blvd Florence, AL 35634',
+  '🌐 shoalsoutdoorsports dot com',
+].join('\n');
+
+export const listingDescription = (payment: number | null, accessories: string, name = 'Byron Green') =>
+  describe(DESCRIPTION_TEMPLATE.replace('{name}', name.trim() || 'Byron Green'), payment, accessories);
+
 /** The listing description for a unit (same as the extension: payment filled in, or that line left out). */
 export function describe(template: string, payment: number | null, accessories = ''): string {
   // "NO DEALER FEES!" (even if the extension's template still says NO HIDDEN FEES).

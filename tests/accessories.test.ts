@@ -107,3 +107,17 @@ describe('listing description is written by Torque', async () => {
     expect(olderThan(undefined, '0.9.0')).toBe(true);
   });
 });
+
+describe('the Marketplace description (written by Torque)', async () => {
+  const { listingDescription } = await import('../src/crm/lister');
+  it('matches the layout Byron gave: payment, NO DEALER FEES, message me, ask for Byron, the store and address', () => {
+    expect(listingDescription(328, '', 'Byron Green')).toBe(
+      'Payments as low as $328/mo (WAC)\n✅️ NO DEALER FEES! ✅️\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\n‼️Ask for Byron Green‼️\nShoals Outdoor Sports\n3516 Florence Blvd Florence, AL 35634\n🌐 shoalsoutdoorsports dot com',
+    );
+  });
+  it('puts the accessories and total between NO DEALER FEES and Message me', () => {
+    expect(listingDescription(328, 'Equipped with:\n• Ranger Roof\n\nTotal price as equipped: $14,456.50 (unit $13,999 + accessories $457.50)')).toBe(
+      'Payments as low as $328/mo (WAC)\n✅️ NO DEALER FEES! ✅️\n\nEquipped with:\n• Ranger Roof\n\nTotal price as equipped: $14,456.50 (unit $13,999 + accessories $457.50)\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\n‼️Ask for Byron Green‼️\nShoals Outdoor Sports\n3516 Florence Blvd Florence, AL 35634\n🌐 shoalsoutdoorsports dot com',
+    );
+  });
+});

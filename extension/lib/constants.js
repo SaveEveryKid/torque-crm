@@ -12,12 +12,13 @@
     "Payments as low as {payment} (WAC)",
     "✅️ NO DEALER FEES! ✅️",
     "",
-    "",
     "{accessories}",
     "",
     "⏳️ Message me with any questions or to set up a time to see this unit! ⏳️",
     "",
-    "Shoals Outdoor Sports- Florence, AL",
+    "‼️Ask for Byron Green‼️",
+    "Shoals Outdoor Sports",
+    "3516 Florence Blvd Florence, AL 35634",
     "🌐 shoalsoutdoorsports dot com"
   ].join("\n");
 
@@ -53,7 +54,7 @@
     LISTING_STATE_KEY: "torqueMarketplaceListing",
     // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
     LISTED_KEY: "torqueListedUnits",
-    VERSION: "0.9.2",
+    VERSION: "0.9.3",
     // The watermarks on every photo: a little see-through, nothing else changed.
     // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).
     // If a photo has the store's logo in another corner, the watermark from that
