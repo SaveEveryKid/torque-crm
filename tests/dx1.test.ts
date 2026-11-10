@@ -26,3 +26,19 @@ describe('inventory location filter', () => {
     ]);
   });
 });
+
+describe('Refresh: what changed on the website', async () => {
+  const { diffInventory, snapshotOf } = await import('../src/crm/inventory');
+  const unit = (id: string, price: number | null) => ({ id, title: `Unit ${id}`, stock: `S${id}`, price }) as never;
+  it('finds new units, units gone from the website and price changes', () => {
+    const before = snapshotOf([unit('a', 5699), unit('b', 11999), unit('c', 7499)], 'Shoals Outdoor Sports - Florence');
+    const c = diffInventory(before, [unit('a', 5699), unit('b', 11499), unit('d', 3999)])!;
+    expect(c.added.map((u: { id: string }) => u.id)).toEqual(['d']);
+    expect(c.gone.map((g) => g.id)).toEqual(['c']);
+    expect(c.repriced.map((r) => [r.from, r.to])).toEqual([[11999, 11499]]);
+    expect(c.total).toBe(3);
+  });
+  it('the first refresh has nothing to compare with', () => {
+    expect(diffInventory(null, [unit('a', 1)])).toBeNull();
+  });
+});

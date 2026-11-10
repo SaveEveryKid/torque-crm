@@ -2,7 +2,8 @@ import { MarketplaceDialog } from '../ui/MarketplaceDialog';
 import { markListed, useLister, useListed } from '../crm/lister';
 import { AccessoriesEditor } from '../ui/AccessoriesEditor';
 import { useEffect, useState } from 'react';
-import { money, readUnit, searchConfig, searchInventory, toVehicleRef, usefulFacets, type SearchResult, type Unit } from '../crm/inventory';
+import { allUnits, diffInventory, money, readUnit, searchConfig, searchInventory, snapshotOf, toVehicleRef, usefulFacets, type InventoryChanges, type InventorySnapshot, type SearchResult, type Unit } from '../crm/inventory';
+import { kv } from '../core/storage/kv';
 import { fullName, logActivity, updateCustomer, useCustomers, useSettings, saveSettings } from '../crm/store';
 import type { VehicleRef } from '../crm/types';
 import { copy, Empty, go, Icon, Modal, when } from '../ui/kit';
@@ -50,9 +51,28 @@ function useInventory() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, page, index, filters, settings.inventoryPage, settings.inventoryLocation, reload]);
 
+  // REFRESH: read the whole inventory fresh from the website (no saved copies), show it, and say what changed since last time.
+  const [refreshing, setRefreshing] = useState(false);
+  const [changes, setChanges] = useState<{ at: string; first: boolean; c: InventoryChanges } | null>(null);
   const refresh = async () => {
-    await searchConfig(settings.inventoryPage, true).catch((e: Error) => setError(e.message));
-    setReload((n) => n + 1);
+    setRefreshing(true);
+    setError(null);
+    try {
+      await searchConfig(settings.inventoryPage, true);
+      const store = settings.inventoryLocation;
+      const units = (await allUnits(settings.inventoryPage, true)).filter((u) => !store || u.location === store);
+      const before = ((await kv.get('inventorySnapshot')).inventorySnapshot as InventorySnapshot | undefined) ?? null;
+      const same = before && before.store === store ? before : null;
+      const snap = snapshotOf(units, store);
+      const c = diffInventory(same, units) ?? { added: [], gone: [], repriced: [], total: units.length };
+      await kv.set({ inventorySnapshot: snap });
+      setChanges({ at: snap.at, first: !same, c });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRefreshing(false);
+      setReload((n) => n + 1);
+    }
   };
 
   const controls = (
@@ -123,7 +143,7 @@ function useInventory() {
       </div>
     ) : null;
 
-  return { res, error, loading, controls, pager, refresh, units: (res?.hits ?? []).map(readUnit) };
+  return { res, error, loading: loading || refreshing, refreshing, changes, dismiss: () => setChanges(null), controls, pager, refresh, units: (res?.hits ?? []).map(readUnit) };
 }
 
 function UnitCard({ u, onClick, listed }: { u: Unit; onClick: () => void; listed?: string }) {
@@ -156,10 +176,11 @@ export function Inventory() {
           <h1>Inventory</h1>
           <p>In stock at Shoals Outdoor Sports{inv.res ? ` · ${inv.res.nbHits.toLocaleString()} units` : ''}</p>
         </div>
-        <button className="btn" onClick={() => void inv.refresh()} disabled={inv.loading}>
-          <Icon name="refresh" size={16} /> Refresh
+        <button className="btn" onClick={() => void inv.refresh()} disabled={inv.loading} title="Read the inventory fresh from the website and show what changed">
+          <Icon name="refresh" size={16} /> {inv.refreshing ? 'Refreshing from the website…' : 'Refresh'}
         </button>
       </div>
+      {inv.changes && <RefreshReport r={inv.changes} onClose={inv.dismiss} />}
       {inv.controls}
       {inv.error && <p className="error">{inv.error}</p>}
       {inv.res && inv.units.length === 0 && <Empty title="No units match">Try fewer filters.</Empty>}
@@ -311,6 +332,52 @@ function Gallery({ photos }: { photos: string[] }) {
             </button>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/** What the last Refresh found on the website. */
+function RefreshReport({ r, onClose }: { r: { at: string; first: boolean; c: InventoryChanges }; onClose: () => void }) {
+  const { added, gone, repriced, total } = r.c;
+  const none = !added.length && !gone.length && !repriced.length;
+  const name = (t: string, stock: string | null) => `${t}${stock ? ` (#${stock})` : ''}`;
+  return (
+    <div className="notice stack tight refresh-report">
+      <div className="row between">
+        <strong>
+          Updated from the website at {new Date(r.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · {total.toLocaleString()} units
+          {r.first
+            ? ' (saved; the next refresh shows what changed)'
+            : none
+              ? ' · no changes since last refresh'
+              : ` · ${[added.length && `${added.length} new`, gone.length && `${gone.length} gone`, repriced.length && `${repriced.length} price change${repriced.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}`}
+        </strong>
+        <button className="link small" onClick={onClose}>
+          Close
+        </button>
+      </div>
+      {!r.first && !none && (
+        <details className="small">
+          <summary>What changed</summary>
+          <ul className="refresh-list">
+            {added.map((u) => (
+              <li key={`a${u.id}`}>
+                <span className="badge ready">New</span> {name(u.title, u.stock)} · {money(u.price)}
+              </li>
+            ))}
+            {repriced.map(({ unit: u, from, to }) => (
+              <li key={`p${u.id}`}>
+                <span className="badge">Price</span> {name(u.title, u.stock)} · {money(from)} → <strong>{money(to)}</strong>
+              </li>
+            ))}
+            {gone.map((g) => (
+              <li key={`g${g.id}`}>
+                <span className="badge">Gone</span> {name(g.title, g.stock)} · no longer on the website (sold or moved)
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
     </div>
   );

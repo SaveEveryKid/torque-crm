@@ -97,6 +97,7 @@ async function algolia(cfg: SearchConfig, p: SearchParams): Promise<Response> {
   if (facetFilters.length) params.set('facetFilters', JSON.stringify(facetFilters));
   return fetch(`https://${cfg.appId}-dsn.algolia.net/1/indexes/${encodeURIComponent(p.index || cfg.index)}/query`, {
     method: 'POST',
+    cache: 'no-store',
     headers: { 'X-Algolia-Application-Id': cfg.appId, 'X-Algolia-API-Key': cfg.apiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: JSON.stringify({ params: params.toString() }),
   });
@@ -118,8 +119,8 @@ export async function searchInventory(path: string, p: SearchParams): Promise<Se
 /** Everything in stock (a few big pages), kept for 15 minutes. */
 let everything: { at: number; units: Unit[] } | null = null;
 const LIST_FIELDS = ['objectID', 'Year', 'Manufacturer', 'ProductName', 'ProductType', 'ProductCategory', 'Condition', 'IsUsed', 'Price', 'TotalPrice', 'SalePrice', 'Msrp', 'StockNumber', 'PhotoUrl', 'ShowroomUrl', 'Color', 'DealershipName', 'Odometer', 'HasOdometer', 'Specs', 'IndustryNameLists'];
-export async function allUnits(path: string): Promise<Unit[]> {
-  if (everything && Date.now() - everything.at < 15 * 60_000) return everything.units;
+export async function allUnits(path: string, fresh = false): Promise<Unit[]> {
+  if (!fresh && everything && Date.now() - everything.at < 15 * 60_000) return everything.units;
   const hits: Hit[] = [];
   for (let page = 0; page < 10; page++) {
     const r = await searchInventory(path, { query: '', page, index: '', filters: {}, perPage: 200, fields: LIST_FIELDS });
@@ -278,4 +279,47 @@ export function usefulFacets(facets: SearchResult['facets']): { name: string; la
     if (values.length > 1) out.push({ name, label, values });
   }
   return out;
+}
+
+/* ---------- REFRESH: what changed on the website since the last refresh ---------- */
+
+/** What Torque remembers about each unit between refreshes. */
+export interface SnapUnit {
+  title: string;
+  stock: string | null;
+  price: number | null;
+}
+export interface InventorySnapshot {
+  at: string;
+  /** Which store it was taken for ('' = every store). */
+  store: string;
+  units: Record<string, SnapUnit>;
+}
+export interface InventoryChanges {
+  added: Unit[];
+  gone: (SnapUnit & { id: string })[];
+  repriced: { unit: Unit; from: number | null; to: number | null }[];
+  total: number;
+}
+
+export const snapshotOf = (units: Unit[], store: string, now = new Date()): InventorySnapshot => ({
+  at: now.toISOString(),
+  store,
+  units: Object.fromEntries(units.map((u) => [u.id, { title: u.title, stock: u.stock, price: u.price }])),
+});
+
+/** New units, units no longer on the website (sold or moved), and price changes. */
+export function diffInventory(before: InventorySnapshot | null, units: Unit[]): InventoryChanges | null {
+  if (!before) return null;
+  const now = new Map(units.map((u) => [u.id, u]));
+  return {
+    added: units.filter((u) => !before.units[u.id]),
+    gone: Object.entries(before.units)
+      .filter(([id]) => !now.has(id))
+      .map(([id, v]) => ({ id, ...v })),
+    repriced: units
+      .filter((u) => before.units[u.id] && (before.units[u.id].price ?? null) !== (u.price ?? null))
+      .map((u) => ({ unit: u, from: before.units[u.id].price ?? null, to: u.price ?? null })),
+    total: units.length,
+  };
 }
