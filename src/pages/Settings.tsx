@@ -107,8 +107,8 @@ function Signature({ s }: { s: Settings }) {
   useEffect(() => setV(s.signature ?? ''), [s.signature]);
   return (
     <label className="field">
-      Email signature (added to the end of every email)
-      <textarea rows={11} value={v} onChange={(e) => setV(e.target.value)} onBlur={() => void saveSettings({ signature: v.trim(), signatureSet: true })} />
+      Extra signature (leave blank: Outlook adds yours automatically)
+      <textarea rows={4} value={v} onChange={(e) => setV(e.target.value)} onBlur={() => void saveSettings({ signature: v.trim(), signatureSet: true })} />
     </label>
   );
 }

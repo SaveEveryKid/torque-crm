@@ -114,7 +114,7 @@ export interface Settings {
   email: string;
   /** Where the Email buttons open a new message. */
   emailApp: 'outlook-app' | 'outlook-web';
-  /** Added to the end of every email opened in Outlook. */
+  /** Added to the end of emails opened in Outlook. Blank (the default): Outlook adds yours. */
   signature: string;
   /** You've set the signature yourself (so the default isn't put back). */
   signatureSet?: boolean;
@@ -130,7 +130,10 @@ export interface Settings {
   inventoryLocation: string;
 }
 
-/** Your email signature, added to the end of every email opened in Outlook. */
+/**
+ * The signature Torque used to add to every email. Not any more: Outlook adds
+ * Byron's own, so a saved copy of this is treated as blank.
+ */
 export const DEFAULT_SIGNATURE = [
   'Byron Green',
   '',
@@ -154,7 +157,7 @@ export const DEFAULT_SETTINGS: Settings = {
   email: 'byrong@shoalsoutdoorsports.com',
   emailApp: 'outlook-app',
   draftTexts: false,
-  signature: DEFAULT_SIGNATURE,
+  signature: '',
   claudeQuality: 'fast',
   voicemail: 'connect',
   dialDelaySeconds: 5,

@@ -66,7 +66,7 @@ export function EmailComposer({ customer: c, initial, onClose }: { customer: Cus
           </p>
         )}
         <p className="muted small">
-          Opening it in Outlook saves this email to {c.firstName || 'their'} timeline. Your signature (Settings → Email) is added at the bottom. Change where emails open in Settings → Email.
+          Opening it in Outlook saves this email to {c.firstName || 'their'} timeline. Outlook adds your signature. Change where emails open in Settings → Email.
         </p>
         {error && <p className="error">{error}</p>}
       </div>

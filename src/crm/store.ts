@@ -172,13 +172,13 @@ export async function deleteTask(id: string, taskId: string): Promise<void> {
   await updateCustomer(id, (c) => ({ tasks: c.tasks.filter((t) => t.id !== taskId) }));
 }
 
-/** The signature the CRM used to add by default (a saved copy of it is replaced with your current one). */
+/** Signatures the CRM used to add by default (Outlook adds yours, so a saved copy of either is dropped). */
 const OLD_DEFAULT_SIGNATURE = 'Byron Green\nShoals Outdoor Sports\n(256) 762-0959\nbyrong@shoalsoutdoorsports.com';
 
 export async function getSettings(): Promise<Settings> {
   const s: Settings = { ...DEFAULT_SETTINGS, ...((await kv.get(SETTINGS))[SETTINGS] as Partial<Settings> | undefined) };
-  // Until you set one yourself: your signature (it replaces the old blank or default one).
-  if (!s.signatureSet && (s.signature === '' || s.signature === OLD_DEFAULT_SIGNATURE)) return { ...s, signature: DEFAULT_SIGNATURE };
+  // No signature from Torque: Outlook adds yours. The ones Torque used to add are dropped.
+  if (s.signature === OLD_DEFAULT_SIGNATURE || s.signature.trim() === DEFAULT_SIGNATURE) return { ...s, signature: '' };
   return s;
 }
 
