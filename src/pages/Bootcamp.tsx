@@ -24,6 +24,7 @@ import {
   type Progress,
   type Question,
 } from '../training/engine';
+import { COURSE_CAT, COURSES, courseCards, courseIds } from '../training/courses';
 import { Icon } from '../ui/kit';
 import { Listen } from './Listen';
 
@@ -38,7 +39,8 @@ const STATS_DEFAULT: Stats = (({ cards: _c, ...rest }) => rest)(EMPTY_PROGRESS);
 function useBank() {
   const [bank, setBank] = useState<Card[] | null>(null);
   useEffect(() => {
-    void import('../training/bank.json').then((m) => setBank((m.default as { cards: Card[] }).cards));
+    // The product bank plus the model bootcamps' own facts.
+    void import('../training/bank.json').then((m) => setBank([...(m.default as { cards: Card[] }).cards, ...courseCards()]));
   }, []);
   return bank;
 }
@@ -51,7 +53,7 @@ function useProgress(): [Progress, (cards: Record<string, CardState>, stats: Sta
   return [p, save];
 }
 
-const CAT_ICON: Record<string, string> = { Polaris: '🏁', Colors: '🎨', Compare: '⚖️', Boats: '🚤', Mercury: '⚙️', Mowers: '🌱', Lessons: '📘', 'Product line': '🧭', Trailers: '🛻', Equipment: '🔧' };
+const CAT_ICON: Record<string, string> = { [COURSE_CAT]: '🎓', Polaris: '🏁', Colors: '🎨', Compare: '⚖️', Boats: '🚤', Mercury: '⚙️', Mowers: '🌱', Lessons: '📘', 'Product line': '🧭', Trailers: '🛻', Equipment: '🔧' };
 
 export function Bootcamp() {
   const bank = useBank();
@@ -78,7 +80,8 @@ function Home({ bank, p, save, start, listen }: { bank: Card[]; p: Progress; sav
   const due = dueCards(bank, p, today).length;
   const seen = Object.keys(p.cards).length;
     const weak = bank.filter((c) => (p.cards[c.id]?.misses ?? 0) > 0).length;
-  const cats = mastery(bank, p);
+  // Model bootcamps have their own section (not a product line).
+  const cats = mastery(bank, p).filter((c) => c.cat !== COURSE_CAT);
   const learning = bank.filter((c) => inProgress(p.cards[c.id])).length;
   const learned = bank.filter((c) => p.cards[c.id]?.learned).length;
   const sessionSize = learning + due + (bank.length - seen);
@@ -150,6 +153,37 @@ function Home({ bank, p, save, start, listen }: { bank: Card[]; p: Progress; sav
 
       <section className="card">
         <div className="card-head">
+          <h2>Model bootcamps</h2>
+          <span className="sub">One model, everything you need to sell it</span>
+        </div>
+        <div className="boot-cats">
+          {COURSES.map((course) => {
+            const ids = courseIds(course, bank);
+            const total = ids.size;
+            const seenN = [...ids].filter((id) => p.cards[id]).length;
+            const done = [...ids].filter((id) => p.cards[id]?.learned).length;
+            return (
+              <button key={course.id} className="boot-cat" onClick={() => start('category', `course:${course.id}`)}>
+                <span className="emoji">{course.emoji}</span>
+                <span className="grow">
+                  <strong>{course.title}</strong>
+                  <span className="mbar">
+                    <i className="seen" style={{ width: `${(seenN / total) * 100}%` }} />
+                    <i className="mastered" style={{ width: `${(done / total) * 100}%` }} />
+                  </span>
+                  <small className="muted">
+                    {course.blurb} {done} learned · {seenN} started · {total} facts
+                  </small>
+                </span>
+                <span className="muted">{done === total ? 'Review →' : seenN ? 'Continue →' : 'Start →'}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="card">
+        <div className="card-head">
           <h2>Product lines</h2>
           <span className="sub">Drill one line: its reviews plus 10 new facts</span>
         </div>
@@ -208,6 +242,16 @@ function Home({ bank, p, save, start, listen }: { bank: Card[]; p: Progress; sav
   );
 }
 
+/** A product line, or a model bootcamp ("course:<id>": the model's specs plus the course's facts). */
+function categoryFilter(category: string | undefined, bank: Card[]): (c: Card) => boolean {
+  const course = category?.startsWith('course:') ? COURSES.find((x) => `course:${x.id}` === category) : undefined;
+  if (course) {
+    const ids = courseIds(course, bank);
+    return (c) => ids.has(c.id);
+  }
+  return (c) => c.cat === category;
+}
+
 /* ---------- playing ---------- */
 function Play({
   bank,
@@ -236,7 +280,7 @@ function Play({
           today,
           size: Math.max(2, Math.min(12, p.newPerDay || 6)),
           focus: run.mode === 'daily' ? p.focus : undefined,
-          filter: run.mode === 'category' ? (c) => c.cat === run.category : undefined,
+          filter: run.mode === 'category' ? categoryFilter(run.category, bank) : undefined,
           noNew: run.mode === 'weak',
           seed:
             run.mode === 'weak'
@@ -406,7 +450,7 @@ function Play({
       <section className={`card boot-q${result ? (result.ok ? ' ok' : ' bad') : ''}`}>
         <div className="row between">
           <div className="eyebrow">
-            {CAT_ICON[card.cat] ?? '📦'} {card.cat}
+            {CAT_ICON[card.cat] ?? '📦'} {card.cat === COURSE_CAT ? card.field : card.cat}
             {q.format === 'type' ? ' · TYPE IT' : q.format === 'versus' ? ' · HIGHER OR LOWER' : ''}
             {isNew ? ' · NEW' : isReview ? ' · REVIEW' : ''}
           </div>
