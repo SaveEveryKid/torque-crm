@@ -3,6 +3,7 @@ import { kv, type SyncState } from './core/storage/kv';
 import { fullName, openTasks, useCustomers, useSettings } from './crm/store';
 import { useDialer } from './crm/dialer';
 import { unreadCount, useSms, useTextInbox, type SmsRow } from './crm/sms';
+import { customerForLead, useWebLeadInbox, type WebLead } from './crm/webLeads';
 import { Texts } from './pages/Texts';
 import { Bootcamp } from './pages/Bootcamp';
 import { CustomerForm } from './ui/CustomerForm';
@@ -45,6 +46,18 @@ export function App() {
     if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted')
       for (const t of texts) new Notification('New text', { body: t.body || '[picture]', tag: t.id });
   });
+  // Leads from RideWithByron.com: onto customers, with a pop-up (and a notification if you're in another window).
+  const [leadToast, setLeadToast] = useState<WebLead[]>([]);
+  useWebLeadInbox((leads) => {
+    setLeadToast(leads);
+    if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted')
+      for (const l of leads) new Notification('New website lead', { body: `${l.name}: ${l.label}${l.vehicle ? `, ${l.vehicle.title}` : ''}`, tag: l.id });
+  });
+  useEffect(() => {
+    if (!leadToast.length) return;
+    const t = setTimeout(() => setLeadToast([]), 15000);
+    return () => clearTimeout(t);
+  }, [leadToast]);
   useEffect(() => {
     document.title = unread ? `(${unread}) Torque CRM` : 'Torque CRM';
   }, [unread]);
@@ -109,6 +122,26 @@ export function App() {
           <span>
             <strong>{toast.length === 1 ? 'New text' : `${toast.length} new texts`}</strong>
             <span className="soft"> {toast[0].body.slice(0, 80) || '[picture]'}</span>
+          </span>
+        </button>
+      )}
+      {leadToast.length > 0 && (
+        <button
+          className="toast"
+          style={toast.length ? { bottom: 92 } : undefined}
+          onClick={() => {
+            const first = leadToast[0];
+            setLeadToast([]);
+            void customerForLead(first).then((id) => go(id ? `customers/${id}` : 'today'));
+          }}
+        >
+          <Icon name="users" size={16} />
+          <span>
+            <strong>{leadToast.length === 1 ? 'New website lead' : `${leadToast.length} new website leads`}</strong>
+            <span className="soft">
+              {' '}
+              {leadToast[0].name}: {leadToast[0].label}
+            </span>
           </span>
         </button>
       )}

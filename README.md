@@ -47,7 +47,13 @@ Everything below is done in the Cloudflare dashboard (dash.cloudflare.com), on t
 4. **Texting.** Texts go out through your dialer (torque-dialer), which already has your SignalWire login, so nothing else needs to be added on torque-crm.
    - Your dialer needs the texting update once: paste the latest [`signalwire/worker.js`](https://github.com/SaveEveryKid/idea/raw/claude/adoring-lovelace-woaj5n/signalwire/worker.js) into **Cloudflare → torque-dialer → Edit code** and click **Deploy**. **Settings → Texting → Check texting setup** tells you if it's needed.
    - For replies: copy the address from **Settings → Texting**. In SignalWire, go to **Phone Numbers →** your number **→ Inbound Message Settings**, assign a **Script** resource (cXML, external URL, POST) and paste that address.
-5. Open **https://torque-crm.<your-subdomain>.workers.dev** (the address on the Worker's Overview page), log in, and bookmark it. On your phone, use **Add to Home Screen**.
+5. **Website leads (optional).** To have leads from RideWithByron.com land in Torque CRM by themselves:
+   - Make up a long random password and add it here as a secret named `LEADS_SECRET`.
+   - On the **ridewithbyron** Worker, add two secrets: `TORQUE_SIGNING_SECRET` (the same value) and `TORQUE_WEBHOOK_URL` = `https://torque-crm.<your-subdomain>.workers.dev/leads/intake`.
+   - In the site's dashboard (**Admin → Leads**), press **Send test lead to Torque**. A customer called "TEST" shows up here within about 15 seconds; delete it.
+
+   Each lead goes on the customer with that phone number or email (or makes a new customer), with the unit they asked about, where they found you, and a task to call them. Nothing you've already entered on a customer is overwritten.
+6. Open **https://torque-crm.<your-subdomain>.workers.dev** (the address on the Worker's Overview page), log in, and bookmark it. On your phone, use **Add to Home Screen**.
 
 ## Your data
 

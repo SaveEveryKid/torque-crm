@@ -2,6 +2,7 @@ import { clearCookie, loggedIn, passwordOk, sessionCookie } from './auth';
 import { dialerBase, json, type Env } from './env';
 import { MAX_VALUE, PAGE, readRows, writeRows } from './store';
 import { checkSms, incomingSms, sendSms, smsSetup, smsStatus } from './sms';
+import { leadIntake } from './leads';
 
 /**
  * TORQUE CRM's server (a Cloudflare Worker). /api/* and /dealer/* come here;
@@ -17,6 +18,7 @@ import { checkSms, incomingSms, sendSms, smsSetup, smsStatus } from './sms';
  *   GET    /dealer/Inventory/…  the dealer's inventory page
  *   POST   /api/sms/send        send a text (see sms.ts)
  *   POST   /sms/incoming|status SignalWire's texts in and delivery updates (key in the address)
+ *   POST   /leads/intake        a lead from RideWithByron.com (signed with LEADS_SECRET, see leads.ts)
  */
 const SETUP_PASSWORD = 'Torque CRM has no password yet. Add APP_PASSWORD in Cloudflare (see the README).';
 const SETUP_DB = 'No database yet. Add the D1 database to wrangler.jsonc (see the README).';
@@ -101,6 +103,7 @@ export default {
     const isApi = path.startsWith('/api/');
     if (path === '/sms/incoming' && request.method === 'POST') return incomingSms(request, env);
     if (path === '/sms/status' && request.method === 'POST') return smsStatus(request, env);
+    if (path === '/leads/intake') return leadIntake(request, env);
     if (!isApi && !path.startsWith('/dealer/')) return env.ASSETS.fetch(request);
     if (path === '/api/login') return login(request, env);
     if (!env.APP_PASSWORD) return json(503, { error: SETUP_PASSWORD, setup: true });
@@ -112,6 +115,7 @@ export default {
         dialerUrl: dialerBase(env.DIALER_URL) ?? env.DIALER_URL ?? null,
         database: Boolean(env.DB),
         sms: await smsSetup(env, url.origin),
+        webLeads: { ready: Boolean(env.LEADS_SECRET?.trim()), intakeUrl: `${url.origin}/leads/intake` },
       });
     if (path === '/api/sms/send' && request.method === 'POST') return sendSms(request, env, url.origin);
     if (path === '/api/sms/check') return checkSms(env);
