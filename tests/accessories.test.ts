@@ -47,7 +47,7 @@ describe('accessories', () => {
     expect(installed(list[1])).toBe(987.5);
     const block = accessoryBlock(list, 5699);
     expect(block).toBe(
-      'Equipped with:\n\n• DEMO RACK EXTENDER\n• DEMO WINCH\n\n💰 Base unit: $5,699\n\n💰 Accessories: $1,171.99\n\nTotal equipped price: $6,870.99',
+      'Equipped with:\n\n• DEMO RACK EXTENDER\n• DEMO WINCH\n\n💰 Accessories: $1,171.99\n\nTotal equipped price: $6,870.99',
     );
     expect(block.toLowerCase()).not.toMatch(/labor|gps|no charge/);
     // Only GPS on the unit: nothing to list.
@@ -57,7 +57,7 @@ describe('accessories', () => {
       { key: 'a', part: '', description: 'Ranger Roof', price: 400, labor: 57.5 },
       { key: 'b', part: '', description: 'PassTime GPS', price: 0, labor: 0 },
     ];
-    expect(accessoryBlock(typed, 13999)).toBe('Equipped with:\n\n• Ranger Roof\n\n💰 Base unit: $13,999\n\n💰 Accessories: $457.50\n\nTotal equipped price: $14,456.50');
+    expect(accessoryBlock(typed, 13999)).toBe('Equipped with:\n\n• Ranger Roof\n\n💰 Accessories: $457.50\n\nTotal equipped price: $14,456.50');
     expect(accessoryBlock([], 11999)).toBe('');
   });
 
@@ -121,7 +121,6 @@ describe('the Marketplace description (written by Torque)', async () => {
         '✅ NO DEALER FEES!',
         'Equipped with:',
         '• Roof, windshield and back panel kit',
-        '💰 Base unit: $5,999',
         '💰 Accessories: $534.99',
         'Total equipped price: $6,533.99',
         'Payments as low as $119/mo (WAC; ask for financing terms).',

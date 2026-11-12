@@ -160,7 +160,6 @@ export function accessoryBlock(list: UnitAccessory[], unitPrice: number | null):
   const lines = items.map((a) => `• ${a.description}`);
   const extra = items.reduce((s, a) => s + installed(a), 0);
   const out = ['Equipped with:', '', ...lines];
-  if (unitPrice && unitPrice > 0) out.push('', `💰 Base unit: ${money(unitPrice)}`);
   if (extra > 0) out.push('', `💰 Accessories: ${money(extra)}`);
   if (unitPrice && unitPrice > 0) out.push('', `Total equipped price: ${money(unitPrice + extra)}`);
   return out.join('\n');
