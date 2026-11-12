@@ -47,7 +47,7 @@ describe('accessories', () => {
     expect(installed(list[1])).toBe(987.5);
     const block = accessoryBlock(list, 5699);
     expect(block).toBe(
-      'Equipped with:\n• DEMO RACK EXTENDER\n• DEMO WINCH\n\nTotal price as equipped: $6,870.99 (unit $5,699 + accessories $1,171.99)',
+      'Equipped with:\n\n• DEMO RACK EXTENDER\n• DEMO WINCH\n\n💰 Accessories: $1,171.99\n\nTotal equipped price: $6,870.99',
     );
     expect(block.toLowerCase()).not.toMatch(/labor|gps|no charge/);
     // Only GPS on the unit: nothing to list.
@@ -57,7 +57,7 @@ describe('accessories', () => {
       { key: 'a', part: '', description: 'Ranger Roof', price: 400, labor: 57.5 },
       { key: 'b', part: '', description: 'PassTime GPS', price: 0, labor: 0 },
     ];
-    expect(accessoryBlock(typed, 13999)).toBe('Equipped with:\n• Ranger Roof\n\nTotal price as equipped: $14,456.50 (unit $13,999 + accessories $457.50)');
+    expect(accessoryBlock(typed, 13999)).toBe('Equipped with:\n\n• Ranger Roof\n\n💰 Accessories: $457.50\n\nTotal equipped price: $14,456.50');
     expect(accessoryBlock([], 11999)).toBe('');
   });
 
@@ -110,14 +110,61 @@ describe('listing description is written by Torque', async () => {
 
 describe('the Marketplace description (written by Torque)', async () => {
   const { listingDescription } = await import('../src/crm/lister');
-  it('matches the layout Byron gave: payment, NO DEALER FEES, message me, ask for Byron, the store and address', () => {
-    expect(listingDescription(328, '', 'Byron Green')).toBe(
-      'Payments as low as $328/mo (WAC)\n✅️ NO DEALER FEES! ✅️\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\n‼️Ask for Byron Green‼️\nShoals Outdoor Sports\n3516 Florence Blvd Florence, AL 35634\n🌐 shoalsoutdoorsports dot com',
+  const { accessoryBlock: block } = await import('../src/crm/accessories');
+  it("matches Byron's example (the Ranger 150 EFI), website kept at the bottom", () => {
+    const acc = block([{ key: 'k', part: '', description: 'Roof, windshield and back panel kit', price: 534.99, labor: 0 }], 5999);
+    expect(
+      listingDescription(119, acc, 'Byron Green', 'A youth side-by-side built for family off-road adventures! A great option for younger riders learning the ropes under adult supervision.'),
+    ).toBe(
+      [
+        'A youth side-by-side built for family off-road adventures! A great option for younger riders learning the ropes under adult supervision.',
+        '✅ NO DEALER FEES!',
+        'Equipped with:',
+        '• Roof, windshield and back panel kit',
+        '💰 Accessories: $534.99',
+        'Total equipped price: $6,533.99',
+        'Payments as low as $119/mo (WAC; ask for financing terms).',
+        '⏳ Message me with any questions or to set up a time to see this unit!',
+        '‼️ Ask for Byron Green ‼️',
+        'Shoals Outdoor Sports',
+        '3516 Florence Blvd, Florence, AL 35634',
+        '🌐 shoalsoutdoorsports dot com',
+      ].join('\n\n'),
     );
   });
-  it('puts the accessories and total between NO DEALER FEES and Message me', () => {
-    expect(listingDescription(328, 'Equipped with:\n• Ranger Roof\n\nTotal price as equipped: $14,456.50 (unit $13,999 + accessories $457.50)')).toBe(
-      'Payments as low as $328/mo (WAC)\n✅️ NO DEALER FEES! ✅️\n\nEquipped with:\n• Ranger Roof\n\nTotal price as equipped: $14,456.50 (unit $13,999 + accessories $457.50)\n\n⏳️ Message me with any questions or to set up a time to see this unit! ⏳️\n\n‼️Ask for Byron Green‼️\nShoals Outdoor Sports\n3516 Florence Blvd Florence, AL 35634\n🌐 shoalsoutdoorsports dot com',
+  it('leaves out what a unit does not have (no blurb, accessories or payment)', () => {
+    expect(listingDescription(null, '', 'Byron Green')).toBe(
+      '✅ NO DEALER FEES!\n\n⏳ Message me with any questions or to set up a time to see this unit!\n\n‼️ Ask for Byron Green ‼️\n\nShoals Outdoor Sports\n\n3516 Florence Blvd, Florence, AL 35634\n\n🌐 shoalsoutdoorsports dot com',
     );
+  });
+});
+
+describe('the short product blurb', async () => {
+  const { cleanBlurb } = await import('../src/crm/blurb');
+  it('keeps one or two short sentences; refuses prices, links, phone numbers and rambling', () => {
+    expect(cleanBlurb('"A youth side-by-side built for family off-road adventures! A great option for younger riders."')).toBe(
+      'A youth side-by-side built for family off-road adventures! A great option for younger riders.',
+    );
+    expect(cleanBlurb('Only $5,999 today!')).toBeNull();
+    expect(cleanBlurb('See shoalsoutdoorsports.com for more.')).toBeNull();
+    expect(cleanBlurb('Call 256-762-0959.')).toBeNull();
+    expect(cleanBlurb('One. Two. Three.')).toBeNull();
+    expect(cleanBlurb('x'.repeat(300))).toBeNull();
+    expect(cleanBlurb(42)).toBeNull();
+  });
+});
+
+describe('writing the blurb through the dialer', async () => {
+  const { writeBlurb } = await import('../src/crm/blurb');
+  const ai = await import('../src/crm/ai');
+  it('reads the description from "text" (the shape the dialer answers in) and retries once when it does not fit', async () => {
+    const answers = [{ skip: false, skipReason: '', text: 'Only $5,999!', emailSubject: '', emailBody: '', why: 'x' }, { skip: false, skipReason: '', text: 'A youth side-by-side for family adventures.', emailSubject: '', emailBody: '', why: 'x' }];
+    const asked: string[] = [];
+    const spy = (await import('vitest')).vi.spyOn(ai, 'completeFor').mockReturnValue(async (m) => (asked.push(m[1].content), answers.shift()));
+    const unit = { id: 'u', title: '2026 Polaris Ranger 150 EFI', condition: 'New', type: 'Youth', raw: { LongDescription: '<p>Built for young riders.</p>' } } as never;
+    expect(await writeBlurb(unit, {} as never)).toBe('A youth side-by-side for family adventures.');
+    expect(asked[0]).toContain("Maker's description: Built for young riders.");
+    expect(asked[1]).toContain("didn't fit");
+    spy.mockRestore();
   });
 });

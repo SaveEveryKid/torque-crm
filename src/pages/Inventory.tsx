@@ -1,8 +1,8 @@
 import { MarketplaceDialog } from '../ui/MarketplaceDialog';
 import { markListed, useLister, useListed } from '../crm/lister';
 import { AccessoriesEditor } from '../ui/AccessoriesEditor';
-import { useEffect, useState } from 'react';
-import { allUnits, diffInventory, money, readUnit, searchConfig, searchInventory, snapshotOf, toVehicleRef, usefulFacets, type InventoryChanges, type InventorySnapshot, type SearchResult, type Unit } from '../crm/inventory';
+import { useEffect, useMemo, useState } from 'react';
+import { allUnits, diffInventory, money, onFacebook, readUnit, searchAll, searchConfig, searchInventory, snapshotOf, toVehicleRef, usefulFacets, type InventoryChanges, type InventorySnapshot, type SearchResult, type Unit } from '../crm/inventory';
 import { kv } from '../core/storage/kv';
 import { fullName, logActivity, updateCustomer, useCustomers, useSettings, saveSettings } from '../crm/store';
 import type { VehicleRef } from '../crm/types';
@@ -16,6 +16,9 @@ export const storeName = (v: string) => v.replace(/^.*\s[-–]\s/, '');
 
 function useInventory() {
   const settings = useSettings();
+  // Facebook Marketplace: all units, not listed yet, or listed (remembered).
+  const fb = settings.inventoryFacebook ?? 'all';
+  const listedMap = useListed();
   const [query, setQuery] = useState('');
   const [typed, setTyped] = useState('');
   const [page, setPage] = useState(0);
@@ -37,7 +40,9 @@ function useInventory() {
     setLoading(true);
     setError(null);
     // Your store (Settings → Location) on top of the other filters.
-    searchInventory(settings.inventoryPage, { query, page, index, filters: settings.inventoryLocation ? { ...filters, [LOCATION_FACET]: settings.inventoryLocation } : filters })
+    const params = { query, index, filters: settings.inventoryLocation ? { ...filters, [LOCATION_FACET]: settings.inventoryLocation } : filters };
+    // On/not on Facebook isn't something the website knows: load every match and filter here.
+    (fb === 'all' ? searchInventory(settings.inventoryPage, { ...params, page }) : searchAll(settings.inventoryPage, params))
       .then(async (r) => {
         if (!live) return;
         setRes(r);
@@ -49,7 +54,9 @@ function useInventory() {
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, page, index, filters, settings.inventoryPage, settings.inventoryLocation, reload]);
+  }, [query, fb === 'all' ? page : -1, index, filters, settings.inventoryPage, settings.inventoryLocation, fb, reload]);
+  // What's shown: the page from the website, or this page of the Facebook-filtered list.
+  const view = useMemo(() => (res && fb !== 'all' ? onFacebook(res, listedMap, fb, page) : res), [res, fb, listedMap, page]);
 
   // REFRESH: read the whole inventory fresh from the website (no saved copies), show it, and say what changed since last time.
   const [refreshing, setRefreshing] = useState(false);
@@ -111,6 +118,16 @@ function useInventory() {
             </select>
           ),
         )}
+      <select
+        className={fb !== 'all' ? 'on' : ''}
+        value={fb}
+        onChange={(e) => (void saveSettings({ inventoryFacebook: e.target.value as 'all' | 'not' | 'listed' }), setPage(0))}
+        aria-label="Facebook Marketplace"
+      >
+        <option value="all">Facebook: any</option>
+        <option value="not">Not listed on Facebook yet</option>
+        <option value="listed">Listed on Facebook</option>
+      </select>
       {sorts.length > 1 && (
         <select value={index} onChange={(e) => (setIndex(e.target.value), setPage(0))} aria-label="Sort">
           {sorts.map((s, i) => (
@@ -129,21 +146,21 @@ function useInventory() {
   );
 
   const pager =
-    res && res.nbPages > 1 ? (
+    view && view.nbPages > 1 ? (
       <div className="pager">
         <button className="btn sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
           Previous
         </button>
         <span className="muted small">
-          Page {page + 1} of {res.nbPages}
+          Page {page + 1} of {view.nbPages}
         </span>
-        <button className="btn sm" disabled={page + 1 >= res.nbPages} onClick={() => setPage((p) => p + 1)}>
+        <button className="btn sm" disabled={page + 1 >= view.nbPages} onClick={() => setPage((p) => p + 1)}>
           Next
         </button>
       </div>
     ) : null;
 
-  return { res, error, loading: loading || refreshing, refreshing, changes, dismiss: () => setChanges(null), controls, pager, refresh, units: (res?.hits ?? []).map(readUnit) };
+  return { res: view, fb, error, loading: loading || refreshing, refreshing, changes, dismiss: () => setChanges(null), controls, pager, refresh, units: (view?.hits ?? []).map(readUnit) };
 }
 
 function UnitCard({ u, onClick, listed }: { u: Unit; onClick: () => void; listed?: string }) {
@@ -174,7 +191,10 @@ export function Inventory() {
       <div className="page-head">
         <div>
           <h1>Inventory</h1>
-          <p>In stock at Shoals Outdoor Sports{inv.res ? ` · ${inv.res.nbHits.toLocaleString()} units` : ''}</p>
+          <p>
+            In stock at Shoals Outdoor Sports
+            {inv.res ? ` · ${inv.res.nbHits.toLocaleString()} ${inv.fb === 'not' ? 'not on Facebook yet' : inv.fb === 'listed' ? 'listed on Facebook' : 'units'}` : ''}
+          </p>
         </div>
         <button className="btn" onClick={() => void inv.refresh()} disabled={inv.loading} title="Read the inventory fresh from the website and show what changed">
           <Icon name="refresh" size={16} /> {inv.refreshing ? 'Refreshing from the website…' : 'Refresh'}
@@ -183,7 +203,7 @@ export function Inventory() {
       {inv.changes && <RefreshReport r={inv.changes} onClose={inv.dismiss} />}
       {inv.controls}
       {inv.error && <p className="error">{inv.error}</p>}
-      {inv.res && inv.units.length === 0 && <Empty title="No units match">Try fewer filters.</Empty>}
+      {inv.res && inv.units.length === 0 && (inv.fb === "not" ? <Empty title="Everything here is already on Facebook">Nice work. Change the Facebook filter to see them.</Empty> : <Empty title="No units match">Try fewer filters.</Empty>)}
       <div className="units">
         {inv.units.map((u) => (
           <UnitCard key={u.id} u={u} onClick={() => setOpen(u)} listed={listed[u.id]?.at} />

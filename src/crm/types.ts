@@ -128,6 +128,8 @@ export interface Settings {
   inventoryPage: string;
   /** Only this store's inventory (the site's DealershipName), '' = every store. */
   inventoryLocation: string;
+  /** Inventory: every unit, only ones not on Facebook Marketplace yet, or only listed ones. */
+  inventoryFacebook?: 'all' | 'not' | 'listed';
 }
 
 /**
