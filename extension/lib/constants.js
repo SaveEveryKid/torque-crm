@@ -90,7 +90,7 @@
     LISTING_STATE_KEY: "torqueMarketplaceListing",
     // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
     LISTED_KEY: "torqueListedUnits",
-    VERSION: "0.11.0",
+    VERSION: "0.12.0",
     // OfferUp: the same unit, photos and description on offerup.com's own posting page.
     OFFERUP: {
       // The posting form opens over OfferUp's home page (Post → Sell an item); offerup.com/post only says "update your app".
@@ -99,6 +99,15 @@
       MAX_PHOTOS: 12,
       ZIP: "35634",
       LISTED_KEY: "torqueOfferUpListed"
+    },
+    // eBay Motors: a local classified ad from your own eBay account. The listing starts on
+    // "What are you selling?"; you pick the category, the form is filled, you click List.
+    EBAY: {
+      POST_URL: "https://www.ebay.com/sl/prelist/suggest",
+      MAX_PHOTOS: 24,
+      TITLE_MAX: 80,
+      ZIP: "35634",
+      LISTED_KEY: "torqueEbayListed"
     },
     // The watermarks on every photo: a little see-through, nothing else changed.
     // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).

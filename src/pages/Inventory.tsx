@@ -22,8 +22,11 @@ function useInventory() {
   // OfferUp: the same three choices.
   const ou = settings.inventoryOfferUp ?? 'all';
   const offerMap = useListed('offerup');
-  // Either filter on: the website doesn't know where you've listed, so every match is loaded and filtered here.
-  const narrowed = fb !== 'all' || ou !== 'all';
+  // eBay Motors: the same three choices.
+  const eb = settings.inventoryEbay ?? 'all';
+  const ebayMap = useListed('ebay');
+  // Any of these on: the website doesn't know where you've listed, so every match is loaded and filtered here.
+  const narrowed = fb !== 'all' || ou !== 'all' || eb !== 'all';
   const [query, setQuery] = useState('');
   const [typed, setTyped] = useState('');
   const [page, setPage] = useState(0);
@@ -62,8 +65,8 @@ function useInventory() {
   }, [query, !narrowed ? page : -1, index, filters, settings.inventoryPage, settings.inventoryLocation, narrowed, reload]);
   // What's shown: the page from the website, or this page of the Facebook-filtered list.
   const view = useMemo(
-    () => (res && narrowed ? onSites(res, [{ listed: listedMap, want: fb }, { listed: offerMap, want: ou }], page) : res),
-    [res, narrowed, fb, ou, listedMap, offerMap, page],
+    () => (res && narrowed ? onSites(res, [{ listed: listedMap, want: fb }, { listed: offerMap, want: ou }, { listed: ebayMap, want: eb }], page) : res),
+    [res, narrowed, fb, ou, eb, listedMap, offerMap, ebayMap, page],
   );
 
   // REFRESH: read the whole inventory fresh from the website (no saved copies), show it, and say what changed since last time.
@@ -146,6 +149,16 @@ function useInventory() {
         <option value="not">Not listed on OfferUp yet</option>
         <option value="listed">Listed on OfferUp</option>
       </select>
+      <select
+        className={eb !== 'all' ? 'on' : ''}
+        value={eb}
+        onChange={(e) => (void saveSettings({ inventoryEbay: e.target.value as 'all' | 'not' | 'listed' }), setPage(0))}
+        aria-label="eBay"
+      >
+        <option value="all">eBay: any</option>
+        <option value="not">Not listed on eBay yet</option>
+        <option value="listed">Listed on eBay</option>
+      </select>
       {sorts.length > 1 && (
         <select value={index} onChange={(e) => (setIndex(e.target.value), setPage(0))} aria-label="Sort">
           {sorts.map((s, i) => (
@@ -178,22 +191,23 @@ function useInventory() {
       </div>
     ) : null;
 
-  return { res: view, fb, ou, error, loading: loading || refreshing, refreshing, changes, dismiss: () => setChanges(null), controls, pager, refresh, units: (view?.hits ?? []).map(readUnit) };
+  return { res: view, fb, ou, eb, error, loading: loading || refreshing, refreshing, changes, dismiss: () => setChanges(null), controls, pager, refresh, units: (view?.hits ?? []).map(readUnit) };
 }
 
-/** "12 not on Facebook yet", "3 listed on OfferUp", "5 on Facebook, not on OfferUp yet"… */
-export function whereListed(fb: 'all' | 'not' | 'listed', ou: 'all' | 'not' | 'listed'): string {
+/** "12 not on Facebook yet", "3 listed on OfferUp", "5 on Facebook, not on eBay yet"… */
+export function whereListed(fb: 'all' | 'not' | 'listed', ou: 'all' | 'not' | 'listed', eb: 'all' | 'not' | 'listed' = 'all'): string {
   const say = (site: string, w: 'not' | 'listed', short = false) => (w === 'listed' ? `${short ? 'on' : 'listed on'} ${site}` : `not on ${site} yet`);
-  if (fb === 'all' && ou === 'all') return 'units';
-  if (ou === 'all') return say('Facebook', fb as 'not' | 'listed');
-  if (fb === 'all') return say('OfferUp', ou as 'not' | 'listed');
-  return `${say('Facebook', fb as 'not' | 'listed', true)}, ${say('OfferUp', ou as 'not' | 'listed', true)}`;
+  const on = ([['Facebook', fb], ['OfferUp', ou], ['eBay', eb]] as [string, 'all' | 'not' | 'listed'][]).filter(([, w]) => w !== 'all') as [string, 'not' | 'listed'][];
+  if (!on.length) return 'units';
+  if (on.length === 1) return say(on[0][0], on[0][1]);
+  return on.map(([s, w]) => say(s, w, true)).join(', ');
 }
 
-function UnitCard({ u, onClick, listed, offered }: { u: Unit; onClick: () => void; listed?: string; offered?: string }) {
-  // One badge: Facebook, OfferUp, or both.
-  const badge = listed && offered ? 'Facebook + OfferUp' : listed ? 'Listed' : offered ? 'OfferUp' : null;
-  const tip = [listed && `Sent to Marketplace ${when(listed)}`, offered && `Sent to OfferUp ${when(offered)}`].filter(Boolean).join(' · ');
+function UnitCard({ u, onClick, listed, offered, ebayed }: { u: Unit; onClick: () => void; listed?: string; offered?: string; ebayed?: string }) {
+  // One badge: where it's listed (Facebook alone still says "Listed").
+  const sites = [listed && 'Facebook', offered && 'OfferUp', ebayed && 'eBay'].filter(Boolean) as string[];
+  const badge = !sites.length ? null : sites.length === 1 && listed ? 'Listed' : sites.join(' + ');
+  const tip = [listed && `Sent to Marketplace ${when(listed)}`, offered && `Sent to OfferUp ${when(offered)}`, ebayed && `Sent to eBay ${when(ebayed)}`].filter(Boolean).join(' · ');
   return (
     <div className="card unit" onClick={onClick}>
       {badge && <span className="badge ready mp-listed" title={tip}>{badge}</span>}
@@ -215,9 +229,11 @@ export function Inventory() {
   const [open, setOpen] = useState<Unit | null>(null);
   const [listing, setListing] = useState<Unit | null>(null);
   const [offering, setOffering] = useState<Unit | null>(null);
+  const [ebaying, setEbaying] = useState<Unit | null>(null);
   const listed = useListed();
   const offered = useListed('offerup');
-  useLister(); // also picks up what the extension has sent to Facebook and OfferUp
+  const ebayed = useListed('ebay');
+  useLister(); // also picks up what the extension has sent to Facebook, OfferUp and eBay
   return (
     <div className="page">
       <div className="page-head">
@@ -225,7 +241,7 @@ export function Inventory() {
           <h1>Inventory</h1>
           <p>
             In stock at Shoals Outdoor Sports
-            {inv.res ? ` · ${inv.res.nbHits.toLocaleString()} ${whereListed(inv.fb, inv.ou)}` : ''}
+            {inv.res ? ` · ${inv.res.nbHits.toLocaleString()} ${whereListed(inv.fb, inv.ou, inv.eb)}` : ''}
           </p>
         </div>
         <button className="btn" onClick={() => void inv.refresh()} disabled={inv.loading} title="Read the inventory fresh from the website and show what changed">
@@ -235,7 +251,9 @@ export function Inventory() {
       {inv.changes && <RefreshReport r={inv.changes} onClose={inv.dismiss} />}
       {inv.controls}
       {inv.error && <p className="error">{inv.error}</p>}
-      {inv.res && inv.units.length === 0 && (inv.fb === 'not' && inv.ou === 'all' ? (
+      {inv.res && inv.units.length === 0 && (inv.eb === 'not' && inv.fb === 'all' && inv.ou === 'all' ? (
+        <Empty title="Everything here is already on eBay">Nice work. Change the eBay filter to see them.</Empty>
+      ) : inv.fb === 'not' && inv.ou === 'all' ? (
         <Empty title="Everything here is already on Facebook">Nice work. Change the Facebook filter to see them.</Empty>
       ) : inv.ou === 'not' && inv.fb === 'all' ? (
         <Empty title="Everything here is already on OfferUp">Nice work. Change the OfferUp filter to see them.</Empty>
@@ -246,18 +264,20 @@ export function Inventory() {
       ))}
       <div className="units">
         {inv.units.map((u) => (
-          <UnitCard key={u.id} u={u} onClick={() => setOpen(u)} listed={listed[u.id]?.at} offered={offered[u.id]?.at} />
+          <UnitCard key={u.id} u={u} onClick={() => setOpen(u)} listed={listed[u.id]?.at} offered={offered[u.id]?.at} ebayed={ebayed[u.id]?.at} />
         ))}
       </div>
       {inv.pager}
-      {open && <UnitDetails u={open} onClose={() => setOpen(null)} onList={() => (setListing(open), setOpen(null))} onOfferUp={() => (setOffering(open), setOpen(null))} />}
+      {open && <UnitDetails u={open} onClose={() => setOpen(null)} onList={() => (setListing(open), setOpen(null))} onOfferUp={() => (setOffering(open), setOpen(null))} onEbay={() => (setEbaying(open), setOpen(null))} />}
       {listing && <MarketplaceDialog u={listing} onClose={() => setListing(null)} />}
       {offering && <MarketplaceDialog u={offering} site="offerup" onClose={() => setOffering(null)} />}
+      {ebaying && <MarketplaceDialog u={ebaying} site="ebay" onClose={() => setEbaying(null)} />}
     </div>
   );
 }
 
-function UnitDetails({ u, onClose, onList, onOfferUp }: { u: Unit; onClose: () => void; onList: () => void; onOfferUp: () => void }) {
+function UnitDetails({ u, onClose, onList, onOfferUp, onEbay }: { u: Unit; onClose: () => void; onList: () => void; onOfferUp: () => void; onEbay: () => void }) {
+  const onEbayListed = useListed('ebay')[u.id];
   const customers = useCustomers();
   const listed = useListed()[u.id];
   const onOffer = useListed('offerup')[u.id];
@@ -336,12 +356,33 @@ function UnitDetails({ u, onClose, onList, onOfferUp }: { u: Unit; onClose: () =
           </>
         )}
       </div>
+      <div className="row mp-status">
+        {onEbayListed ? (
+          <>
+            <span className="badge ready">Sent to eBay</span>
+            <span className="muted small">{when(onEbayListed.at)}</span>
+            <button className="link small" onClick={() => void markListed(u.id, u.title, true, 'ebay')}>
+              Mark not listed
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="muted small">Not on eBay yet</span>
+            <button className="link small" onClick={() => void markListed(u.id, u.title, false, 'ebay')}>
+              Mark as listed
+            </button>
+          </>
+        )}
+      </div>
       <div className="row">
         <button className="btn primary" disabled={!u.photos.length} onClick={onList} title="Fill a Facebook Marketplace draft with this unit and your watermarked photos">
           <Icon name="upload" size={15} /> {listed ? 'List again' : 'List on Marketplace'}
         </button>
         <button className="btn primary" disabled={!u.photos.length} onClick={onOfferUp} title="Open OfferUp's posting page and fill it with this unit and your watermarked photos">
           <Icon name="upload" size={15} /> {onOffer ? 'List on OfferUp again' : 'List on OfferUp'}
+        </button>
+        <button className="btn primary" disabled={!u.photos.length} onClick={onEbay} title="Open eBay Motors, type the title, and fill the listing form as a local classified ad with your watermarked photos">
+          <Icon name="upload" size={15} /> {onEbayListed ? 'List on eBay again' : 'List on eBay'}
         </button>
         {u.url && (
           <a className="btn" href={u.url} target="_blank" rel="noreferrer">

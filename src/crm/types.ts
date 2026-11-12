@@ -132,6 +132,8 @@ export interface Settings {
   inventoryFacebook?: 'all' | 'not' | 'listed';
   /** The same for OfferUp. */
   inventoryOfferUp?: 'all' | 'not' | 'listed';
+  /** Inventory: the same for eBay Motors. */
+  inventoryEbay?: 'all' | 'not' | 'listed';
 }
 
 /**

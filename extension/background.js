@@ -59,6 +59,20 @@ async function getListed() {
   return r[C.LISTED_KEY] || {};
 }
 
+/** The same record for eBay. */
+async function getEbayListed() {
+  var r = await chrome.storage.local.get(C.EBAY.LISTED_KEY);
+  return r[C.EBAY.LISTED_KEY] || {};
+}
+
+async function rememberEbay(unit) {
+  var all = await getEbayListed();
+  all[unit.id] = { at: new Date().toISOString(), title: unit.title };
+  var ids = Object.keys(all).sort(function (a, b) { return all[b].at.localeCompare(all[a].at); });
+  ids.slice(3000).forEach(function (id) { delete all[id]; });
+  await chrome.storage.local.set({ [C.EBAY.LISTED_KEY]: all });
+}
+
 /** The same record for OfferUp. */
 async function getOfferUpListed() {
   var r = await chrome.storage.local.get(C.OFFERUP.LISTED_KEY);
@@ -136,6 +150,8 @@ function validUnit(u, maxPhotos, site) {
     color: String(u.color || "").slice(0, 60),
     condition: /used|pre/i.test(String(u.condition || "")) ? "Used" : "New",
     stock: String(u.stock || "").slice(0, 40),
+    vin: String(u.vin || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 20),
+    miles: Number(u.miles) >= 0 && u.miles !== null && u.miles !== "" ? Math.round(Number(u.miles)) : null,
     photos: u.photos.slice(0, maxPhotos),
     uploads: uploads
   };
@@ -204,6 +220,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
           paymentSpec: Byron.watermark.cornerSpec(C.PAYMENT_MARK, C.PAYMENT_MARK.corner),
           listed: await getListed(),
           offerup: { maxPhotos: C.OFFERUP.MAX_PHOTOS, listed: await getOfferUpListed() },
+          ebay: { maxPhotos: C.EBAY.MAX_PHOTOS, listed: await getEbayListed() },
           missingWatermarks: marks.some(function (m) { return !m; })
         });
       }
@@ -239,7 +256,23 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         return sendResponse({ ok: true, tabId: opened.id, runId: run.runId });
       }
 
-      // From the Facebook tab (content/facebook.js) or the OfferUp tab (content/offerup.js).
+      // And for eBay Motors: its "What are you selling?" page opens and content/ebay.js fills what follows.
+      if (message.type === "START_EBAY") {
+        var asker = sender.origin || (sender.url && new URL(sender.url).origin);
+        if (C.CRM_ORIGINS.indexOf(asker) === -1) throw new Error("Listings can only be started from Torque CRM.");
+        await loadMarks();
+        var ad = validUnit(message.unit, C.EBAY.MAX_PHOTOS, "eBay");
+        await saveUploads(ad.uploads);
+        delete ad.uploads;
+        var go = { runId: "run-" + Date.now() + "-" + Math.random().toString(36).slice(2), target: "ebay", unit: ad, createdAt: new Date().toISOString() };
+        await storage().set({ [C.LISTING_STATE_KEY]: go });
+        photoCache.clear();
+        await rememberEbay(go.unit);
+        var page = await chrome.tabs.create({ url: C.EBAY.POST_URL, active: true });
+        return sendResponse({ ok: true, tabId: page.id, runId: go.runId });
+      }
+
+      // From the Facebook tab (content/facebook.js), the OfferUp tab (content/offerup.js) or the eBay tab (content/ebay.js).
       if (message.type === "GET_LISTING_STATE") return sendResponse({ ok: true, state: await getState() });
 
       if (message.type === "GET_PHOTO") {

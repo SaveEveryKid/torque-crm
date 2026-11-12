@@ -63,3 +63,18 @@ describe('Inventory: only units not on Facebook yet', async () => {
     expect(onSites(all, [{ listed, want: 'all' }, { listed: offered, want: 'all' }], 0).nbHits).toBe(all.hits.length);
   });
 });
+
+describe('eBay', async () => {
+  const { whereListed } = await import('../src/pages/Inventory');
+  const { milesOf } = await import('../src/crm/lister');
+  it('the inventory header says where units are (and are not) listed, eBay included', () => {
+    expect(whereListed('all', 'all', 'not')).toBe('not on eBay yet');
+    expect(whereListed('listed', 'all', 'not')).toBe('on Facebook, not on eBay yet');
+    expect(whereListed('all', 'all')).toBe('units');
+  });
+  it('miles for eBay: from the odometer, 0 on a new unit without one', () => {
+    expect(milesOf({ usage: '1,234 mi', condition: 'Used' })).toBe(1234);
+    expect(milesOf({ usage: null, condition: 'New' })).toBe(0);
+    expect(milesOf({ usage: '35 hrs', condition: 'Used' })).toBeNull();
+  });
+});

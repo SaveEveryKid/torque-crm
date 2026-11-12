@@ -25,6 +25,8 @@ export interface ListerInfo {
   listed?: Listed;
   /** OfferUp (extension 0.10.0 or newer): how many photos it takes, and what was sent there. */
   offerup?: { maxPhotos: number; listed?: Listed };
+  /** eBay Motors (extension 0.12.0 or newer): how many photos it takes, and what was sent there. */
+  ebay?: { maxPhotos: number; listed?: Listed };
 }
 
 export interface ListingUnit {
@@ -48,6 +50,10 @@ export interface ListingUnit {
   accessories?: string;
   /** The whole description, exactly as shown in Torque (the extension types this). */
   description?: string;
+  /** VIN (eBay asks). */
+  vin?: string | null;
+  /** Odometer miles (eBay asks; 0 on a new unit). */
+  miles?: number | null;
   /** New or Used (OfferUp asks). */
   condition?: string | null;
   stock?: string | null;
@@ -56,7 +62,7 @@ export interface ListingUnit {
 type Reply = { source: 'torque-lister'; id: string | null; ok: boolean; error?: string; type?: string } & Partial<ListerInfo>;
 
 let seq = 0;
-function ask(type: 'PING' | 'LIST_ON_MARKETPLACE' | 'LIST_ON_OFFERUP', unit?: ListingUnit, timeout = 4000): Promise<Reply> {
+function ask(type: 'PING' | 'LIST_ON_MARKETPLACE' | 'LIST_ON_OFFERUP' | 'LIST_ON_EBAY', unit?: ListingUnit, timeout = 4000): Promise<Reply> {
   const id = `m${Date.now()}-${++seq}`;
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => (removeEventListener('message', on), reject(new Error('NOT_INSTALLED'))), timeout);
@@ -81,6 +87,7 @@ export function useLister(): ListerInfo | false | null {
       .then((r) => {
         if (r.ok && r.listed) void syncListed(r.listed);
         if (r.ok && r.offerup?.listed) void syncListed(r.offerup.listed, 'offerup');
+        if (r.ok && r.ebay?.listed) void syncListed(r.ebay.listed, 'ebay');
         if (live) setInfo(r.ok ? (r as unknown as ListerInfo) : false);
       })
       .catch(() => live && setInfo(false));
@@ -162,10 +169,17 @@ export function olderThan(a: string | undefined, b: string): boolean {
   return false;
 }
 
+/** Miles on the odometer (0 for a new unit with none recorded), for eBay. */
+export function milesOf(u: Pick<Unit, 'usage' | 'condition'>): number | null {
+  const m = /([\d,]+)\s*mi/.exec(u.usage ?? '');
+  if (m) return Number(m[1].replace(/,/g, ''));
+  return /new/i.test(u.condition ?? '') ? 0 : null;
+}
+
 export function toListing(u: Unit, photos: string[], payment: number | null, paymentMark: string | null, accessories = '', description = ''): ListingUnit {
   const uploads: string[] = [];
   const refs = photos.map((p) => (p.startsWith('data:') ? `upload:${uploads.push(p) - 1}` : p));
-  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, color: u.color, payment, paymentMark, photos: refs, uploads, accessories, condition: u.condition, stock: u.stock, ...(description ? { description } : {}) };
+  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, color: u.color, payment, paymentMark, photos: refs, uploads, accessories, condition: u.condition, stock: u.stock, vin: u.vin, miles: milesOf(u), ...(description ? { description } : {}) };
 }
 
 export async function listOnMarketplace(u: ListingUnit): Promise<void> {
@@ -192,9 +206,26 @@ export async function listOnOfferUp(u: ListingUnit): Promise<void> {
   await markListed(u.id, u.title, false, 'offerup');
 }
 
-/** Where a unit has been sent: Facebook Marketplace or OfferUp (each remembered on its own). */
-export type Site = 'facebook' | 'offerup';
-const LISTED_KEY: Record<Site, string> = { facebook: 'marketplace', offerup: 'offerup' };
+/**
+ * LIST ON EBAY MOTORS (a local classified ad from your own eBay account),
+ * through the same extension (0.12.0 or newer). It opens eBay's "What are you
+ * selling?" page and types the title; you pick the category and condition;
+ * then it fills the listing form: photos, title, VIN, year, make, model,
+ * mileage, price, ZIP, description and the Classified ad format. You click List.
+ */
+export const MIN_EXTENSION_EBAY = '0.12.0';
+
+export async function listOnEbay(u: ListingUnit): Promise<void> {
+  const r = await ask('LIST_ON_EBAY', u, 20000).catch((e: Error) => {
+    throw new Error(e.message === 'NOT_INSTALLED' ? 'The Torque Marketplace Lister extension isn’t answering. Is it installed and turned on?' : e.message);
+  });
+  if (!r.ok) throw new Error(/Unknown message/i.test(r.error ?? '') ? 'Your Torque Marketplace Lister is too old for eBay. Update it (see below).' : r.error || 'The extension couldn’t start the listing.');
+  await markListed(u.id, u.title, false, 'ebay');
+}
+
+/** Where a unit has been sent: Facebook Marketplace, OfferUp or eBay (each remembered on its own). */
+export type Site = 'facebook' | 'offerup' | 'ebay';
+const LISTED_KEY: Record<Site, string> = { facebook: 'marketplace', offerup: 'offerup', ebay: 'ebayListed' };
 
 /** Units sent to Marketplace: when, and the title then. `off` = you marked it not listed. */
 export type Listed = Record<string, { at: string; title: string; off?: boolean }>;

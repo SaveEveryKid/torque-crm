@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { money, type Unit } from '../crm/inventory';
-import { listingDescription, listOnMarketplace, listOnOfferUp, MIN_EXTENSION, MIN_EXTENSION_OFFERUP, olderThan, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
+import { listingDescription, listOnEbay, milesOf, listOnMarketplace, listOnOfferUp, MIN_EXTENSION, MIN_EXTENSION_EBAY, MIN_EXTENSION_OFFERUP, olderThan, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
 import { accessoryBlock, useUnitAccessories } from '../crm/accessories';
 import { saveBlurb, useBlurbs, writeBlurb } from '../crm/blurb';
 import { aiReady } from '../crm/ai';
@@ -14,13 +14,14 @@ import { Icon, Modal, when } from './kit';
  * on top) and the description, then List on Facebook. The extension opens
  * Facebook's vehicle form and fills it; you click Publish there yourself.
  */
-export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; onClose: () => void; site?: 'facebook' | 'offerup' }) {
+export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; onClose: () => void; site?: 'facebook' | 'offerup' | 'ebay' }) {
   const lister = useLister();
   const offerup = site === 'offerup';
-  const where = offerup ? 'OfferUp' : 'Facebook';
-  const needs = offerup ? MIN_EXTENSION_OFFERUP : MIN_EXTENSION;
+  const ebay = site === 'ebay';
+  const where = offerup ? 'OfferUp' : ebay ? 'eBay' : 'Facebook';
+  const needs = offerup ? MIN_EXTENSION_OFFERUP : ebay ? MIN_EXTENSION_EBAY : MIN_EXTENSION;
   const listed = useListed(site)[u.id];
-  const max = offerup ? (lister && lister.offerup ? lister.offerup.maxPhotos : 12) : lister ? lister.maxPhotos : 20;
+  const max = offerup ? (lister && lister.offerup ? lister.offerup.maxPhotos : 12) : ebay ? (lister && lister.ebay ? lister.ebay.maxPhotos : 24) : lister ? lister.maxPhotos : 20;
   const [off, setOff] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +107,7 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
     try {
       if (!payment || !markUrl) throw new Error('Type the monthly payment from your grid first.');
       await rememberPayment(u.id, payment);
-      await (offerup ? listOnOfferUp : listOnMarketplace)(toListing(u, chosen, payment, markUrl, accessories, description));
+      await (offerup ? listOnOfferUp : ebay ? listOnEbay : listOnMarketplace)(toListing(u, chosen, payment, markUrl, accessories, description));
       setSent(true);
     } catch (e) {
       setError((e as Error).message);
@@ -118,7 +119,7 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
   return (
     <Modal
       wide
-      title={offerup ? 'List on OfferUp' : 'List on Facebook Marketplace'}
+      title={offerup ? 'List on OfferUp' : ebay ? 'List on eBay Motors (local classified ad)' : 'List on Facebook Marketplace'}
       onClose={onClose}
       foot={
         <>
@@ -137,18 +138,27 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
         {lister === false && <InstallSteps />}
         {outdated && <InstallSteps update={lister.version} needs={needs} />}
         {lister && lister.missingWatermarks && <p className="error">The extension is missing its watermark files. Reinstall the latest Torque Marketplace Lister.</p>}
-        {listed && <p className="notice small">You sent this unit to {offerup ? 'OfferUp' : 'Marketplace'} {when(listed.at)}.</p>}
+        {listed && <p className="notice small">You sent this unit to {offerup ? 'OfferUp' : ebay ? 'eBay' : 'Marketplace'} {when(listed.at)}.</p>}
 
         <dl className="facts">
-          <dt>{offerup ? 'Category' : 'Vehicle type'}</dt>
-          <dd>{offerup ? 'Vehicles' : lister ? lister.vehicleType : 'Powersport'}</dd>
+          <dt>{offerup || ebay ? (ebay ? 'Format' : 'Category') : 'Vehicle type'}</dt>
+          <dd>{offerup ? 'Vehicles' : ebay ? 'Local classified ad (you pick the eBay Motors category)' : lister ? lister.vehicleType : 'Powersport'}</dd>
           <dt>Year / make / model</dt>
           <dd>{[u.year, u.make, u.model].filter(Boolean).join(' · ') || <span className="muted">fill in on {where}</span>}</dd>
           <dt>Price</dt>
           <dd>{u.price ? money(u.price) : <span className="error-text">No price: type it on {where}</span>}</dd>
           <dt>Location</dt>
-          <dd>{offerup ? 'ZIP 35634 (Florence, AL)' : lister ? lister.location : 'Florence, Alabama'}</dd>
-          {!offerup && (
+          <dd>{offerup || ebay ? 'ZIP 35634 (Florence, AL)' : lister ? lister.location : 'Florence, Alabama'}</dd>
+          {ebay && (
+            <>
+              <dt>VIN / miles</dt>
+              <dd>
+                {u.vin || <span className="muted">no VIN: type it on eBay</span>} · {milesOf(u) ?? <span className="muted">miles: type on eBay</span>}
+                {milesOf(u) != null ? ' mi' : ''}
+              </dd>
+            </>
+          )}
+          {!offerup && !ebay && (
             <>
               <dt>Color / fuel</dt>
               <dd>
@@ -248,7 +258,9 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
         {error && <p className="error">{error}</p>}
         {sent && (
           <p className="success">
-            {offerup
+            {ebay
+              ? 'eBay is open in a new tab. Torque types the title on “What are you selling?”: pick the eBay Motors category and condition, then it fills the listing form (photos, title, VIN, year, make, model, mileage, price, ZIP, description) and sets the format to Classified ad. The panel in the corner has a Copy button for anything eBay wouldn’t take. Check the fees, then click List yourself.'
+              : offerup
               ? 'OfferUp is open in a new tab. Torque opens its Post an item form and fills it: your watermarked photos, the title, description, price, New or Used, the Vehicles category and Florence as the location. The panel in the corner shows anything it could not do. Check it, then click Post item yourself.'
               : 'Facebook is open in a new tab and filling in the draft with your watermarked photos. Check everything there, then click Next and Publish yourself.'}
           </p>
@@ -312,7 +324,7 @@ function InstallSteps({ update, needs = MIN_EXTENSION }: { update?: string; need
             <li>Click Load unpacked and pick the unzipped folder.</li>
           </>
         )}
-        <li>Reload this page. Stay logged in to Facebook (and OfferUp, if you list there) in Chrome.</li>
+        <li>Reload this page. Stay logged in to Facebook (and OfferUp and eBay, if you list there) in Chrome.</li>
       </ol>
     </div>
   );

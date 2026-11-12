@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Torque Marketplace Lister",
-  "version": "0.11.0",
-  "description": "List a Shoals Outdoor Sports unit from Torque CRM as a Facebook Marketplace draft or an OfferUp post (you review and publish).",
+  "version": "0.12.0",
+  "description": "List a Shoals Outdoor Sports unit from Torque CRM as a Facebook Marketplace draft, an OfferUp post or an eBay Motors classified ad (you review and publish).",
   "permissions": [
     "storage",
     "unlimitedStorage",
@@ -13,13 +13,14 @@
     "https://offerup.com/*",
     "https://www.offerup.com/*",
     "https://cdpcdn.dx1app.com/*",
-    "https://*.dx1app.com/*"
+    "https://*.dx1app.com/*",
+    "https://www.ebay.com/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Torque Marketplace Lister: list units from Torque CRM \u2192 Inventory"
+    "default_title": "Torque Marketplace Lister: list units from Torque CRM → Inventory"
   },
   "web_accessible_resources": [],
   "content_scripts": [
@@ -56,6 +57,19 @@
         "lib/utils.js",
         "lib/facebook-form.js",
         "content/offerup.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.ebay.com/sl/*",
+        "https://www.ebay.com/lstng*"
+      ],
+      "js": [
+        "lib/constants.js",
+        "lib/utils.js",
+        "lib/facebook-form.js",
+        "content/ebay.js"
       ],
       "run_at": "document_idle"
     }
