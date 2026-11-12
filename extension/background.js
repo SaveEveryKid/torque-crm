@@ -59,6 +59,20 @@ async function getListed() {
   return r[C.LISTED_KEY] || {};
 }
 
+/** The same record for OfferUp. */
+async function getOfferUpListed() {
+  var r = await chrome.storage.local.get(C.OFFERUP.LISTED_KEY);
+  return r[C.OFFERUP.LISTED_KEY] || {};
+}
+
+async function rememberOfferUp(unit) {
+  var all = await getOfferUpListed();
+  all[unit.id] = { at: new Date().toISOString(), title: unit.title };
+  var ids = Object.keys(all).sort(function (a, b) { return all[b].at.localeCompare(all[a].at); });
+  ids.slice(3000).forEach(function (id) { delete all[id]; });
+  await chrome.storage.local.set({ [C.OFFERUP.LISTED_KEY]: all });
+}
+
 async function rememberListed(unit) {
   var all = await getListed();
   all[unit.id] = { at: new Date().toISOString(), title: unit.title };
@@ -86,12 +100,14 @@ async function marksFor(state) {
 }
 
 /** Checks what Torque CRM sent: a real unit, with photos from the dealer's image servers. */
-function validUnit(u) {
+function validUnit(u, maxPhotos, site) {
+  maxPhotos = maxPhotos || C.MAX_PHOTOS;
+  site = site || "Facebook";
   if (!u || typeof u !== "object") throw new Error("No unit was sent.");
   if (!Array.isArray(u.photos) || !u.photos.length) throw new Error("This unit has no photos to list.");
-  if (u.photos.length > C.MAX_PHOTOS) throw new Error("Facebook takes up to " + C.MAX_PHOTOS + " photos.");
+  if (u.photos.length > maxPhotos) throw new Error(site + " takes up to " + maxPhotos + " photos.");
   var uploads = Array.isArray(u.uploads) ? u.uploads : [];
-  if (uploads.length > C.MAX_PHOTOS) throw new Error("Facebook takes up to " + C.MAX_PHOTOS + " photos.");
+  if (uploads.length > maxPhotos) throw new Error(site + " takes up to " + maxPhotos + " photos.");
   uploads.forEach(function (d) {
     if (typeof d !== "string" || d.indexOf("data:image/jpeg;base64,") !== 0) throw new Error("One of your photos didn't come through. Add it again.");
     if (d.length > 8 * 1024 * 1024) throw new Error("One of your photos is too big.");
@@ -117,7 +133,9 @@ function validUnit(u) {
     accessories: typeof u.accessories === "string" ? u.accessories.slice(0, 3000) : "",
     description: typeof u.description === "string" ? u.description.slice(0, 9000) : "",
     title: String(u.title || "").slice(0, 120),
-    photos: u.photos.slice(0, C.MAX_PHOTOS),
+    condition: /used|pre/i.test(String(u.condition || "")) ? "Used" : "New",
+    stock: String(u.stock || "").slice(0, 40),
+    photos: u.photos.slice(0, maxPhotos),
     uploads: uploads
   };
 }
@@ -184,6 +202,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
           watermarks: marks.filter(Boolean),
           paymentSpec: Byron.watermark.cornerSpec(C.PAYMENT_MARK, C.PAYMENT_MARK.corner),
           listed: await getListed(),
+          offerup: { maxPhotos: C.OFFERUP.MAX_PHOTOS, listed: await getOfferUpListed() },
           missingWatermarks: marks.some(function (m) { return !m; })
         });
       }
@@ -195,7 +214,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         var unit = validUnit(message.unit);
         await saveUploads(unit.uploads);
         delete unit.uploads;
-        var state = { runId: "run-" + Date.now() + "-" + Math.random().toString(36).slice(2), unit: unit, createdAt: new Date().toISOString() };
+        var state = { runId: "run-" + Date.now() + "-" + Math.random().toString(36).slice(2), target: "facebook", unit: unit, createdAt: new Date().toISOString() };
         await storage().set({ [C.LISTING_STATE_KEY]: state });
         photoCache.clear();
         await rememberListed(state.unit);
@@ -203,7 +222,23 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         return sendResponse({ ok: true, tabId: tab.id, runId: state.runId });
       }
 
-      // From the Facebook tab (content/facebook.js).
+      // The same hand-over for OfferUp: its posting page is opened and content/offerup.js fills it.
+      if (message.type === "START_OFFERUP") {
+        var from = sender.origin || (sender.url && new URL(sender.url).origin);
+        if (C.CRM_ORIGINS.indexOf(from) === -1) throw new Error("Listings can only be started from Torque CRM.");
+        await loadMarks();
+        var item = validUnit(message.unit, C.OFFERUP.MAX_PHOTOS, "OfferUp");
+        await saveUploads(item.uploads);
+        delete item.uploads;
+        var run = { runId: "run-" + Date.now() + "-" + Math.random().toString(36).slice(2), target: "offerup", unit: item, createdAt: new Date().toISOString() };
+        await storage().set({ [C.LISTING_STATE_KEY]: run });
+        photoCache.clear();
+        await rememberOfferUp(run.unit);
+        var opened = await chrome.tabs.create({ url: C.OFFERUP.POST_URL, active: true });
+        return sendResponse({ ok: true, tabId: opened.id, runId: run.runId });
+      }
+
+      // From the Facebook tab (content/facebook.js) or the OfferUp tab (content/offerup.js).
       if (message.type === "GET_LISTING_STATE") return sendResponse({ ok: true, state: await getState() });
 
       if (message.type === "GET_PHOTO") {

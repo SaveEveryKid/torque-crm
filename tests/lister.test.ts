@@ -141,3 +141,24 @@ describe('Your own photos (CRM side)', async () => {
     expect(logoPlacement(1536, 2048, 416, 297).w).toBe(461);
   });
 });
+
+describe('OfferUp is remembered separately from Facebook', () => {
+  it('a unit sent to OfferUp is not marked as on Marketplace, and the other way round', async () => {
+    const { kv } = await import('../src/core/storage/kv');
+    const { markListed } = await import('../src/crm/lister');
+    await kv.remove(['marketplace', 'offerup']);
+    await markListed('u1', '2026 Ranger', false, 'offerup');
+    await markListed('u2', '2026 RZR');
+    const got = await kv.get(['marketplace', 'offerup']);
+    expect(Object.keys(got.offerup as object)).toEqual(['u1']);
+    expect(Object.keys(got.marketplace as object)).toEqual(['u2']);
+    await markListed('u1', '2026 Ranger', true, 'offerup');
+    expect(((await kv.get('offerup')).offerup as Record<string, { off?: boolean }>).u1.off).toBe(true);
+  });
+
+  it('a listing carries the condition and stock number OfferUp asks for', async () => {
+    const { toListing } = await import('../src/crm/lister');
+    const u = { id: 'u1', title: '2026 Polaris Ranger', year: '2026', make: 'Polaris', model: 'Ranger', price: 21999, condition: 'New', stock: 'R1' } as never;
+    expect(toListing(u, ['https://cdpcdn.dx1app.com/a.jpg'], 299, null)).toMatchObject({ condition: 'New', stock: 'R1', photos: ['https://cdpcdn.dx1app.com/a.jpg'] });
+  });
+});

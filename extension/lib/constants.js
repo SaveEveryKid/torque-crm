@@ -54,7 +54,15 @@
     LISTING_STATE_KEY: "torqueMarketplaceListing",
     // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
     LISTED_KEY: "torqueListedUnits",
-    VERSION: "0.9.3",
+    VERSION: "0.10.0",
+    // OfferUp: the same unit, photos and description on offerup.com's own posting page.
+    OFFERUP: {
+      POST_URL: "https://offerup.com/post",
+      // OfferUp takes fewer photos than Facebook; the first ones you chose are used.
+      MAX_PHOTOS: 12,
+      ZIP: "35634",
+      LISTED_KEY: "torqueOfferUpListed"
+    },
     // The watermarks on every photo: a little see-through, nothing else changed.
     // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).
     // If a photo has the store's logo in another corner, the watermark from that
