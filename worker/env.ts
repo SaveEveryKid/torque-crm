@@ -15,6 +15,10 @@ export interface Env {
   SW_PROJECT_ID?: string;
   SW_API_TOKEN?: string;
   SMS_FROM?: string;
+  /** Shared with RideWithByron.com (its TORQUE_SIGNING_SECRET): proves a website lead really came from your site (a secret). */
+  LEADS_SECRET?: string;
+  /** Your own cell number: each website lead is also texted to it, through your dialer (optional). */
+  LEAD_ALERT_TO?: string;
 }
 
 export const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>

@@ -11,7 +11,7 @@
 type Listener = (changed: string[]) => void;
 
 /** Saved one row per entry, so one customer's change doesn't re-send everyone. */
-const SPLIT = new Set(['customers', 'sentMessages', 'sms', 'trainingCards', 'drafts']);
+const SPLIT = new Set(['customers', 'sentMessages', 'sms', 'webLeads', 'trainingCards', 'drafts']);
 /** Bigger values are saved in parts. */
 const CHUNK = 400_000;
 /** How often to check for changes (and new texts) while the window is open. */
@@ -86,7 +86,7 @@ function rowsFor(key: string, value: unknown): Map<string, string | null> {
 /** Rebuild stored values from rows. */
 function decode(rows: Map<string, string>): Map<string, unknown> {
   const out = new Map<string, unknown>();
-  // "customers/<id>" rows make the customers map (the server writes "sms/<id>" rows with no head row).
+  // "customers/<id>" rows make the customers map (the server writes "sms/<id>" and "webLeads/<id>" rows with no head row).
   for (const [k, v] of rows) {
     const slash = k.indexOf('/');
     if (slash < 0 || k.includes('#')) continue;
