@@ -241,7 +241,7 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
         {sent && (
           <p className="success">
             {offerup
-              ? 'OfferUp is open in a new tab. The Torque panel in its corner fills each step as you click Next (photos, title, description, price, ZIP) and has a Copy button for every value. Pick the category and condition, check it, then post it yourself.'
+              ? 'OfferUp is open in a new tab. Torque opens its Post an item form and fills it: your watermarked photos, the title, description, price and New or Used. The panel in the corner has a Copy button for every value. Choose the category, set the location, check it, then click Post item yourself.'
               : 'Facebook is open in a new tab and filling in the draft with your watermarked photos. Check everything there, then click Next and Publish yourself.'}
           </p>
         )}
