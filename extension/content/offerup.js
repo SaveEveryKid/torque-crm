@@ -4,9 +4,11 @@
   /**
    * OFFERUP: Torque CRM (Inventory → List on OfferUp) hands a unit over; this
    * runs on offerup.com and fills OfferUp's own posting form: your watermarked
-   * photos, the title, description, price and ZIP. OfferUp's form comes in
-   * steps, so this keeps watching and fills each field as it appears. It never
-   * clicks Next or Post: you check it and post it yourself.
+   * photos, the title, description and price; picks New or Used; chooses the
+   * Vehicles category; and sets the location to Florence (ZIP 35634). It keeps
+   * watching, so each field is filled as it comes on screen. It opens
+   * the form (Post → Sell an item) but never clicks Post item: you check it and
+   * post it yourself.
    *
    * A panel in the corner shows every value with a Copy button, so anything
    * OfferUp's page wouldn't take can be pasted in by hand.
@@ -44,7 +46,7 @@
     fields.forEach(function (f) {
       var row = el("div", "border-top:1px solid #374151;padding:7px 0;display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:start");
       var name = el("div", "color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:.05em", f.name);
-      var state = el("div", "font-size:11px;color:#fbbf24;text-align:right", f.manual ? "by hand" : "waiting");
+      var state = el("div", "font-size:11px;color:#fbbf24;text-align:right", f.manual ? "you do this" : "waiting");
       var value = el("div", "white-space:pre-wrap;overflow-wrap:anywhere;max-height:66px;overflow:hidden", f.shown || f.value);
       var copy = el("button", "align-self:start;border:1px solid #4b5563;background:#1f2937;color:#fff;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px", "Copy");
       copy.type = "button";
@@ -93,6 +95,126 @@
   var norm = Byron.utils.normalizeText;
   var used = new Map(); // text box → the field it was used for (one box is never used for two fields)
 
+  /** "Description (Optional)", "Price *", "Title:" → "description", "price", "title". */
+  function plain(t) {
+    return norm(t).toLowerCase().replace(/\s*\((optional|required)\)/g, "").replace(/\s*[*:]+$/, "").trim();
+  }
+
+  /** Something on screen to click whose own text reads exactly this (the innermost such element). */
+  function clickable(text) {
+    var want = text.toLowerCase();
+    return Array.from(document.querySelectorAll("button, a, [role=button], [role=menuitem], li, span, div")).filter(function (e) {
+      if (e.closest("#torque-offerup-panel") || !form.visible(e)) return false;
+      if (norm(e.textContent).toLowerCase() !== want) return false;
+      return !Array.from(e.children).some(function (c) { return norm(c.textContent).toLowerCase() === want; });
+    })[0] || null;
+  }
+
+  /** Is OfferUp's "Post an item" form on screen? */
+  function formOpen() {
+    return !!(findBox(["Title"], "title") && (form.findFileInput() || clickable("Add photos / video")));
+  }
+
+  /**
+   * Opens the form the way you would: Post, then Sell an item. Only opens it;
+   * the green "Post item" button at the bottom is never touched.
+   */
+  async function openForm() {
+    if (formOpen()) return true;
+    var sell = clickable("Sell an item");
+    if (!sell) {
+      var post = clickable("Post");
+      if (!post) return false;
+      form.fullClick(post.closest("button, a, [role=button]") || post);
+      await Byron.utils.sleep(700);
+      sell = clickable("Sell an item");
+    }
+    if (!sell) return false;
+    form.fullClick(sell.closest("button, a, [role=menuitem], li") || sell);
+    await Byron.utils.sleep(1200);
+    return formOpen();
+  }
+
+  /**
+   * OfferUp's Condition buttons (New, Refurbished, Open Box, Used, Broken): the
+   * one with exactly this word, sitting right under the "Condition" heading.
+   */
+  function conditionButton(word) {
+    var heads = Array.from(document.querySelectorAll("label, span, div, p, h3, h4, legend")).filter(function (e) {
+      return !e.closest("#torque-offerup-panel") && form.visible(e) && plain(e.textContent) === "condition" && !e.children.length;
+    });
+    var want = word.toLowerCase();
+    for (var i = 0; i < heads.length; i += 1) {
+      var scope = heads[i];
+      for (var up = 0; up < 3 && scope.parentElement; up += 1) {
+        scope = scope.parentElement;
+        var hit = Array.from(scope.querySelectorAll("button, [role=button], [role=radio], label, span, div")).filter(function (e) {
+          return form.visible(e) && norm(e.textContent).toLowerCase() === want && !Array.from(e.children).some(function (c) { return norm(c.textContent).toLowerCase() === want; });
+        })[0];
+        if (hit) return hit.closest("button, [role=button], [role=radio], label") || hit;
+      }
+    }
+    return null;
+  }
+
+  async function waitUntil(fn, ms) {
+    var end = Date.now() + ms;
+    while (Date.now() < end) {
+      var v = fn();
+      if (v) return v;
+      await Byron.utils.sleep(150);
+    }
+    return null;
+  }
+  function pressEscape() {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true }));
+  }
+  /** The first of these (exact text, any capitals) that is on screen to click. */
+  function firstClickable(names) {
+    for (var i = 0; i < names.length; i += 1) { var e = clickable(names[i]); if (e) return e; }
+    return null;
+  }
+
+  /**
+   * Category → Vehicles, then the closest kind of vehicle if OfferUp asks
+   * (boats, trailers, otherwise powersports). Tried once; anything it can't
+   * find is left for you.
+   */
+  async function chooseCategory(unit) {
+    var opener = clickable("Choose a category");
+    if (!opener) return clickable("Vehicles") ? "already" : null; // not on screen yet (or already chosen)
+    form.fullClick(opener.closest("button, [role=button], [role=combobox]") || opener);
+    var top = await waitUntil(function () { return clickable("Vehicles"); }, 3000);
+    if (!top) { pressEscape(); return "missed"; }
+    form.fullClick(top.closest("button, [role=option], [role=menuitem], li") || top);
+    await Byron.utils.sleep(700);
+    var t = (unit.title || "").toLowerCase();
+    var kinds = /boat|pontoon|bennington|outboard|mercury/.test(t) ? ["Boats & marine", "Boats & Marine", "Boats"]
+      : /trailer/.test(t) ? ["Trailers", "Trailer"]
+      : /motorcycle|crf|dirt bike/.test(t) ? ["Motorcycles", "Powersport vehicles", "Powersports"]
+      : ["Powersport vehicles", "Powersports vehicles", "Powersports", "ATVs, UTVs & golf carts", "Motorcycles"];
+    var sub = firstClickable(kinds);
+    if (sub) { form.fullClick(sub.closest("button, [role=option], [role=menuitem], li") || sub); return "Vehicles › " + norm(sub.textContent); }
+    return "Vehicles";
+  }
+
+  /** Location → Set location → ZIP 35634 → the confirm button. Tried once. */
+  async function setLocation() {
+    var opener = clickable("Set location");
+    if (!opener) return null;
+    form.fullClick(opener.closest("button, a, [role=button]") || opener);
+    var box = await waitUntil(function () { return findBox(["ZIP code", "Zip code", "ZIP", "Zipcode", "Postal code", "Enter ZIP", "Enter a ZIP"], "zip"); }, 3000);
+    if (!box) return "missed";
+    used.set(box, "zip");
+    box.focus();
+    form.setNativeValue(box, C.OFFERUP.ZIP);
+    await Byron.utils.sleep(900);
+    var ok = firstClickable(["Apply", "Save", "Save location", "Update location", "Update", "Done", "Confirm", "See listings"]);
+    if (!ok) return "typed";
+    form.fullClick(ok.closest("button, [role=button]") || ok);
+    return "set";
+  }
+
   function textBoxes() {
     return Array.from(document.querySelectorAll("input, textarea")).filter(function (c) {
       if (c.tagName === "INPUT" && /^(file|checkbox|radio|submit|button|hidden|image|range|color)$/i.test(c.type || "")) return false;
@@ -124,7 +246,7 @@
     if (own) return own;
     var texts = Array.from(document.querySelectorAll("label, span, div, p, h2, h3, h4, legend")).filter(function (e) {
       if (e.closest("#torque-offerup-panel") || !form.visible(e)) return false;
-      if (wants.indexOf(norm(e.textContent).toLowerCase().replace(/\s*[*:]$/, "")) === -1) return false;
+      if (wants.indexOf(plain(e.textContent)) === -1) return false;
       // the innermost element with that text, not the wrappers around it
       return !Array.from(e.children).some(function (c) { return norm(c.textContent) === norm(e.textContent); });
     });
@@ -155,9 +277,9 @@
       { key: "title", name: "Title", value: unit.title, labels: ["Title", "What are you selling", "Item title", "Add a title"] },
       { key: "description", name: "Description", value: description, labels: ["Description", "Describe your item", "Add a description"] },
       { key: "price", name: "Price", value: unit.price ? String(unit.price) : "", labels: ["Price", "Set a price"] },
-      { key: "zip", name: "ZIP code", value: C.OFFERUP.ZIP, labels: ["ZIP code", "Zip code", "ZIP", "Zipcode", "Postal code"] },
-      { key: "condition", name: "Condition", value: unit.condition === "Used" ? "Used (normal wear)" : "New", manual: true },
-      { key: "category", name: "Category", value: "Vehicles (pick the closest type)", manual: true }
+      { key: "condition", name: "Condition", value: unit.condition === "Used" ? "Used" : "New", choice: true },
+      { key: "category", name: "Category", value: "Vehicles", choice: true },
+      { key: "location", name: "Location", value: "Florence, AL " + C.OFFERUP.ZIP, choice: true }
     ].filter(function (f) { return f.value; });
     buildPanel(unit, fields);
 
@@ -165,8 +287,11 @@
     var photos = { state: "idle", files: null };
     var until = Date.now() + WATCH_MS;
 
+    var opened = 0;
     while (!stopped && Date.now() < until) {
       try {
+        // Get to the form (twice at most; after that it's left to you, so a closed form stays closed).
+        if (!formOpen() && opened < 2 && photos.state === "idle") { opened += 1; await openForm(); }
         // Photos: made once (watermarks on), added as soon as OfferUp shows its photo picker.
         var picker = form.findFileInput();
         if (photos.state === "idle" && picker) {
@@ -194,10 +319,26 @@
           filled[fd.key] = true;
           mark(fd.key, "filled", true);
         });
+        // Condition: the New or Used button, clicked once.
+        if (!filled.condition) {
+          var chip = conditionButton(unit.condition === "Used" ? "Used" : "New");
+          if (chip) { form.fullClick(chip); filled.condition = true; mark("condition", "picked", true); }
+        }
+        // Category and location: once each, after the typed fields, one at a time.
+        var typed = fields.every(function (fd) { return !fd.labels || filled[fd.key]; });
+        if (typed && filled.condition && !filled.category) {
+          var cat = await chooseCategory(unit);
+          if (cat) { filled.category = true; mark("category", cat === "missed" ? "you do this" : cat === "already" ? "already there" : cat, cat !== "missed"); }
+        }
+        if (typed && filled.category && !filled.location) {
+          var loc = await setLocation();
+          if (loc) { filled.location = true; mark("location", loc === "set" ? "set" : loc === "typed" ? "ZIP typed: confirm it" : "you do this", loc === "set"); }
+        }
         var waiting = fields.filter(function (fd) { return !fd.manual && fd.key !== "photos" && !filled[fd.key]; }).map(function (fd) { return fd.name; });
-        if (photos.state !== "done" && !picker) status("Log in to OfferUp if asked, then open Post. I'll fill the form when it shows.");
-        else if (waiting.length) status("Filled what's on this step. Click Next on OfferUp; still to come: " + waiting.join(", ") + ".");
-        else status("Everything I can fill is in. Pick the category and condition, check it, then post it yourself.");
+        var yours = Object.keys(ui.rows).filter(function (k) { return /you do this|confirm it/.test(ui.rows[k].textContent); }).map(function (k) { return k; });
+        if (photos.state !== "done" && !picker) status("Log in to OfferUp if asked, then click Post → Sell an item. I'll fill the form when it shows.");
+        else if (waiting.length) status("Filled what I can see so far. Scroll down or continue on OfferUp; still to come: " + waiting.join(", ") + ".");
+        else status(yours.length ? "Almost there. Do these yourself: " + yours.join(", ") + ". Then check it and click Post item." : "All filled in. Check it, then click Post item yourself.");
       } catch (error) {
         status(error && error.message ? error.message : "Something went wrong.", true);
         if (photos.state === "working") photos.state = "failed";
