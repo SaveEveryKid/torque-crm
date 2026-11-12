@@ -1,26 +1,62 @@
 {
   "manifest_version": 3,
   "name": "Torque Marketplace Lister",
-  "version": "0.9.3",
-  "description": "List a Shoals Outdoor Sports unit from Torque CRM as an unpublished Facebook Marketplace draft (you review and publish).",
-  "permissions": ["storage", "unlimitedStorage", "tabs"],
+  "version": "0.10.0",
+  "description": "List a Shoals Outdoor Sports unit from Torque CRM as a Facebook Marketplace draft or an OfferUp post (you review and publish).",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "tabs"
+  ],
   "host_permissions": [
     "https://www.facebook.com/*",
+    "https://offerup.com/*",
+    "https://www.offerup.com/*",
     "https://cdpcdn.dx1app.com/*",
     "https://*.dx1app.com/*"
   ],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_title": "Torque Marketplace Lister: list units from Torque CRM → Inventory" },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Torque Marketplace Lister: list units from Torque CRM \u2192 Inventory"
+  },
   "web_accessible_resources": [],
   "content_scripts": [
     {
-      "matches": ["https://torque-crm.byrongreen2012.workers.dev/*", "http://127.0.0.1:8788/*", "http://localhost:5180/*"],
-      "js": ["content/crm-bridge.js"],
+      "matches": [
+        "https://torque-crm.byrongreen2012.workers.dev/*",
+        "http://127.0.0.1:8788/*",
+        "http://localhost:5180/*"
+      ],
+      "js": [
+        "content/crm-bridge.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://www.facebook.com/marketplace/*"],
-      "js": ["lib/constants.js", "lib/utils.js", "lib/facebook-form.js", "content/facebook.js"],
+      "matches": [
+        "https://www.facebook.com/marketplace/*"
+      ],
+      "js": [
+        "lib/constants.js",
+        "lib/utils.js",
+        "lib/facebook-form.js",
+        "content/facebook.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://offerup.com/*",
+        "https://www.offerup.com/*"
+      ],
+      "js": [
+        "lib/constants.js",
+        "lib/utils.js",
+        "lib/facebook-form.js",
+        "content/offerup.js"
+      ],
       "run_at": "document_idle"
     }
   ]

@@ -23,6 +23,8 @@ export interface ListerInfo {
   paymentSpec?: { width: number; x: number; y: number; anchor: string; opacity: number };
   /** Units the extension has sent to Facebook (id → when, title). */
   listed?: Listed;
+  /** OfferUp (extension 0.10.0 or newer): how many photos it takes, and what was sent there. */
+  offerup?: { maxPhotos: number; listed?: Listed };
 }
 
 export interface ListingUnit {
@@ -44,12 +46,15 @@ export interface ListingUnit {
   accessories?: string;
   /** The whole description, exactly as shown in Torque (the extension types this). */
   description?: string;
+  /** New or Used (OfferUp asks). */
+  condition?: string | null;
+  stock?: string | null;
 }
 
 type Reply = { source: 'torque-lister'; id: string | null; ok: boolean; error?: string; type?: string } & Partial<ListerInfo>;
 
 let seq = 0;
-function ask(type: 'PING' | 'LIST_ON_MARKETPLACE', unit?: ListingUnit, timeout = 4000): Promise<Reply> {
+function ask(type: 'PING' | 'LIST_ON_MARKETPLACE' | 'LIST_ON_OFFERUP', unit?: ListingUnit, timeout = 4000): Promise<Reply> {
   const id = `m${Date.now()}-${++seq}`;
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => (removeEventListener('message', on), reject(new Error('NOT_INSTALLED'))), timeout);
@@ -73,6 +78,7 @@ export function useLister(): ListerInfo | false | null {
     ask('PING', undefined, 2500)
       .then((r) => {
         if (r.ok && r.listed) void syncListed(r.listed);
+        if (r.ok && r.offerup?.listed) void syncListed(r.offerup.listed, 'offerup');
         if (live) setInfo(r.ok ? (r as unknown as ListerInfo) : false);
       })
       .catch(() => live && setInfo(false));
@@ -157,7 +163,7 @@ export function olderThan(a: string | undefined, b: string): boolean {
 export function toListing(u: Unit, photos: string[], payment: number | null, paymentMark: string | null, accessories = '', description = ''): ListingUnit {
   const uploads: string[] = [];
   const refs = photos.map((p) => (p.startsWith('data:') ? `upload:${uploads.push(p) - 1}` : p));
-  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment, paymentMark, photos: refs, uploads, accessories, ...(description ? { description } : {}) };
+  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment, paymentMark, photos: refs, uploads, accessories, condition: u.condition, stock: u.stock, ...(description ? { description } : {}) };
 }
 
 export async function listOnMarketplace(u: ListingUnit): Promise<void> {
@@ -168,15 +174,35 @@ export async function listOnMarketplace(u: ListingUnit): Promise<void> {
   await markListed(u.id, u.title);
 }
 
+/**
+ * LIST ON OFFERUP, through the same extension (0.10.0 or newer). It opens
+ * OfferUp's own posting page and fills it as each step appears: watermarked
+ * photos, title, description, price and ZIP. You pick the category and
+ * condition, check it, and post it yourself.
+ */
+export const MIN_EXTENSION_OFFERUP = '0.10.0';
+
+export async function listOnOfferUp(u: ListingUnit): Promise<void> {
+  const r = await ask('LIST_ON_OFFERUP', u, 20000).catch((e: Error) => {
+    throw new Error(e.message === 'NOT_INSTALLED' ? 'The Torque Marketplace Lister extension isn’t answering. Is it installed and turned on?' : e.message);
+  });
+  if (!r.ok) throw new Error(/Unknown message/i.test(r.error ?? '') ? 'Your Torque Marketplace Lister is too old for OfferUp. Update it (see below).' : r.error || 'The extension couldn’t start the listing.');
+  await markListed(u.id, u.title, false, 'offerup');
+}
+
+/** Where a unit has been sent: Facebook Marketplace or OfferUp (each remembered on its own). */
+export type Site = 'facebook' | 'offerup';
+const LISTED_KEY: Record<Site, string> = { facebook: 'marketplace', offerup: 'offerup' };
+
 /** Units sent to Marketplace: when, and the title then. `off` = you marked it not listed. */
 export type Listed = Record<string, { at: string; title: string; off?: boolean }>;
 
-const readListed = async () => ((await kv.get('marketplace')).marketplace as Listed | undefined) ?? {};
+const readListed = async (site: Site = 'facebook') => ((await kv.get(LISTED_KEY[site]))[LISTED_KEY[site]] as Listed | undefined) ?? {};
 
-/** Mark a unit listed (or, with off, not listed) on Marketplace. */
-export async function markListed(id: string, title: string, off = false): Promise<void> {
-  const m = await readListed();
-  await kv.set({ marketplace: { ...m, [id]: { at: new Date().toISOString(), title, ...(off ? { off: true } : {}) } } });
+/** Mark a unit listed (or, with off, not listed) on Marketplace or OfferUp. */
+export async function markListed(id: string, title: string, off = false, site: Site = 'facebook'): Promise<void> {
+  const m = await readListed(site);
+  await kv.set({ [LISTED_KEY[site]]: { ...m, [id]: { at: new Date().toISOString(), title, ...(off ? { off: true } : {}) } } });
 }
 
 /**
@@ -197,13 +223,13 @@ export function mergeListed(ours: Listed, theirs: Listed): Listed | null {
   return out;
 }
 
-export async function syncListed(theirs: Listed): Promise<void> {
-  const merged = mergeListed(await readListed(), theirs);
-  if (merged) await kv.set({ marketplace: merged });
+export async function syncListed(theirs: Listed, site: Site = 'facebook'): Promise<void> {
+  const merged = mergeListed(await readListed(site), theirs);
+  if (merged) await kv.set({ [LISTED_KEY[site]]: merged });
 }
 
-/** Units on Marketplace (marked listed, not unmarked). */
-export function useListed(): Listed {
-  const all = useStoredKey<Listed>('marketplace', {});
+/** Units on Marketplace or OfferUp (marked listed, not unmarked). */
+export function useListed(site: Site = 'facebook'): Listed {
+  const all = useStoredKey<Listed>(LISTED_KEY[site], {});
   return useMemo(() => Object.fromEntries(Object.entries(all).filter(([, v]) => !v.off)), [all]);
 }

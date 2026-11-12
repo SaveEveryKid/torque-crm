@@ -184,6 +184,7 @@ export function Inventory() {
   const inv = useInventory();
   const [open, setOpen] = useState<Unit | null>(null);
   const [listing, setListing] = useState<Unit | null>(null);
+  const [offering, setOffering] = useState<Unit | null>(null);
   const listed = useListed();
   useLister(); // also picks up what the extension has sent to Facebook
   return (
@@ -210,15 +211,17 @@ export function Inventory() {
         ))}
       </div>
       {inv.pager}
-      {open && <UnitDetails u={open} onClose={() => setOpen(null)} onList={() => (setListing(open), setOpen(null))} />}
+      {open && <UnitDetails u={open} onClose={() => setOpen(null)} onList={() => (setListing(open), setOpen(null))} onOfferUp={() => (setOffering(open), setOpen(null))} />}
       {listing && <MarketplaceDialog u={listing} onClose={() => setListing(null)} />}
+      {offering && <MarketplaceDialog u={offering} site="offerup" onClose={() => setOffering(null)} />}
     </div>
   );
 }
 
-function UnitDetails({ u, onClose, onList }: { u: Unit; onClose: () => void; onList: () => void }) {
+function UnitDetails({ u, onClose, onList, onOfferUp }: { u: Unit; onClose: () => void; onList: () => void; onOfferUp: () => void }) {
   const customers = useCustomers();
   const listed = useListed()[u.id];
+  const onOffer = useListed('offerup')[u.id];
   const [who, setWho] = useState('');
   const [raw, setRaw] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -276,9 +279,30 @@ function UnitDetails({ u, onClose, onList }: { u: Unit; onClose: () => void; onL
           </>
         )}
       </div>
+      <div className="row mp-status">
+        {onOffer ? (
+          <>
+            <span className="badge ready">Sent to OfferUp</span>
+            <span className="muted small">{when(onOffer.at)}</span>
+            <button className="link small" onClick={() => void markListed(u.id, u.title, true, 'offerup')}>
+              Mark not listed
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="muted small">Not on OfferUp yet</span>
+            <button className="link small" onClick={() => void markListed(u.id, u.title, false, 'offerup')}>
+              Mark as listed
+            </button>
+          </>
+        )}
+      </div>
       <div className="row">
         <button className="btn primary" disabled={!u.photos.length} onClick={onList} title="Fill a Facebook Marketplace draft with this unit and your watermarked photos">
           <Icon name="upload" size={15} /> {listed ? 'List again' : 'List on Marketplace'}
+        </button>
+        <button className="btn primary" disabled={!u.photos.length} onClick={onOfferUp} title="Open OfferUp's posting page and fill it with this unit and your watermarked photos">
+          <Icon name="upload" size={15} /> {onOffer ? 'List on OfferUp again' : 'List on OfferUp'}
         </button>
         {u.url && (
           <a className="btn" href={u.url} target="_blank" rel="noreferrer">

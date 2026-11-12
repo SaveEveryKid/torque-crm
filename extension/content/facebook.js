@@ -62,6 +62,7 @@
     var response = await send({ type: "GET_LISTING_STATE" });
     if (!response.ok || !response.state) return;
     var state = response.state;
+    if (state.target && state.target !== "facebook") return; // an OfferUp listing: not ours
     if (!/\/marketplace\/(?:create|sell)/i.test(location.pathname)) {
       // Facebook sent us elsewhere (usually: not logged in).
       if (Date.now() - new Date(state.createdAt).getTime() < 5 * 60000) {

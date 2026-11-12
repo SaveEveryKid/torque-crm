@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { money, type Unit } from '../crm/inventory';
-import { listingDescription, listOnMarketplace, MIN_EXTENSION, olderThan, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
+import { listingDescription, listOnMarketplace, listOnOfferUp, MIN_EXTENSION, MIN_EXTENSION_OFFERUP, olderThan, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
 import { accessoryBlock, useUnitAccessories } from '../crm/accessories';
 import { saveBlurb, useBlurbs, writeBlurb } from '../crm/blurb';
 import { aiReady } from '../crm/ai';
@@ -14,10 +14,13 @@ import { Icon, Modal, when } from './kit';
  * on top) and the description, then List on Facebook. The extension opens
  * Facebook's vehicle form and fills it; you click Publish there yourself.
  */
-export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void }) {
+export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; onClose: () => void; site?: 'facebook' | 'offerup' }) {
   const lister = useLister();
-  const listed = useListed()[u.id];
-  const max = lister ? lister.maxPhotos : 20;
+  const offerup = site === 'offerup';
+  const where = offerup ? 'OfferUp' : 'Facebook';
+  const needs = offerup ? MIN_EXTENSION_OFFERUP : MIN_EXTENSION;
+  const listed = useListed(site)[u.id];
+  const max = offerup ? (lister && lister.offerup ? lister.offerup.maxPhotos : 12) : lister ? lister.maxPhotos : 20;
   const [off, setOff] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
   }, [savedBlurb, asked, blurb]);
   // The description, written here (blurb, accessories and total included); the extension types it exactly.
   const description = listingDescription(payment, accessories, settings.name, shown);
-  const outdated = !!lister && olderThan(lister.version, MIN_EXTENSION);
+  const outdated = !!lister && olderThan(lister.version, needs);
   const toggle = (p: string) => setOff((s) => (s.has(p) ? new Set([...s].filter((x) => x !== p)) : new Set([...s, p])));
 
   const go = async () => {
@@ -103,7 +106,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
     try {
       if (!payment || !markUrl) throw new Error('Type the monthly payment from your grid first.');
       await rememberPayment(u.id, payment);
-      await listOnMarketplace(toListing(u, chosen, payment, markUrl, accessories, description));
+      await (offerup ? listOnOfferUp : listOnMarketplace)(toListing(u, chosen, payment, markUrl, accessories, description));
       setSent(true);
     } catch (e) {
       setError((e as Error).message);
@@ -115,7 +118,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
   return (
     <Modal
       wide
-      title="List on Facebook Marketplace"
+      title={offerup ? 'List on OfferUp' : 'List on Facebook Marketplace'}
       onClose={onClose}
       foot={
         <>
@@ -124,7 +127,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
           </button>
           {lister && !sent && (
             <button className="btn primary" disabled={busy || !chosen.length || lister.missingWatermarks || !markUrl || outdated} onClick={() => void go()}>
-              <Icon name="external" size={16} /> {busy ? 'Opening Facebook…' : `List on Facebook (${chosen.length} photo${chosen.length === 1 ? '' : 's'})`}
+              <Icon name="external" size={16} /> {busy ? `Opening ${where}…` : `List on ${where} (${chosen.length} photo${chosen.length === 1 ? '' : 's'})`}
             </button>
           )}
         </>
@@ -132,19 +135,19 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
     >
       <div className="stack mp">
         {lister === false && <InstallSteps />}
-        {outdated && <InstallSteps update={lister.version} />}
+        {outdated && <InstallSteps update={lister.version} needs={needs} />}
         {lister && lister.missingWatermarks && <p className="error">The extension is missing its watermark files. Reinstall the latest Torque Marketplace Lister.</p>}
-        {listed && <p className="notice small">You sent this unit to Marketplace {when(listed.at)}.</p>}
+        {listed && <p className="notice small">You sent this unit to {offerup ? 'OfferUp' : 'Marketplace'} {when(listed.at)}.</p>}
 
         <dl className="facts">
-          <dt>Vehicle type</dt>
-          <dd>{lister ? lister.vehicleType : 'Other'}</dd>
+          <dt>{offerup ? 'Category' : 'Vehicle type'}</dt>
+          <dd>{offerup ? <span className="muted">you pick it on OfferUp</span> : lister ? lister.vehicleType : 'Other'}</dd>
           <dt>Year / make / model</dt>
-          <dd>{[u.year, u.make, u.model].filter(Boolean).join(' · ') || <span className="muted">fill in on Facebook</span>}</dd>
+          <dd>{[u.year, u.make, u.model].filter(Boolean).join(' · ') || <span className="muted">fill in on {where}</span>}</dd>
           <dt>Price</dt>
-          <dd>{u.price ? money(u.price) : <span className="error-text">No price: type it on Facebook</span>}</dd>
+          <dd>{u.price ? money(u.price) : <span className="error-text">No price: type it on {where}</span>}</dd>
           <dt>Location</dt>
-          <dd>{lister ? lister.location : 'Florence, Alabama'}</dd>
+          <dd>{offerup ? 'ZIP 35634 (Florence, AL)' : lister ? lister.location : 'Florence, Alabama'}</dd>
         </dl>
 
         <label className="field mp-payment">
@@ -166,7 +169,7 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
 
         <div className="row between">
           <h3>
-            Photos <span className="muted small">{chosen.length} of {photos.length} chosen{photos.length > max ? ` (Facebook takes up to ${max})` : ''}</span>
+            Photos <span className="muted small">{chosen.length} of {photos.length} chosen{photos.length > max ? ` (${where} takes up to ${max})` : ''}</span>
           </h3>
           <span className="row tight">
             {own.length > 0 && u.photos.some((p) => !off.has(p)) && (
@@ -237,7 +240,9 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
         {error && <p className="error">{error}</p>}
         {sent && (
           <p className="success">
-            Facebook is open in a new tab and filling in the draft with your watermarked photos. Check everything there, then click Next and Publish yourself.
+            {offerup
+              ? 'OfferUp is open in a new tab. The Torque panel in its corner fills each step as you click Next (photos, title, description, price, ZIP) and has a Copy button for every value. Pick the category and condition, check it, then post it yourself.'
+              : 'Facebook is open in a new tab and filling in the draft with your watermarked photos. Check everything there, then click Next and Publish yourself.'}
           </p>
         )}
       </div>
@@ -271,12 +276,12 @@ function Preview({ photo, lister, paymentMark: pm }: { photo: string; lister: Li
   );
 }
 
-function InstallSteps({ update }: { update?: string }) {
+function InstallSteps({ update, needs = MIN_EXTENSION }: { update?: string; needs?: string }) {
   return (
     <div className={`notice stack tight${update ? ' mp-update' : ''}`}>
       <strong>
         {update
-          ? `Update your Torque Marketplace Lister: you have v${update}, this needs v${MIN_EXTENSION} or newer`
+          ? `Update your Torque Marketplace Lister: you have v${update}, this needs v${needs} or newer`
           : 'One-time setup: install the Torque Marketplace Lister in Chrome'}
       </strong>
       {update && (
@@ -299,7 +304,7 @@ function InstallSteps({ update }: { update?: string }) {
             <li>Click Load unpacked and pick the unzipped folder.</li>
           </>
         )}
-        <li>Reload this page. Stay logged in to Facebook in Chrome.</li>
+        <li>Reload this page. Stay logged in to Facebook (and OfferUp, if you list there) in Chrome.</li>
       </ol>
     </div>
   );
