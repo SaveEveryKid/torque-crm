@@ -2,7 +2,7 @@ import { MarketplaceDialog } from '../ui/MarketplaceDialog';
 import { markListed, useLister, useListed } from '../crm/lister';
 import { AccessoriesEditor } from '../ui/AccessoriesEditor';
 import { useEffect, useMemo, useState } from 'react';
-import { allUnits, diffInventory, money, onFacebook, readUnit, searchAll, searchConfig, searchInventory, snapshotOf, toVehicleRef, usefulFacets, type InventoryChanges, type InventorySnapshot, type SearchResult, type Unit } from '../crm/inventory';
+import { allUnits, diffInventory, money, onSites, readUnit, searchAll, searchConfig, searchInventory, snapshotOf, toVehicleRef, usefulFacets, type InventoryChanges, type InventorySnapshot, type SearchResult, type Unit } from '../crm/inventory';
 import { kv } from '../core/storage/kv';
 import { fullName, logActivity, updateCustomer, useCustomers, useSettings, saveSettings } from '../crm/store';
 import type { VehicleRef } from '../crm/types';
@@ -19,6 +19,11 @@ function useInventory() {
   // Facebook Marketplace: all units, not listed yet, or listed (remembered).
   const fb = settings.inventoryFacebook ?? 'all';
   const listedMap = useListed();
+  // OfferUp: the same three choices.
+  const ou = settings.inventoryOfferUp ?? 'all';
+  const offerMap = useListed('offerup');
+  // Either filter on: the website doesn't know where you've listed, so every match is loaded and filtered here.
+  const narrowed = fb !== 'all' || ou !== 'all';
   const [query, setQuery] = useState('');
   const [typed, setTyped] = useState('');
   const [page, setPage] = useState(0);
@@ -42,7 +47,7 @@ function useInventory() {
     // Your store (Settings → Location) on top of the other filters.
     const params = { query, index, filters: settings.inventoryLocation ? { ...filters, [LOCATION_FACET]: settings.inventoryLocation } : filters };
     // On/not on Facebook isn't something the website knows: load every match and filter here.
-    (fb === 'all' ? searchInventory(settings.inventoryPage, { ...params, page }) : searchAll(settings.inventoryPage, params))
+    (!narrowed ? searchInventory(settings.inventoryPage, { ...params, page }) : searchAll(settings.inventoryPage, params))
       .then(async (r) => {
         if (!live) return;
         setRes(r);
@@ -54,9 +59,12 @@ function useInventory() {
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, fb === 'all' ? page : -1, index, filters, settings.inventoryPage, settings.inventoryLocation, fb, reload]);
+  }, [query, !narrowed ? page : -1, index, filters, settings.inventoryPage, settings.inventoryLocation, narrowed, reload]);
   // What's shown: the page from the website, or this page of the Facebook-filtered list.
-  const view = useMemo(() => (res && fb !== 'all' ? onFacebook(res, listedMap, fb, page) : res), [res, fb, listedMap, page]);
+  const view = useMemo(
+    () => (res && narrowed ? onSites(res, [{ listed: listedMap, want: fb }, { listed: offerMap, want: ou }], page) : res),
+    [res, narrowed, fb, ou, listedMap, offerMap, page],
+  );
 
   // REFRESH: read the whole inventory fresh from the website (no saved copies), show it, and say what changed since last time.
   const [refreshing, setRefreshing] = useState(false);
@@ -128,6 +136,16 @@ function useInventory() {
         <option value="not">Not listed on Facebook yet</option>
         <option value="listed">Listed on Facebook</option>
       </select>
+      <select
+        className={ou !== 'all' ? 'on' : ''}
+        value={ou}
+        onChange={(e) => (void saveSettings({ inventoryOfferUp: e.target.value as 'all' | 'not' | 'listed' }), setPage(0))}
+        aria-label="OfferUp"
+      >
+        <option value="all">OfferUp: any</option>
+        <option value="not">Not listed on OfferUp yet</option>
+        <option value="listed">Listed on OfferUp</option>
+      </select>
       {sorts.length > 1 && (
         <select value={index} onChange={(e) => (setIndex(e.target.value), setPage(0))} aria-label="Sort">
           {sorts.map((s, i) => (
@@ -160,13 +178,25 @@ function useInventory() {
       </div>
     ) : null;
 
-  return { res: view, fb, error, loading: loading || refreshing, refreshing, changes, dismiss: () => setChanges(null), controls, pager, refresh, units: (view?.hits ?? []).map(readUnit) };
+  return { res: view, fb, ou, error, loading: loading || refreshing, refreshing, changes, dismiss: () => setChanges(null), controls, pager, refresh, units: (view?.hits ?? []).map(readUnit) };
 }
 
-function UnitCard({ u, onClick, listed }: { u: Unit; onClick: () => void; listed?: string }) {
+/** "12 not on Facebook yet", "3 listed on OfferUp", "5 on Facebook, not on OfferUp yet"… */
+export function whereListed(fb: 'all' | 'not' | 'listed', ou: 'all' | 'not' | 'listed'): string {
+  const say = (site: string, w: 'not' | 'listed', short = false) => (w === 'listed' ? `${short ? 'on' : 'listed on'} ${site}` : `not on ${site} yet`);
+  if (fb === 'all' && ou === 'all') return 'units';
+  if (ou === 'all') return say('Facebook', fb as 'not' | 'listed');
+  if (fb === 'all') return say('OfferUp', ou as 'not' | 'listed');
+  return `${say('Facebook', fb as 'not' | 'listed', true)}, ${say('OfferUp', ou as 'not' | 'listed', true)}`;
+}
+
+function UnitCard({ u, onClick, listed, offered }: { u: Unit; onClick: () => void; listed?: string; offered?: string }) {
+  // One badge: Facebook, OfferUp, or both.
+  const badge = listed && offered ? 'Facebook + OfferUp' : listed ? 'Listed' : offered ? 'OfferUp' : null;
+  const tip = [listed && `Sent to Marketplace ${when(listed)}`, offered && `Sent to OfferUp ${when(offered)}`].filter(Boolean).join(' · ');
   return (
     <div className="card unit" onClick={onClick}>
-      {listed && <span className="badge ready mp-listed" title={`Sent to Marketplace ${when(listed)}`}>Listed</span>}
+      {badge && <span className="badge ready mp-listed" title={tip}>{badge}</span>}
       <div className="img">{u.image ? <img src={u.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <Icon name="car" size={28} />}</div>
       <div className="body">
         <div className="title">{u.title}</div>
@@ -186,7 +216,8 @@ export function Inventory() {
   const [listing, setListing] = useState<Unit | null>(null);
   const [offering, setOffering] = useState<Unit | null>(null);
   const listed = useListed();
-  useLister(); // also picks up what the extension has sent to Facebook
+  const offered = useListed('offerup');
+  useLister(); // also picks up what the extension has sent to Facebook and OfferUp
   return (
     <div className="page">
       <div className="page-head">
@@ -194,7 +225,7 @@ export function Inventory() {
           <h1>Inventory</h1>
           <p>
             In stock at Shoals Outdoor Sports
-            {inv.res ? ` · ${inv.res.nbHits.toLocaleString()} ${inv.fb === 'not' ? 'not on Facebook yet' : inv.fb === 'listed' ? 'listed on Facebook' : 'units'}` : ''}
+            {inv.res ? ` · ${inv.res.nbHits.toLocaleString()} ${whereListed(inv.fb, inv.ou)}` : ''}
           </p>
         </div>
         <button className="btn" onClick={() => void inv.refresh()} disabled={inv.loading} title="Read the inventory fresh from the website and show what changed">
@@ -204,10 +235,18 @@ export function Inventory() {
       {inv.changes && <RefreshReport r={inv.changes} onClose={inv.dismiss} />}
       {inv.controls}
       {inv.error && <p className="error">{inv.error}</p>}
-      {inv.res && inv.units.length === 0 && (inv.fb === "not" ? <Empty title="Everything here is already on Facebook">Nice work. Change the Facebook filter to see them.</Empty> : <Empty title="No units match">Try fewer filters.</Empty>)}
+      {inv.res && inv.units.length === 0 && (inv.fb === 'not' && inv.ou === 'all' ? (
+        <Empty title="Everything here is already on Facebook">Nice work. Change the Facebook filter to see them.</Empty>
+      ) : inv.ou === 'not' && inv.fb === 'all' ? (
+        <Empty title="Everything here is already on OfferUp">Nice work. Change the OfferUp filter to see them.</Empty>
+      ) : inv.ou === 'listed' && inv.fb === 'all' ? (
+        <Empty title="Nothing listed on OfferUp yet">Open a unit and click List on OfferUp, or mark one as listed.</Empty>
+      ) : (
+        <Empty title="No units match">Try fewer filters.</Empty>
+      ))}
       <div className="units">
         {inv.units.map((u) => (
-          <UnitCard key={u.id} u={u} onClick={() => setOpen(u)} listed={listed[u.id]?.at} />
+          <UnitCard key={u.id} u={u} onClick={() => setOpen(u)} listed={listed[u.id]?.at} offered={offered[u.id]?.at} />
         ))}
       </div>
       {inv.pager}

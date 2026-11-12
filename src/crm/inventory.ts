@@ -126,7 +126,15 @@ export async function searchAll(path: string, p: Omit<SearchParams, 'page' | 'pe
 
 /** A search narrowed to units on (or not yet on) Facebook Marketplace, a page at a time. */
 export function onFacebook(all: SearchResult, listed: Record<string, unknown>, want: 'not' | 'listed', page: number, perPage = 24): SearchResult {
-  const hits = all.hits.filter((h) => (want === 'listed') === !!listed[h.objectID]);
+  return onSites(all, [{ listed, want }], page, perPage);
+}
+
+/**
+ * A search narrowed by where units are listed: Facebook Marketplace, OfferUp,
+ * or both at once (a unit must pass every filter that isn't "all").
+ */
+export function onSites(all: SearchResult, sites: { listed: Record<string, unknown>; want: 'all' | 'not' | 'listed' }[], page: number, perPage = 24): SearchResult {
+  const hits = all.hits.filter((h) => sites.every((s) => s.want === 'all' || (s.want === 'listed') === !!s.listed[h.objectID]));
   const nbPages = Math.max(1, Math.ceil(hits.length / perPage));
   const at = Math.min(page, nbPages - 1);
   return { ...all, hits: hits.slice(at * perPage, (at + 1) * perPage), nbHits: hits.length, page: at, nbPages };

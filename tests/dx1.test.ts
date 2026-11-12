@@ -44,7 +44,7 @@ describe('Refresh: what changed on the website', async () => {
 });
 
 describe('Inventory: only units not on Facebook yet', async () => {
-  const { onFacebook } = await import('../src/crm/inventory');
+  const { onFacebook, onSites } = await import('../src/crm/inventory');
   const all = { hits: Array.from({ length: 30 }, (_, i) => ({ objectID: `u${i}` })), nbHits: 30, page: 0, nbPages: 1, facets: {} };
   const listed = { u0: { at: 'x' }, u5: { at: 'x' }, u29: { at: 'x' } };
   it('leaves out the listed ones and pages the rest', () => {
@@ -54,5 +54,12 @@ describe('Inventory: only units not on Facebook yet', async () => {
     expect(p0.hits.map((h) => h.objectID)).not.toContain('u0');
     expect(onFacebook(all, listed, 'not', 1).hits).toHaveLength(3);
     expect(onFacebook(all, listed, 'listed', 0).hits.map((h) => h.objectID)).toEqual(['u0', 'u5', 'u29']);
+    // OfferUp on its own, and both filters together.
+    const offered = { u5: {}, u7: {} };
+    expect(onSites(all, [{ listed, want: 'all' }, { listed: offered, want: 'listed' }], 0).hits.map((h) => h.objectID)).toEqual(['u5', 'u7']);
+    expect(onSites(all, [{ listed, want: 'listed' }, { listed: offered, want: 'listed' }], 0).hits.map((h) => h.objectID)).toEqual(['u5']);
+    expect(onSites(all, [{ listed, want: 'listed' }, { listed: offered, want: 'not' }], 0).hits.map((h) => h.objectID)).toEqual(['u0', 'u29']);
+    expect(onSites(all, [{ listed, want: 'not' }, { listed: offered, want: 'not' }], 0).nbHits).toBe(all.hits.length - 4);
+    expect(onSites(all, [{ listed, want: 'all' }, { listed: offered, want: 'all' }], 0).nbHits).toBe(all.hits.length);
   });
 });
