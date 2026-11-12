@@ -159,12 +159,10 @@ export function accessoryBlock(list: UnitAccessory[], unitPrice: number | null):
   if (!items.length) return '';
   const lines = items.map((a) => `• ${a.description}`);
   const extra = items.reduce((s, a) => s + installed(a), 0);
-  const out = ['Equipped with:', ...lines, ''];
-  if (unitPrice && unitPrice > 0) {
-    out.push(extra > 0 ? `Total price as equipped: ${money(unitPrice + extra)} (unit ${money(unitPrice)} + accessories ${money(extra)})` : `Total price as equipped: ${money(unitPrice)}`);
-  } else if (extra > 0) {
-    out.push(`Accessories total: ${money(extra)}`);
-  }
+  const out = ['Equipped with:', '', ...lines];
+  if (unitPrice && unitPrice > 0) out.push('', `💰 Base unit: ${money(unitPrice)}`);
+  if (extra > 0) out.push('', `💰 Accessories: ${money(extra)}`);
+  if (unitPrice && unitPrice > 0) out.push('', `Total equipped price: ${money(unitPrice + extra)}`);
   return out.join('\n');
 }
 

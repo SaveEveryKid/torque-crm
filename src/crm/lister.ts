@@ -82,27 +82,31 @@ export function useLister(): ListerInfo | false | null {
 }
 
 /**
- * The Marketplace description, as Byron wrote it. {payment}: the monthly
- * payment you type (that line is left out without one); {accessories}: the
- * unit's accessories and total as equipped (left out when it has none);
- * {name}: your name from Settings.
+ * The Marketplace description, laid out the way Byron wrote it:
+ *
+ *   A youth side-by-side built for family off-road adventures! …   ← short blurb
+ *   ✅ NO DEALER FEES!
+ *   Equipped with: • …  💰 Base unit  💰 Accessories  Total equipped price
+ *   Payments as low as $119/mo (WAC; ask for financing terms).
+ *   ⏳ Message me…  ‼️ Ask for Byron Green ‼️  store, address, website
+ *
+ * (a blank line between each part). Parts with nothing to say are left out.
  */
-export const DESCRIPTION_TEMPLATE = [
-  'Payments as low as {payment} (WAC)',
-  '✅️ NO DEALER FEES! ✅️',
-  '',
-  '{accessories}',
-  '',
-  '⏳️ Message me with any questions or to set up a time to see this unit! ⏳️',
-  '',
-  '‼️Ask for {name}‼️',
-  'Shoals Outdoor Sports',
-  '3516 Florence Blvd Florence, AL 35634',
-  '🌐 shoalsoutdoorsports dot com',
-].join('\n');
-
-export const listingDescription = (payment: number | null, accessories: string, name = 'Byron Green') =>
-  describe(DESCRIPTION_TEMPLATE.replace('{name}', name.trim() || 'Byron Green'), payment, accessories);
+export function listingDescription(payment: number | null, accessories: string, name = 'Byron Green', blurb = ''): string {
+  const parts: string[] = [];
+  if (blurb.trim()) parts.push(blurb.trim());
+  parts.push('✅ NO DEALER FEES!');
+  if (accessories.trim()) parts.push(accessories.trim());
+  if (payment && payment > 0) parts.push(`Payments as low as ${paymentText(payment)}/mo (WAC; ask for financing terms).`);
+  parts.push(
+    '⏳ Message me with any questions or to set up a time to see this unit!',
+    `‼️ Ask for ${name.trim() || 'Byron Green'} ‼️`,
+    'Shoals Outdoor Sports',
+    '3516 Florence Blvd, Florence, AL 35634',
+    '🌐 shoalsoutdoorsports dot com',
+  );
+  return parts.join('\n\n');
+}
 
 /** The listing description for a unit (same as the extension: payment filled in, or that line left out). */
 export function describe(template: string, payment: number | null, accessories = ''): string {

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { money, type Unit } from '../crm/inventory';
 import { listingDescription, listOnMarketplace, MIN_EXTENSION, olderThan, rememberPayment, toListing, useLister, useListed, usePayments, type ListerInfo } from '../crm/lister';
 import { accessoryBlock, useUnitAccessories } from '../crm/accessories';
+import { saveBlurb, useBlurbs, writeBlurb } from '../crm/blurb';
+import { aiReady } from '../crm/ai';
 import { prepareOwnPhoto } from '../crm/ownPhotos';
 import { paymentMark } from '../crm/paymentMark';
 import { useSettings } from '../crm/store';
@@ -66,8 +68,32 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
     }
   };
   const removeOwn = (p: string) => setOwn((o) => o.filter((x) => x !== p));
-  // The description, written here (accessories and total as equipped included); the extension types it exactly.
-  const description = listingDescription(payment, accessories, settings.name);
+  // The short product blurb at the top: saved per unit; Claude writes it the first time.
+  const savedBlurb = useBlurbs()[u.id];
+  const [blurb, setBlurb] = useState<string | null>(null);
+  const [writing, setWriting] = useState(false);
+  const shown = blurb ?? savedBlurb ?? '';
+  const rewrite = async () => {
+    setWriting(true);
+    try {
+      const b = await writeBlurb(u, settings);
+      setBlurb(b);
+      await saveBlurb(u.id, b);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setWriting(false);
+    }
+  };
+  const [asked, setAsked] = useState(false);
+  useEffect(() => {
+    if (asked || savedBlurb !== undefined || blurb !== null || !aiReady()) return;
+    setAsked(true);
+    void rewrite();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedBlurb, asked, blurb]);
+  // The description, written here (blurb, accessories and total included); the extension types it exactly.
+  const description = listingDescription(payment, accessories, settings.name, shown);
   const outdated = !!lister && olderThan(lister.version, MIN_EXTENSION);
   const toggle = (p: string) => setOff((s) => (s.has(p) ? new Set([...s].filter((x) => x !== p)) : new Set([...s, p])));
 
@@ -186,6 +212,23 @@ export function MarketplaceDialog({ u, onClose }: { u: Unit; onClose: () => void
           The only change to the photos: your watermarks on top, arranged around the store logo. Your own photos also get the store logo in the bottom-right, the
           same one the website uses. Click a photo to leave it out.
         </p>
+
+        <label className="field">
+          <span className="row between">
+            <span>Short description (top of the listing)</span>
+            <button className="link small" disabled={writing || !aiReady()} onClick={() => void rewrite()} title={aiReady() ? 'Have Claude write it again' : 'Claude needs your dialer set up (Settings)'}>
+              {writing ? 'Writing…' : 'Rewrite'}
+            </button>
+          </span>
+          <textarea
+            rows={2}
+            maxLength={260}
+            value={shown}
+            placeholder={writing ? 'Claude is writing a short description…' : 'One or two sentences: what it is and who it’s for.'}
+            onChange={(e) => setBlurb(e.target.value)}
+            onBlur={() => void saveBlurb(u.id, shown)}
+          />
+        </label>
 
         <h3>Description</h3>
         {!accessories && <p className="muted small">No accessories on this unit. Add them in the unit window (Accessories on this unit) to list them with the total as equipped.</p>}
