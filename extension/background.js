@@ -133,6 +133,7 @@ function validUnit(u, maxPhotos, site) {
     accessories: typeof u.accessories === "string" ? u.accessories.slice(0, 3000) : "",
     description: typeof u.description === "string" ? u.description.slice(0, 9000) : "",
     title: String(u.title || "").slice(0, 120),
+    color: String(u.color || "").slice(0, 60),
     condition: /used|pre/i.test(String(u.condition || "")) ? "Used" : "New",
     stock: String(u.stock || "").slice(0, 40),
     photos: u.photos.slice(0, maxPhotos),

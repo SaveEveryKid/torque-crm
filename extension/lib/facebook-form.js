@@ -149,11 +149,9 @@
   async function setIfPresent(labels, value) {
     var control = findControl(labels);
     if (!control) return { field: labels[0], skipped: true };
-    if (control.tagName === "BUTTON" || control.getAttribute("role") === "combobox") {
-      clickElement(control);
-      await utils.sleep(150);
-      clickText([String(value)]);
-      return { field: labels[0], method: "dropdown", value: value };
+    // A list (not a text box): open it and pick the entry, like the other dropdowns.
+    if (control.tagName === "BUTTON" || (control.getAttribute("role") === "combobox" && control.tagName !== "INPUT")) {
+      return chooseFromDropdown(labels, value);
     }
     setNativeValue(control, value);
     return { field: labels[0], method: "text", value: value };
@@ -203,18 +201,27 @@
    * exact entry, and check it took. Nothing for you to pick by hand.
    */
   async function chooseFromDropdown(labels, value, timeout) {
-    var want = utils.normalizeText(String(value)).toLowerCase();
+    // One answer, or a few acceptable ones best first (e.g. "Gray", "Grey").
+    var wants = (Array.isArray(value) ? value : [value]).map(function (v) { return utils.normalizeText(String(v)).toLowerCase(); }).filter(Boolean);
+    if (!wants.length) return { field: labels[0], skipped: true };
+    var shows = function (c) {
+      var t = controlText(c).toLowerCase();
+      return wants.find(function (w) { return t === w || t.split(/\s+/).indexOf(w) !== -1; });
+    };
     var control = await waitFor(function () { return findControl(labels); }, timeout || 8000, "").catch(function () { return null; });
     if (!control) return { field: labels[0], skipped: true };
     for (var attempt = 0; attempt < 2; attempt += 1) {
-      if (controlText(control).toLowerCase().split(/\s+/).indexOf(want) !== -1 || controlText(control).toLowerCase() === want) {
-        return { field: labels[0], method: "dropdown", value: value };
-      }
+      var already = shows(control);
+      if (already) return { field: labels[0], method: "dropdown", value: already };
       fullClick(control);
-      var picked = await pickOption(function (t) { return t.toLowerCase() === want; }, 8000);
+      var picked = null;
+      for (var w = 0; w < wants.length && !picked; w += 1) {
+        // The list is open: look for the best answer first, then the others (briefly).
+        picked = await pickOption(function (t) { return t.toLowerCase() === wants[w]; }, w === 0 ? 8000 : 1500);
+      }
       await utils.sleep(300);
-      if (picked && (controlText(control).toLowerCase().indexOf(want) !== -1 || !document.contains(control))) {
-        return { field: labels[0], method: "dropdown", value: value };
+      if (picked && (shows(control) || !document.contains(control))) {
+        return { field: labels[0], method: "dropdown", value: picked };
       }
       control = findControl(labels) || control;
     }

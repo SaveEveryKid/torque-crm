@@ -37,6 +37,12 @@
     if (unit.make) results.push(await form.setIfPresent(["Make"], unit.make));
     if (unit.model) results.push(await form.setIfPresent(["Model"], unit.model));
     if (unit.price) results.push(await form.setIfPresent(["Price", "Asking price"], String(unit.price)));
+    // Vehicle appearance and details (Powersport): colors and fuel.
+    var outside = C.fbColors(unit.color);
+    if (outside.length) results.push(await form.chooseFromDropdown(["Exterior color"], outside, 4000));
+    else results.push({ field: "Exterior color", skipped: true });
+    results.push(await form.chooseFromDropdown(["Interior color"], [C.INTERIOR_COLOR], 4000));
+    results.push(await form.chooseFromDropdown(["Fuel type"], C.fuelTypes(unit.title), 4000));
     // Location: typed in and the right town clicked in Facebook's suggestions.
     var loc = await form.chooseFromTypeahead(["Location", "Item location"], C.LOCATION);
     loc.field = "Location";

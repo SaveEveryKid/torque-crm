@@ -6,7 +6,7 @@ const load = (...files: string[]) => {
   const self: Record<string, unknown> = {};
   for (const f of files) new Function('self', 'window', readFileSync(`extension/${f}`, 'utf8'))(self, self);
   return self.Byron as {
-    constants: { DESCRIPTION: string; describe: (p: number | null) => string; VEHICLE_TYPE: string; LOCATION: string; MAX_PHOTOS: number; STORE_LOGO_CORNER: string; WATERMARKS: { file?: string; width: number; corner: string; opacity: number }[]; PAYMENT_MARK: { file?: string; width: number; corner: string; opacity: number } };
+    constants: { DESCRIPTION: string; describe: (p: number | null) => string; VEHICLE_TYPE: string; INTERIOR_COLOR: string; fbColors: (c: string) => string[]; fuelTypes: (t: string) => string[]; LOCATION: string; MAX_PHOTOS: number; STORE_LOGO_CORNER: string; WATERMARKS: { file?: string; width: number; corner: string; opacity: number }[]; PAYMENT_MARK: { file?: string; width: number; corner: string; opacity: number } };
     watermark: {
       placement: (pw: number, ph: number, mw: number, mh: number, spec: object) => { x: number; y: number; w: number; h: number };
       isStoreFramed: (px: Uint8ClampedArray) => boolean;
@@ -21,7 +21,16 @@ describe('Torque Marketplace Lister (extension)', () => {
   const B = load('lib/constants.js', 'lib/utils.js', 'lib/watermark.js');
 
   it('lists as vehicle type Other, in Florence, with the exact description', () => {
-    expect(B.constants.VEHICLE_TYPE).toBe('Other');
+    expect(B.constants.VEHICLE_TYPE).toBe('Powersport');
+    expect(B.constants.INTERIOR_COLOR).toBe('Black');
+    expect(B.constants.fbColors('Stealth Gray')[0]).toBe('Gray');
+    expect(B.constants.fbColors('Sage Green')).toEqual(['Green']);
+    expect(B.constants.fbColors('Havasu Red Pearl')[0]).toBe('Red');
+    expect(B.constants.fbColors('Ghost White')[0]).toBe('White');
+    expect(B.constants.fbColors('Desert Sand')[0]).toBe('Tan');
+    expect(B.constants.fbColors('')).toEqual([]);
+    expect(B.constants.fuelTypes('2027 Polaris Ranger 500')[0]).toBe('Gasoline');
+    expect(B.constants.fuelTypes('2026 Polaris Ranger XP Kinetic Ultimate')).toEqual(['Electric']);
     expect(B.constants.LOCATION).toBe('Florence, Alabama');
     expect(B.constants.MAX_PHOTOS).toBe(20);
     // The payment you typed, exactly (from your grid).

@@ -39,12 +39,48 @@
     return "$" + (whole ? Math.round(p).toLocaleString("en-US") : p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   }
 
+  /**
+   * The unit's color (as the website names it: "Stealth Gray", "Sage Green",
+   * "Sunset Red"…) as Facebook's plain color choices, best first. [] when
+   * there's no telling (you pick it on Facebook).
+   */
+  var COLOR_WORDS = [
+    [/black|onyx/i, ["Black"]],
+    [/white|pearl white/i, ["White", "Off white"]],
+    [/silver/i, ["Silver", "Gray", "Grey"]],
+    [/gr[ae]y|charcoal|titanium|graphite|gunmetal|slate/i, ["Gray", "Grey", "Charcoal"]],
+    [/red|crimson|cherry|burgundy|maroon/i, ["Red", "Burgundy"]],
+    [/blue|navy|cobalt|teal|labyrinth/i, ["Blue", "Turquoise"]],
+    [/green|sage|olive|army|camo|forest|treeline/i, ["Green"]],
+    [/orange|lava|copper/i, ["Orange"]],
+    [/yellow/i, ["Yellow", "Gold"]],
+    [/tan|sand|desert|khaki|beige|cream/i, ["Tan", "Beige"]],
+    [/brown|bronze|mocha/i, ["Brown"]],
+    [/gold/i, ["Gold", "Yellow"]],
+    [/purple|plum|violet/i, ["Purple"]],
+    [/pink/i, ["Pink"]]
+  ];
+  function fbColors(color) {
+    var c = String(color || "");
+    for (var i = 0; i < COLOR_WORDS.length; i += 1) if (COLOR_WORDS[i][0].test(c)) return COLOR_WORDS[i][1];
+    return [];
+  }
+
+  /** Fuel type choices for a unit, best first (electric for the Kinetic and other EVs). */
+  function fuelTypes(title) {
+    return /kinetic|electric|\bev\b/i.test(String(title || "")) ? ["Electric"] : ["Gasoline", "Gas", "Petrol"];
+  }
+
   Byron.constants = {
     FACEBOOK_CREATE_URL: "https://www.facebook.com/marketplace/create/vehicle",
     DESCRIPTION: description,
     describe: describe,
     LOCATION: "Florence, Alabama",
-    VEHICLE_TYPE: "Other",
+    VEHICLE_TYPE: "Powersport",
+    // Facebook's color lists only have plain colors; the seats on these are black.
+    INTERIOR_COLOR: "Black",
+    fbColors: fbColors,
+    fuelTypes: fuelTypes,
     // Facebook takes up to 20 photos on a vehicle listing.
     MAX_PHOTOS: 20,
     // Where Torque CRM runs (the only pages allowed to start a listing).
@@ -54,7 +90,7 @@
     LISTING_STATE_KEY: "torqueMarketplaceListing",
     // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
     LISTED_KEY: "torqueListedUnits",
-    VERSION: "0.10.2",
+    VERSION: "0.11.0",
     // OfferUp: the same unit, photos and description on offerup.com's own posting page.
     OFFERUP: {
       // The posting form opens over OfferUp's home page (Post → Sell an item); offerup.com/post only says "update your app".

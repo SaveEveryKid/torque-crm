@@ -34,6 +34,8 @@ export interface ListingUnit {
   make: string | null;
   model: string | null;
   price: number | null;
+  /** As the website names it ("Stealth Gray"): the extension picks Facebook's plain color. */
+  color?: string | null;
   /** The monthly payment you typed (from your grid). */
   payment: number | null;
   /** The payment watermark, drawn for this listing (PNG data URL). */
@@ -148,7 +150,7 @@ export async function rememberPayment(id: string, payment: number): Promise<void
 }
 
 /** The oldest Torque Marketplace Lister that does everything this CRM asks (description as written, Year and Florence picked for you). */
-export const MIN_EXTENSION = '0.9.0';
+export const MIN_EXTENSION = '0.11.0';
 
 /** Is version a older than b ("0.8.0" < "0.9.0" < "0.10.0")? */
 export function olderThan(a: string | undefined, b: string): boolean {
@@ -163,7 +165,7 @@ export function olderThan(a: string | undefined, b: string): boolean {
 export function toListing(u: Unit, photos: string[], payment: number | null, paymentMark: string | null, accessories = '', description = ''): ListingUnit {
   const uploads: string[] = [];
   const refs = photos.map((p) => (p.startsWith('data:') ? `upload:${uploads.push(p) - 1}` : p));
-  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, payment, paymentMark, photos: refs, uploads, accessories, condition: u.condition, stock: u.stock, ...(description ? { description } : {}) };
+  return { id: u.id, title: u.title, year: u.year, make: u.make, model: u.model, price: u.price, color: u.color, payment, paymentMark, photos: refs, uploads, accessories, condition: u.condition, stock: u.stock, ...(description ? { description } : {}) };
 }
 
 export async function listOnMarketplace(u: ListingUnit): Promise<void> {

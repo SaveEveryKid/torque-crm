@@ -141,13 +141,21 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
 
         <dl className="facts">
           <dt>{offerup ? 'Category' : 'Vehicle type'}</dt>
-          <dd>{offerup ? 'Vehicles' : lister ? lister.vehicleType : 'Other'}</dd>
+          <dd>{offerup ? 'Vehicles' : lister ? lister.vehicleType : 'Powersport'}</dd>
           <dt>Year / make / model</dt>
           <dd>{[u.year, u.make, u.model].filter(Boolean).join(' · ') || <span className="muted">fill in on {where}</span>}</dd>
           <dt>Price</dt>
           <dd>{u.price ? money(u.price) : <span className="error-text">No price: type it on {where}</span>}</dd>
           <dt>Location</dt>
           <dd>{offerup ? 'ZIP 35634 (Florence, AL)' : lister ? lister.location : 'Florence, Alabama'}</dd>
+          {!offerup && (
+            <>
+              <dt>Color / fuel</dt>
+              <dd>
+                {u.color ? `${u.color} (exterior)` : <span className="muted">exterior color: pick on Facebook</span>} · black interior · {/kinetic|electric/i.test(u.title) ? 'electric' : 'gasoline'}
+              </dd>
+            </>
+          )}
         </dl>
 
         <label className="field mp-payment">
