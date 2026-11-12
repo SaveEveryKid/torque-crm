@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkSignature, readLead } from './leads';
+import { alertText, checkSignature, readLead } from './leads';
 
 async function signFor(secret: string, ts: string, body: string) {
   const enc = new TextEncoder();
@@ -71,5 +71,17 @@ describe('website leads: reading the payload', () => {
   it('never lets odd characters into the row key, and caps long text', () => {
     expect(readLead({ ...payload, idempotency_key: '../customers/x' })?.id).toBe('customersx');
     expect(readLead({ ...payload, inquiry: { ...payload.inquiry, message: 'x'.repeat(5000) } })?.message.length).toBe(1500);
+  });
+});
+
+describe('website leads: the text to your own phone', () => {
+  it('says who, their number, what they want and the unit', () => {
+    expect(alertText(readLead(payload)!)).toBe('New website lead: Pat Rider (256) 555-2964. Get My Best Quote: 2026 Polaris Ranger Crew XP 1000 (#R12345). "Do you take trades?"');
+  });
+  it('stays short for a long message and mentions a visit time', () => {
+    const t = alertText(readLead({ ...payload, vehicle: null, inquiry: { type: 'visit', label: 'Schedule a Visit', message: 'x'.repeat(900), preferred_time: 'Saturday morning' } })!);
+    expect(t.length).toBeLessThanOrEqual(480);
+    expect(t).toContain('Schedule a Visit.');
+    expect(t).toContain('Wants to come in: Saturday morning.');
   });
 });

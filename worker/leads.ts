@@ -1,5 +1,5 @@
 import { json, type Env } from './env';
-import { digits, matchCustomer } from './sms';
+import { digits, matchCustomer, sendViaDialer, viaDialer, webhookKey } from './sms';
 import { readRow, rowsWithPrefix, writeRows } from './store';
 
 /**
@@ -89,6 +89,28 @@ export function readLead(payload: unknown, nowIso = new Date().toISOString()): O
   };
 }
 
+/** The text you get on your own phone for a new lead (short enough to read on the lock screen). */
+export function alertText(l: Omit<WebLead, 'customerId'>): string {
+  const d = digits(l.phone);
+  const phone = d ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : l.phone;
+  const unit = l.vehicle ? `: ${l.vehicle.title}${l.vehicle.stock ? ` (#${l.vehicle.stock})` : ''}` : '';
+  const said = l.message ? ` "${l.message.length > 120 ? `${l.message.slice(0, 117)}...` : l.message}"` : '';
+  return `New website lead: ${l.name} ${phone}. ${l.label}${unit}.${said}${l.preferredTime ? ` Wants to come in: ${l.preferredTime}.` : ''}`.slice(0, 480);
+}
+
+/** Text the lead to your cell (LEAD_ALERT_TO) through your dialer. Never stops the lead being saved. */
+async function alertByText(env: Env, origin: string, lead: Omit<WebLead, 'customerId'>): Promise<string> {
+  const to = digits(env.LEAD_ALERT_TO ?? '');
+  if (!to) return 'off';
+  if (!viaDialer(env)) return 'no dialer';
+  try {
+    const sent = await sendViaDialer(env, `+1${to}`, alertText(lead), `${origin}/sms/status?k=${await webhookKey(env)}`);
+    return 'error' in sent ? `failed: ${sent.error}` : 'sent';
+  } catch (e) {
+    return `failed: ${(e as Error).message}`;
+  }
+}
+
 export async function leadIntake(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'POST') return json(405, { error: 'POST only.' });
   if (!env.LEADS_SECRET?.trim()) return json(503, { error: 'Website leads aren’t set up yet. Add LEADS_SECRET in Cloudflare (see the README).', setup: true });
@@ -110,5 +132,7 @@ export async function leadIntake(request: Request, env: Env): Promise<Response> 
   if (await readRow(env.DB, key)) return json(200, { ok: true, id: lead.id, duplicate: true });
   const row: WebLead = { ...lead, customerId: matchCustomer(await rowsWithPrefix(env.DB, 'customers/'), lead.phone) };
   await writeRows(env.DB, { [key]: JSON.stringify(row) }, Date.now());
-  return json(200, { ok: true, id: lead.id });
+  // Saved first; the text to your phone comes after and can't undo that.
+  const alert = await alertByText(env, new URL(request.url).origin, lead);
+  return json(200, { ok: true, id: lead.id, alert });
 }

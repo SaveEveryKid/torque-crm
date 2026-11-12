@@ -52,6 +52,8 @@ Everything below is done in the Cloudflare dashboard (dash.cloudflare.com), on t
    - On the **ridewithbyron** Worker, add two secrets: `TORQUE_SIGNING_SECRET` (the same value) and `TORQUE_WEBHOOK_URL` = `https://torque-crm.<your-subdomain>.workers.dev/leads/intake`.
    - In the site's dashboard (**Admin → Leads**), press **Send test lead to Torque**. A customer called "TEST" shows up here within about 15 seconds; delete it.
 
+   - To also get each lead as a **text on your own phone**, add a variable `LEAD_ALERT_TO` here with your cell number. It goes out through your dialer, like your other texts.
+
    Each lead goes on the customer with that phone number or email (or makes a new customer), with the unit they asked about, where they found you, and a task to call them. Nothing you've already entered on a customer is overwritten.
 6. Open **https://torque-crm.<your-subdomain>.workers.dev** (the address on the Worker's Overview page), log in, and bookmark it. On your phone, use **Add to Home Screen**.
 

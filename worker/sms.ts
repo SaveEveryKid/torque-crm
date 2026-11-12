@@ -145,7 +145,7 @@ export async function sendSms(request: Request, env: Env, origin: string): Promi
 }
 
 /** Your dialer (torque-dialer) sends it with its own SignalWire login, from its CALLER_ID. */
-async function sendViaDialer(env: Env, to: string, body: string, statusCallback: string): Promise<{ sid: string; status: string } | { error: string }> {
+export async function sendViaDialer(env: Env, to: string, body: string, statusCallback: string): Promise<{ sid: string; status: string } | { error: string }> {
   const base = dialerBase(env.DIALER_URL)!;
   let res: Response;
   try {
