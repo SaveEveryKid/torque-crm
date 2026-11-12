@@ -42,3 +42,17 @@ describe('Refresh: what changed on the website', async () => {
     expect(diffInventory(null, [unit('a', 1)])).toBeNull();
   });
 });
+
+describe('Inventory: only units not on Facebook yet', async () => {
+  const { onFacebook } = await import('../src/crm/inventory');
+  const all = { hits: Array.from({ length: 30 }, (_, i) => ({ objectID: `u${i}` })), nbHits: 30, page: 0, nbPages: 1, facets: {} };
+  const listed = { u0: { at: 'x' }, u5: { at: 'x' }, u29: { at: 'x' } };
+  it('leaves out the listed ones and pages the rest', () => {
+    const p0 = onFacebook(all, listed, 'not', 0);
+    expect(p0.nbHits).toBe(27);
+    expect(p0.nbPages).toBe(2);
+    expect(p0.hits.map((h) => h.objectID)).not.toContain('u0');
+    expect(onFacebook(all, listed, 'not', 1).hits).toHaveLength(3);
+    expect(onFacebook(all, listed, 'listed', 0).hits.map((h) => h.objectID)).toEqual(['u0', 'u5', 'u29']);
+  });
+});

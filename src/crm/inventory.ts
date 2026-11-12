@@ -116,6 +116,22 @@ export async function searchInventory(path: string, p: SearchParams): Promise<Se
   return { hits: body.hits ?? [], nbHits: body.nbHits ?? 0, page: body.page ?? 0, nbPages: body.nbPages ?? 0, facets: body.facets ?? {} };
 }
 
+/** Every unit matching a search (big pages, put together): for filters the website can't do itself. */
+export async function searchAll(path: string, p: Omit<SearchParams, 'page' | 'perPage'>): Promise<SearchResult> {
+  const first = await searchInventory(path, { ...p, page: 0, perPage: 200 });
+  const hits = [...first.hits];
+  for (let page = 1; page < Math.min(first.nbPages, 10); page++) hits.push(...(await searchInventory(path, { ...p, page, perPage: 200 })).hits);
+  return { ...first, hits, nbHits: hits.length, page: 0, nbPages: 1 };
+}
+
+/** A search narrowed to units on (or not yet on) Facebook Marketplace, a page at a time. */
+export function onFacebook(all: SearchResult, listed: Record<string, unknown>, want: 'not' | 'listed', page: number, perPage = 24): SearchResult {
+  const hits = all.hits.filter((h) => (want === 'listed') === !!listed[h.objectID]);
+  const nbPages = Math.max(1, Math.ceil(hits.length / perPage));
+  const at = Math.min(page, nbPages - 1);
+  return { ...all, hits: hits.slice(at * perPage, (at + 1) * perPage), nbHits: hits.length, page: at, nbPages };
+}
+
 /** Everything in stock (a few big pages), kept for 15 minutes. */
 let everything: { at: number; units: Unit[] } | null = null;
 const LIST_FIELDS = ['objectID', 'Year', 'Manufacturer', 'ProductName', 'ProductType', 'ProductCategory', 'Condition', 'IsUsed', 'Price', 'TotalPrice', 'SalePrice', 'Msrp', 'StockNumber', 'PhotoUrl', 'ShowroomUrl', 'Color', 'DealershipName', 'Odometer', 'HasOdometer', 'Specs', 'IndustryNameLists'];
