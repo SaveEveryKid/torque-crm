@@ -130,6 +130,8 @@ export interface Settings {
   inventoryLocation: string;
   /** Inventory: every unit, only ones not on Facebook Marketplace yet, or only listed ones. */
   inventoryFacebook?: 'all' | 'not' | 'listed';
+  /** The same for OfferUp. */
+  inventoryOfferUp?: 'all' | 'not' | 'listed';
 }
 
 /**
