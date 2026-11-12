@@ -177,10 +177,10 @@ export async function listOnMarketplace(u: ListingUnit): Promise<void> {
 /**
  * LIST ON OFFERUP, through the same extension (0.10.0 or newer). It opens
  * OfferUp, opens its Post an item form and fills it: watermarked photos, title,
- * description, price and New or Used. You choose the category, set the
- * location, check it, and click Post item yourself.
+ * description, price, New or Used, the Vehicles category and Florence as the
+ * location. You check it and click Post item yourself.
  */
-export const MIN_EXTENSION_OFFERUP = '0.10.1';
+export const MIN_EXTENSION_OFFERUP = '0.10.2';
 
 export async function listOnOfferUp(u: ListingUnit): Promise<void> {
   const r = await ask('LIST_ON_OFFERUP', u, 20000).catch((e: Error) => {

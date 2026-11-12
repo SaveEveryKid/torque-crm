@@ -4,7 +4,8 @@
   /**
    * OFFERUP: Torque CRM (Inventory → List on OfferUp) hands a unit over; this
    * runs on offerup.com and fills OfferUp's own posting form: your watermarked
-   * photos, the title, description and price, and picks New or Used. It keeps
+   * photos, the title, description and price; picks New or Used; chooses the
+   * Vehicles category; and sets the location to Florence (ZIP 35634). It keeps
    * watching, so each field is filled as it comes on screen. It opens
    * the form (Post → Sell an item) but never clicks Post item: you check it and
    * post it yourself.
@@ -156,6 +157,64 @@
     return null;
   }
 
+  async function waitUntil(fn, ms) {
+    var end = Date.now() + ms;
+    while (Date.now() < end) {
+      var v = fn();
+      if (v) return v;
+      await Byron.utils.sleep(150);
+    }
+    return null;
+  }
+  function pressEscape() {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true }));
+  }
+  /** The first of these (exact text, any capitals) that is on screen to click. */
+  function firstClickable(names) {
+    for (var i = 0; i < names.length; i += 1) { var e = clickable(names[i]); if (e) return e; }
+    return null;
+  }
+
+  /**
+   * Category → Vehicles, then the closest kind of vehicle if OfferUp asks
+   * (boats, trailers, otherwise powersports). Tried once; anything it can't
+   * find is left for you.
+   */
+  async function chooseCategory(unit) {
+    var opener = clickable("Choose a category");
+    if (!opener) return clickable("Vehicles") ? "already" : null; // not on screen yet (or already chosen)
+    form.fullClick(opener.closest("button, [role=button], [role=combobox]") || opener);
+    var top = await waitUntil(function () { return clickable("Vehicles"); }, 3000);
+    if (!top) { pressEscape(); return "missed"; }
+    form.fullClick(top.closest("button, [role=option], [role=menuitem], li") || top);
+    await Byron.utils.sleep(700);
+    var t = (unit.title || "").toLowerCase();
+    var kinds = /boat|pontoon|bennington|outboard|mercury/.test(t) ? ["Boats & marine", "Boats & Marine", "Boats"]
+      : /trailer/.test(t) ? ["Trailers", "Trailer"]
+      : /motorcycle|crf|dirt bike/.test(t) ? ["Motorcycles", "Powersport vehicles", "Powersports"]
+      : ["Powersport vehicles", "Powersports vehicles", "Powersports", "ATVs, UTVs & golf carts", "Motorcycles"];
+    var sub = firstClickable(kinds);
+    if (sub) { form.fullClick(sub.closest("button, [role=option], [role=menuitem], li") || sub); return "Vehicles › " + norm(sub.textContent); }
+    return "Vehicles";
+  }
+
+  /** Location → Set location → ZIP 35634 → the confirm button. Tried once. */
+  async function setLocation() {
+    var opener = clickable("Set location");
+    if (!opener) return null;
+    form.fullClick(opener.closest("button, a, [role=button]") || opener);
+    var box = await waitUntil(function () { return findBox(["ZIP code", "Zip code", "ZIP", "Zipcode", "Postal code", "Enter ZIP", "Enter a ZIP"], "zip"); }, 3000);
+    if (!box) return "missed";
+    used.set(box, "zip");
+    box.focus();
+    form.setNativeValue(box, C.OFFERUP.ZIP);
+    await Byron.utils.sleep(900);
+    var ok = firstClickable(["Apply", "Save", "Save location", "Update location", "Update", "Done", "Confirm", "See listings"]);
+    if (!ok) return "typed";
+    form.fullClick(ok.closest("button, [role=button]") || ok);
+    return "set";
+  }
+
   function textBoxes() {
     return Array.from(document.querySelectorAll("input, textarea")).filter(function (c) {
       if (c.tagName === "INPUT" && /^(file|checkbox|radio|submit|button|hidden|image|range|color)$/i.test(c.type || "")) return false;
@@ -219,8 +278,8 @@
       { key: "description", name: "Description", value: description, labels: ["Description", "Describe your item", "Add a description"] },
       { key: "price", name: "Price", value: unit.price ? String(unit.price) : "", labels: ["Price", "Set a price"] },
       { key: "condition", name: "Condition", value: unit.condition === "Used" ? "Used" : "New", choice: true },
-      { key: "category", name: "Category", value: "Vehicles (pick the closest type)", manual: true },
-      { key: "location", name: "Location", value: "Florence, AL " + C.OFFERUP.ZIP + " (click Set location)", manual: true }
+      { key: "category", name: "Category", value: "Vehicles", choice: true },
+      { key: "location", name: "Location", value: "Florence, AL " + C.OFFERUP.ZIP, choice: true }
     ].filter(function (f) { return f.value; });
     buildPanel(unit, fields);
 
@@ -265,10 +324,21 @@
           var chip = conditionButton(unit.condition === "Used" ? "Used" : "New");
           if (chip) { form.fullClick(chip); filled.condition = true; mark("condition", "picked", true); }
         }
+        // Category and location: once each, after the typed fields, one at a time.
+        var typed = fields.every(function (fd) { return !fd.labels || filled[fd.key]; });
+        if (typed && filled.condition && !filled.category) {
+          var cat = await chooseCategory(unit);
+          if (cat) { filled.category = true; mark("category", cat === "missed" ? "you do this" : cat === "already" ? "already there" : cat, cat !== "missed"); }
+        }
+        if (typed && filled.category && !filled.location) {
+          var loc = await setLocation();
+          if (loc) { filled.location = true; mark("location", loc === "set" ? "set" : loc === "typed" ? "ZIP typed: confirm it" : "you do this", loc === "set"); }
+        }
         var waiting = fields.filter(function (fd) { return !fd.manual && fd.key !== "photos" && !filled[fd.key]; }).map(function (fd) { return fd.name; });
+        var yours = Object.keys(ui.rows).filter(function (k) { return /you do this|confirm it/.test(ui.rows[k].textContent); }).map(function (k) { return k; });
         if (photos.state !== "done" && !picker) status("Log in to OfferUp if asked, then click Post → Sell an item. I'll fill the form when it shows.");
         else if (waiting.length) status("Filled what I can see so far. Scroll down or continue on OfferUp; still to come: " + waiting.join(", ") + ".");
-        else status("Everything I can fill is in. Choose the category, set the location, check it, then click Post item yourself.");
+        else status(yours.length ? "Almost there. Do these yourself: " + yours.join(", ") + ". Then check it and click Post item." : "All filled in. Check it, then click Post item yourself.");
       } catch (error) {
         status(error && error.message ? error.message : "Something went wrong.", true);
         if (photos.state === "working") photos.state = "failed";

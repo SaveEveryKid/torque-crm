@@ -141,7 +141,7 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
 
         <dl className="facts">
           <dt>{offerup ? 'Category' : 'Vehicle type'}</dt>
-          <dd>{offerup ? <span className="muted">you pick it on OfferUp</span> : lister ? lister.vehicleType : 'Other'}</dd>
+          <dd>{offerup ? 'Vehicles' : lister ? lister.vehicleType : 'Other'}</dd>
           <dt>Year / make / model</dt>
           <dd>{[u.year, u.make, u.model].filter(Boolean).join(' · ') || <span className="muted">fill in on {where}</span>}</dd>
           <dt>Price</dt>
@@ -241,7 +241,7 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
         {sent && (
           <p className="success">
             {offerup
-              ? 'OfferUp is open in a new tab. Torque opens its Post an item form and fills it: your watermarked photos, the title, description, price and New or Used. The panel in the corner has a Copy button for every value. Choose the category, set the location, check it, then click Post item yourself.'
+              ? 'OfferUp is open in a new tab. Torque opens its Post an item form and fills it: your watermarked photos, the title, description, price, New or Used, the Vehicles category and Florence as the location. The panel in the corner shows anything it could not do. Check it, then click Post item yourself.'
               : 'Facebook is open in a new tab and filling in the draft with your watermarked photos. Check everything there, then click Next and Publish yourself.'}
           </p>
         )}
