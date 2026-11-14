@@ -2,7 +2,7 @@ import { clearCookie, loggedIn, passwordOk, sessionCookie } from './auth';
 import { dialerBase, json, type Env } from './env';
 import { MAX_VALUE, PAGE, readRows, writeRows } from './store';
 import { checkSms, incomingSms, sendSms, smsSetup, smsStatus } from './sms';
-import { leadIntake } from './leads';
+import { leadAlert, leadIntake } from './leads';
 
 /**
  * TORQUE CRM's server (a Cloudflare Worker). /api/* and /dealer/* come here;
@@ -19,6 +19,7 @@ import { leadIntake } from './leads';
  *   POST   /api/sms/send        send a text (see sms.ts)
  *   POST   /sms/incoming|status SignalWire's texts in and delivery updates (key in the address)
  *   POST   /leads/intake        a lead from RideWithByron.com (signed with LEADS_SECRET, see leads.ts)
+ *   POST   /leads/alert         a heads-up from the site, texted to your phone (same signature)
  */
 const SETUP_PASSWORD = 'Torque CRM has no password yet. Add APP_PASSWORD in Cloudflare (see the README).';
 const SETUP_DB = 'No database yet. Add the D1 database to wrangler.jsonc (see the README).';
@@ -104,6 +105,7 @@ export default {
     if (path === '/sms/incoming' && request.method === 'POST') return incomingSms(request, env);
     if (path === '/sms/status' && request.method === 'POST') return smsStatus(request, env);
     if (path === '/leads/intake') return leadIntake(request, env);
+    if (path === '/leads/alert') return leadAlert(request, env);
     if (!isApi && !path.startsWith('/dealer/')) return env.ASSETS.fetch(request);
     if (path === '/api/login') return login(request, env);
     if (!env.APP_PASSWORD) return json(503, { error: SETUP_PASSWORD, setup: true });
