@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alertText, checkSignature, readLead } from './leads';
+import { alertBody, alertText, checkSignature, readLead } from './leads';
 
 async function signFor(secret: string, ts: string, body: string) {
   const enc = new TextEncoder();
@@ -83,5 +83,15 @@ describe('website leads: the text to your own phone', () => {
     expect(t.length).toBeLessThanOrEqual(480);
     expect(t).toContain('Schedule a Visit.');
     expect(t).toContain('Wants to come in: Saturday morning.');
+  });
+});
+
+describe('website heads-ups (community posts waiting, videos sent in)', () => {
+  it('takes a short plain message and nothing else', () => {
+    expect(alertBody({ text: '  RideWithByron community: a post is waiting for your OK.  ' })).toBe('RideWithByron community: a post is waiting for your OK.');
+    expect(alertBody({ text: 'x'.repeat(900) })?.length).toBe(300);
+    expect(alertBody({ text: '' })).toBeNull();
+    expect(alertBody({ nope: 1 })).toBeNull();
+    expect(alertBody('text')).toBeNull();
   });
 });

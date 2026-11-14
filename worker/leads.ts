@@ -136,3 +136,36 @@ export async function leadIntake(request: Request, env: Env): Promise<Response> 
   const alert = await alertByText(env, new URL(request.url).origin, lead);
   return json(200, { ok: true, id: lead.id, alert });
 }
+
+/**
+ * A short heads-up from RideWithByron.com (a community post waiting for your OK, a video sent
+ * in): texted to your own phone (LEAD_ALERT_TO) through your dialer. Signed the same way as a lead.
+ *
+ *   POST /leads/alert   { "text": "…" }
+ */
+export function alertBody(payload: unknown): string | null {
+  const t = text(obj(payload).text, 300);
+  return t.length >= 3 ? t : null;
+}
+
+export async function leadAlert(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return json(405, { error: 'POST only.' });
+  if (!env.LEADS_SECRET?.trim()) return json(503, { error: 'Website leads aren’t set up yet. Add LEADS_SECRET in Cloudflare (see the README).', setup: true });
+  const body = await request.text();
+  if (body.length > 2000) return json(413, { error: 'Too big.' });
+  const bad = await checkSignature(env.LEADS_SECRET.trim(), request.headers.get('X-RWB-Timestamp') ?? '', request.headers.get('X-RWB-Signature') ?? '', body);
+  if (bad) return json(401, { error: bad });
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    return json(400, { error: 'Not JSON.' });
+  }
+  const message = alertBody(payload);
+  if (!message) return json(422, { error: 'Nothing to send.' });
+  const to = digits(env.LEAD_ALERT_TO ?? '');
+  if (!to) return json(200, { ok: true, alert: 'off' });
+  if (!viaDialer(env)) return json(200, { ok: true, alert: 'no dialer' });
+  const sent = await sendViaDialer(env, `+1${to}`, message, `${new URL(request.url).origin}/sms/status?k=${await webhookKey(env)}`);
+  return json(200, { ok: true, alert: 'error' in sent ? `failed: ${sent.error}` : 'sent' });
+}
