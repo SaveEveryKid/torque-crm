@@ -88,7 +88,7 @@ describe('custom units (not on the website yet)', async () => {
     expect(isCustom(u)).toBe(true);
     expect(u.title).toBe('2027 Polaris Ranger 500');
     expect(u.photos).toEqual([]);
-    expect((u.raw as { LongDescription: string }).LongDescription).toBe('Work-ready mid-size UTV.');
+    expect((u.raw as unknown as { LongDescription: string }).LongDescription).toBe('Work-ready mid-size UTV.');
     expect(milesOf(u)).toBe(0);
     const l = toListing(u, ['data:image/jpeg;base64,AAAA'], 169, null);
     expect(l.photos).toEqual(['upload:0']);
