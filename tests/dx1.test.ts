@@ -78,3 +78,27 @@ describe('eBay', async () => {
     expect(milesOf({ usage: '35 hrs', condition: 'Used' })).toBeNull();
   });
 });
+
+describe('custom units (not on the website yet)', async () => {
+  const { toUnit, isCustom, matchesSearch, newCustomId } = await import('../src/crm/customUnits');
+  const { toListing, milesOf } = await import('../src/crm/lister');
+  const c = { id: newCustomId(), year: '2027', make: 'Polaris', model: 'Ranger 500', condition: 'New' as const, type: 'Regular Cab', color: 'Stealth Gray', price: 9999, msrp: null, stock: '', vin: '', miles: null, about: 'Work-ready mid-size UTV.', createdAt: '2026-11-19T00:00:00Z' };
+  it('becomes an inventory unit you can list (photos come from Add your own photos)', () => {
+    const u = toUnit(c, 'Shoals Outdoor Sports - Florence');
+    expect(isCustom(u)).toBe(true);
+    expect(u.title).toBe('2027 Polaris Ranger 500');
+    expect(u.photos).toEqual([]);
+    expect((u.raw as { LongDescription: string }).LongDescription).toBe('Work-ready mid-size UTV.');
+    expect(milesOf(u)).toBe(0);
+    const l = toListing(u, ['data:image/jpeg;base64,AAAA'], 169, null);
+    expect(l.photos).toEqual(['upload:0']);
+    expect([l.year, l.make, l.model, l.price, l.color]).toEqual(['2027', 'Polaris', 'Ranger 500', 9999, 'Stealth Gray']);
+  });
+  it('matches the inventory search', () => {
+    const u = toUnit(c);
+    expect(matchesSearch(u, 'ranger 500')).toBe(true);
+    expect(matchesSearch(u, 'stealth')).toBe(true);
+    expect(matchesSearch(u, 'sportsman')).toBe(false);
+    expect(matchesSearch(u, '')).toBe(true);
+  });
+});

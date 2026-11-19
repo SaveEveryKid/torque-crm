@@ -551,3 +551,6 @@ table.table { width: 100%; border-collapse: collapse; }
 .acc-head .acc-x { width: 34px; }
 
 .refresh-list { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; max-height: 260px; overflow: auto; }
+
+.custom-units { margin-bottom: 8px; }
+.custom-units h3 { margin: 4px 0; }

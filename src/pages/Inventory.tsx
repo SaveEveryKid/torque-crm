@@ -1,6 +1,8 @@
 import { MarketplaceDialog } from '../ui/MarketplaceDialog';
 import { markListed, useLister, useListed } from '../crm/lister';
 import { AccessoriesEditor } from '../ui/AccessoriesEditor';
+import { CustomUnitForm } from '../ui/CustomUnitForm';
+import { deleteCustomUnit, isCustom, matchesSearch, toUnit, useCustomUnits, type CustomUnit } from '../crm/customUnits';
 import { useEffect, useMemo, useState } from 'react';
 import { allUnits, diffInventory, money, onSites, readUnit, searchAll, searchConfig, searchInventory, snapshotOf, toVehicleRef, usefulFacets, type InventoryChanges, type InventorySnapshot, type SearchResult, type Unit } from '../crm/inventory';
 import { kv } from '../core/storage/kv';
@@ -191,7 +193,7 @@ function useInventory() {
       </div>
     ) : null;
 
-  return { res: view, fb, ou, eb, error, loading: loading || refreshing, refreshing, changes, dismiss: () => setChanges(null), controls, pager, refresh, units: (view?.hits ?? []).map(readUnit) };
+  return { res: view, query, fb, ou, eb, error, loading: loading || refreshing, refreshing, changes, dismiss: () => setChanges(null), controls, pager, refresh, units: (view?.hits ?? []).map(readUnit) };
 }
 
 /** "12 not on Facebook yet", "3 listed on OfferUp", "5 on Facebook, not on eBay yet"… */
@@ -204,6 +206,7 @@ export function whereListed(fb: 'all' | 'not' | 'listed', ou: 'all' | 'not' | 'l
 }
 
 function UnitCard({ u, onClick, listed, offered, ebayed }: { u: Unit; onClick: () => void; listed?: string; offered?: string; ebayed?: string }) {
+  const custom = isCustom(u);
   // One badge: where it's listed (Facebook alone still says "Listed").
   const sites = [listed && 'Facebook', offered && 'OfferUp', ebayed && 'eBay'].filter(Boolean) as string[];
   const badge = !sites.length ? null : sites.length === 1 && listed ? 'Listed' : sites.join(' + ');
@@ -218,7 +221,7 @@ function UnitCard({ u, onClick, listed, offered, ebayed }: { u: Unit; onClick: (
           {money(u.price)}
           {u.msrp ? <span className="msrp">{money(u.msrp)}</span> : null}
         </div>
-        <div className="meta">{[u.condition, u.type, u.color, u.usage, u.stock ? `#${u.stock}` : null].filter(Boolean).join(' · ')}</div>
+        <div className="meta">{[custom ? 'Custom · not in stock yet' : null, u.condition, u.type, u.color, u.usage, u.stock ? `#${u.stock}` : null].filter(Boolean).join(' · ')}</div>
       </div>
     </div>
   );
@@ -234,6 +237,15 @@ export function Inventory() {
   const offered = useListed('offerup');
   const ebayed = useListed('ebay');
   useLister(); // also picks up what the extension has sent to Facebook, OfferUp and eBay
+  // CUSTOM UNITS (not on the website yet): shown above the stock, with the same search and Facebook/OfferUp/eBay filters.
+  const settings = useSettings();
+  const customs = useCustomUnits();
+  const [editing, setEditing] = useState<CustomUnit | 'new' | null>(null);
+  const keep = (want: 'all' | 'not' | 'listed', on: boolean) => want === 'all' || (want === 'listed') === on;
+  const customUnits = Object.values(customs)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map((c) => toUnit(c, settings.inventoryLocation))
+    .filter((u) => matchesSearch(u, inv.query) && keep(inv.fb, !!listed[u.id]) && keep(inv.ou, !!offered[u.id]) && keep(inv.eb, !!ebayed[u.id]));
   return (
     <div className="page">
       <div className="page-head">
@@ -244,12 +256,28 @@ export function Inventory() {
             {inv.res ? ` · ${inv.res.nbHits.toLocaleString()} ${whereListed(inv.fb, inv.ou, inv.eb)}` : ''}
           </p>
         </div>
+        <button className="btn" onClick={() => setEditing('new')} title="A unit that isn't on the website yet: type it in and list it like any other">
+          <Icon name="plus" size={16} /> Custom unit
+        </button>
         <button className="btn" onClick={() => void inv.refresh()} disabled={inv.loading} title="Read the inventory fresh from the website and show what changed">
           <Icon name="refresh" size={16} /> {inv.refreshing ? 'Refreshing from the website…' : 'Refresh'}
         </button>
       </div>
       {inv.changes && <RefreshReport r={inv.changes} onClose={inv.dismiss} />}
       {inv.controls}
+      {customUnits.length > 0 && (
+        <section className="stack tight custom-units">
+          <h3>
+            Custom units <span className="muted small">not in stock yet · {customUnits.length}</span>
+          </h3>
+          <div className="units">
+            {customUnits.map((u) => (
+              <UnitCard key={u.id} u={u} onClick={() => setOpen(u)} listed={listed[u.id]?.at} offered={offered[u.id]?.at} ebayed={ebayed[u.id]?.at} />
+            ))}
+          </div>
+          <h3>In stock</h3>
+        </section>
+      )}
       {inv.error && <p className="error">{inv.error}</p>}
       {inv.res && inv.units.length === 0 && (inv.eb === 'not' && inv.fb === 'all' && inv.ou === 'all' ? (
         <Empty title="Everything here is already on eBay">Nice work. Change the eBay filter to see them.</Empty>
@@ -268,7 +296,14 @@ export function Inventory() {
         ))}
       </div>
       {inv.pager}
-      {open && <UnitDetails u={open} onClose={() => setOpen(null)} onList={() => (setListing(open), setOpen(null))} onOfferUp={() => (setOffering(open), setOpen(null))} onEbay={() => (setEbaying(open), setOpen(null))} />}
+      {open && <UnitDetails u={open} onClose={() => setOpen(null)} onList={() => (setListing(open), setOpen(null))} onOfferUp={() => (setOffering(open), setOpen(null))} onEbay={() => (setEbaying(open), setOpen(null))} onEdit={isCustom(open) && customs[open.id] ? () => (setEditing(customs[open.id]), setOpen(null)) : undefined} />}
+      {editing && (
+        <CustomUnitForm
+          unit={editing === 'new' ? undefined : editing}
+          onClose={() => setEditing(null)}
+          onSaved={(c) => (setEditing(null), setOpen(toUnit(c, settings.inventoryLocation)))}
+        />
+      )}
       {listing && <MarketplaceDialog u={listing} onClose={() => setListing(null)} />}
       {offering && <MarketplaceDialog u={offering} site="offerup" onClose={() => setOffering(null)} />}
       {ebaying && <MarketplaceDialog u={ebaying} site="ebay" onClose={() => setEbaying(null)} />}
@@ -276,7 +311,8 @@ export function Inventory() {
   );
 }
 
-function UnitDetails({ u, onClose, onList, onOfferUp, onEbay }: { u: Unit; onClose: () => void; onList: () => void; onOfferUp: () => void; onEbay: () => void }) {
+function UnitDetails({ u, onClose, onList, onOfferUp, onEbay, onEdit }: { u: Unit; onClose: () => void; onList: () => void; onOfferUp: () => void; onEbay: () => void; onEdit?: () => void }) {
+  const custom = isCustom(u);
   const onEbayListed = useListed('ebay')[u.id];
   const customers = useCustomers();
   const listed = useListed()[u.id];
@@ -375,15 +411,25 @@ function UnitDetails({ u, onClose, onList, onOfferUp, onEbay }: { u: Unit; onClo
         )}
       </div>
       <div className="row">
-        <button className="btn primary" disabled={!u.photos.length} onClick={onList} title="Fill a Facebook Marketplace draft with this unit and your watermarked photos">
+        <button className="btn primary" disabled={!u.photos.length && !custom} onClick={onList} title="Fill a Facebook Marketplace draft with this unit and your watermarked photos">
           <Icon name="upload" size={15} /> {listed ? 'List again' : 'List on Marketplace'}
         </button>
-        <button className="btn primary" disabled={!u.photos.length} onClick={onOfferUp} title="Open OfferUp's posting page and fill it with this unit and your watermarked photos">
+        <button className="btn primary" disabled={!u.photos.length && !custom} onClick={onOfferUp} title="Open OfferUp's posting page and fill it with this unit and your watermarked photos">
           <Icon name="upload" size={15} /> {onOffer ? 'List on OfferUp again' : 'List on OfferUp'}
         </button>
-        <button className="btn primary" disabled={!u.photos.length} onClick={onEbay} title="Open eBay Motors, type the title, and fill the listing form as a local classified ad with your watermarked photos">
+        <button className="btn primary" disabled={!u.photos.length && !custom} onClick={onEbay} title="Open eBay Motors, type the title, and fill the listing form as a local classified ad with your watermarked photos">
           <Icon name="upload" size={15} /> {onEbayListed ? 'List on eBay again' : 'List on eBay'}
         </button>
+        {custom && onEdit && (
+          <button className="btn" onClick={onEdit}>
+            Edit
+          </button>
+        )}
+        {custom && (
+          <button className="btn" onClick={() => confirm(`Delete ${u.title}? (Its listings on Facebook, OfferUp or eBay stay up.)`) && void deleteCustomUnit(u.id).then(onClose)}>
+            <Icon name="trash" size={15} /> Delete
+          </button>
+        )}
         {u.url && (
           <a className="btn" href={u.url} target="_blank" rel="noreferrer">
             <Icon name="external" size={15} /> Open on website

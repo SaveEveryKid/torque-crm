@@ -207,6 +207,9 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
           </span>
         </div>
         {lister && lister.watermarks.length > 0 && chosen[0] && <Preview photo={chosen[0]} lister={lister} paymentMark={markUrl} />}
+        {!u.photos.length && !own.length && (
+          <p className="notice small">No photos on this unit yet (it isn’t on the website). Click Add your own photos above: the store logo goes on them, then your watermarks.</p>
+        )}
         <div className="mp-photos">
           {photos.map((p, i) => {
             const on = !off.has(p) && chosen.includes(p);
