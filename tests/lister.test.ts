@@ -49,34 +49,41 @@ describe('Torque Marketplace Lister (extension)', () => {
     expect(B.constants.DESCRIPTION).not.toContain('For Sale By Dealer');
   });
 
-  it('three slightly see-through watermarks, one per corner, leaving bottom-right for the store logo (no phone number)', () => {
+  it('Call Byron top-left, the payment bottom-left, the store logo bottom-right (no generic slogans)', () => {
     const W = [...B.constants.WATERMARKS, B.constants.PAYMENT_MARK];
     expect(W.map((m) => [m.file ?? 'payment (drawn per listing)', m.corner])).toEqual([
-      ['watermarks/no-dealer-fees.png', 'top-left'],
-      ['watermarks/easy-buying.png', 'top-right'],
+      ['watermarks/call-byron.png', 'top-left'],
       ['payment (drawn per listing)', 'bottom-left'],
     ]);
-    expect(JSON.stringify(B.constants)).not.toMatch(/call-byron|762-0959/i);
+    expect(JSON.stringify(B.constants)).not.toMatch(/no-dealer-fees|easy-buying/i);
     expect(B.constants.STORE_LOGO_CORNER).toBe('bottom-right');
     for (const m of W) expect(m.opacity).toBeGreaterThan(0.7), expect(m.opacity).toBeLessThan(1);
-    const fees = B.watermark.cornerSpec(W[0], 'top-left');
-    expect(B.watermark.placement(1920, 1440, 1400, 477, fees)).toEqual({ x: 48, y: 43, w: 653, h: 222 });
-    const tr = B.watermark.placement(1920, 1440, 1477, 864, B.watermark.cornerSpec(W[1], 'top-right'));
-    expect(tr.x + tr.w).toBe(1872);
-    const bl = B.watermark.placement(1920, 1440, 1400, 434, B.watermark.cornerSpec(W[2], 'bottom-left'));
+    const call = B.watermark.cornerSpec(W[0], 'top-left');
+    const p = B.watermark.placement(1920, 1440, 2031, 884, call);
+    expect([p.x, p.y]).toEqual([48, 43]);
+    expect(p.w).toBeGreaterThan(700);
+    const bl = B.watermark.placement(1920, 1440, 1400, 434, B.watermark.cornerSpec(W[1], 'bottom-left'));
     expect([bl.x, bl.y + bl.h]).toEqual([48, 1397]);
-    // A wide, short photo: the logo is kept under a third of the height.
-    expect(B.watermark.placement(3000, 600, 1400, 477, fees).h).toBeLessThanOrEqual(200);
+    // A wide, short photo: kept under a third of the height.
+    expect(B.watermark.placement(3000, 600, 2031, 884, call).h).toBeLessThanOrEqual(200);
+  });
+
+  it('a photo without the store logo gets it bottom-right (same size as on your own photos)', () => {
+    const L = (B.constants as unknown as { STORE_LOGO: { file: string; width: number; portraitWidth: number; margin: number } }).STORE_LOGO;
+    expect(L.file).toBe('watermarks/store-logo.png');
+    const place = (B.watermark as unknown as { logoPlacement: (W: number, H: number, w: number, h: number, s: typeof L, c: string) => { x: number; y: number; w: number; h: number } }).logoPlacement;
+    expect(place(1920, 1440, 600, 300, L, 'bottom-right')).toEqual({ x: 1920 - 403 - 43, y: 1440 - 202 - 43, w: 403, h: 202 });
+    expect(place(1440, 1920, 600, 300, L, 'bottom-right').w).toBe(432);
   });
 
   it('when the store logo is in another corner, that watermark moves to the free one', () => {
     const W = [...B.constants.WATERMARKS, B.constants.PAYMENT_MARK];
     const corners = (logo: string | null) => B.watermark.arrange(W, logo, 'bottom-right').map((s) => s.corner);
-    expect(corners(null)).toEqual(['top-left', 'top-right', 'bottom-left']);
-    expect(corners('bottom-right')).toEqual(['top-left', 'top-right', 'bottom-left']);
-    expect(corners('top-left')).toEqual(['bottom-right', 'top-right', 'bottom-left']);
-    expect(corners('top-right')).toEqual(['top-left', 'bottom-right', 'bottom-left']);
-    expect(corners('bottom-left')).toEqual(['top-left', 'top-right', 'bottom-right']);
+    expect(corners(null)).toEqual(['top-left', 'bottom-left']);
+    expect(corners('bottom-right')).toEqual(['top-left', 'bottom-left']);
+    expect(corners('top-left')).toEqual(['bottom-right', 'bottom-left']);
+    expect(corners('top-right')).toEqual(['top-left', 'bottom-left']);
+    expect(corners('bottom-left')).toEqual(['top-left', 'bottom-right']);
   });
 
   it('finds the store logo in whichever corner it is (and nowhere when there is none)', () => {

@@ -167,6 +167,15 @@
    * changes. Null for a store-framed photo. `logo` = { templates, usualCorner }:
    * the watermarks are arranged around wherever the store's logo is.
    */
+  /** Where the store logo goes when a photo has none: the usual corner, like your own photos. */
+  function logoPlacement(W, H, logoW, logoH, spec, corner) {
+    var w = Math.round(W * (W >= H ? spec.width : spec.portraitWidth || spec.width));
+    var h = Math.round(w * logoH / logoW);
+    var m = Math.round(Math.min(W, H) * (spec.margin == null ? 0.03 : spec.margin));
+    var c = corner || "bottom-right";
+    return { x: /right/.test(c) ? W - w - m : m, y: /^bottom/.test(c) ? H - h - m : m, w: w, h: h };
+  }
+
   async function stamp(bytes, mime, marks, quality, logo) {
     var photo = await createImageBitmap(new Blob([bytes], { type: mime || "image/jpeg" }));
     // Facebook shrinks photos to 2048 px on the long side anyway: save them at
@@ -186,6 +195,11 @@
       return null;
     }
     var logoAt = logo ? findLogo(photo, logo.templates) : null;
+    // No store logo on this photo: add it in its usual corner.
+    if (logo && !logoAt && logo.bitmap && logo.spec) {
+      var lp = logoPlacement(W, H, logo.bitmap.width, logo.bitmap.height, logo.spec, logo.usualCorner);
+      ctx.drawImage(logo.bitmap, lp.x, lp.y, lp.w, lp.h);
+    }
     var specs = arrange(marks.map(function (m) { return m.spec; }), logoAt, logo && logo.usualCorner);
     marks.forEach(function (m, i) {
       var p = placement(W, H, m.bitmap.width, m.bitmap.height, specs[i]);
@@ -207,6 +221,7 @@
     arrange: arrange,
     grayOf: grayOf,
     logoCorner: logoCorner,
+    logoPlacement: logoPlacement,
     logoTemplates: logoTemplates
   };
 })();

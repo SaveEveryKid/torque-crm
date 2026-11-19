@@ -90,7 +90,7 @@
     LISTING_STATE_KEY: "torqueMarketplaceListing",
     // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
     LISTED_KEY: "torqueListedUnits",
-    VERSION: "0.12.0",
+    VERSION: "0.13.0",
     // OfferUp: the same unit, photos and description on offerup.com's own posting page.
     OFFERUP: {
       // The posting form opens over OfferUp's home page (Post → Sell an item); offerup.com/post only says "update your app".
@@ -110,12 +110,11 @@
       LISTED_KEY: "torqueEbayListed"
     },
     // The watermarks on every photo: a little see-through, nothing else changed.
-    // Each has its own corner; the store's logo keeps the fourth (normally bottom-right).
-    // If a photo has the store's logo in another corner, the watermark from that
-    // corner moves to the free one, so every corner has something in it.
+    // "CALL BYRON @ 256-762-0959" top-left, the payment bottom-left, the store's
+    // logo bottom-right. If a photo has the store's logo in another corner, the
+    // watermark from that corner moves to the free one.
     WATERMARKS: [
-      { file: "watermarks/no-dealer-fees.png", width: 0.34, corner: "top-left", opacity: 0.85 },
-      { file: "watermarks/easy-buying.png", width: 0.25, corner: "top-right", opacity: 0.85 }
+      { file: "watermarks/call-byron.png", width: 0.44, corner: "top-left", opacity: 0.8 }
     ],
     // "$100 PER MONTH (WAC) / INBOX BYRON GREEN FOR DETAILS": drawn by Torque CRM
     // for each listing (the amount you type), bottom-left.
@@ -123,5 +122,8 @@
     STORE_LOGO_CORNER: "bottom-right",
     // A small grey copy of the store's logo, used to find which corner it's in.
     STORE_LOGO_TEMPLATE: "lib/store-logo.png",
+    // The full-colour Shoals Outdoor Sports logo, added (bottom-right) to any
+    // photo that doesn't already have it in a corner.
+    STORE_LOGO: { file: "watermarks/store-logo.png", width: 0.21, portraitWidth: 0.3, margin: 0.03 },
   };
 })();

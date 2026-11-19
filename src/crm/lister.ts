@@ -157,7 +157,7 @@ export async function rememberPayment(id: string, payment: number): Promise<void
 }
 
 /** The oldest Torque Marketplace Lister that does everything this CRM asks (description as written, Year and Florence picked for you). */
-export const MIN_EXTENSION = '0.11.0';
+export const MIN_EXTENSION = '0.13.0';
 
 /** Is version a older than b ("0.8.0" < "0.9.0" < "0.10.0")? */
 export function olderThan(a: string | undefined, b: string): boolean {

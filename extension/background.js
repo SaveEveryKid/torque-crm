@@ -48,7 +48,13 @@ function loadLogo() {
   logoPromise = logoPromise || (async function () {
     var res = await fetch(chrome.runtime.getURL(C.STORE_LOGO_TEMPLATE));
     if (!res.ok) return null;
-    return { templates: Byron.watermark.logoTemplates(await createImageBitmap(await res.blob())), usualCorner: C.STORE_LOGO_CORNER };
+    var full = await fetch(chrome.runtime.getURL(C.STORE_LOGO.file)).catch(function () { return null; });
+    return {
+      templates: Byron.watermark.logoTemplates(await createImageBitmap(await res.blob())),
+      usualCorner: C.STORE_LOGO_CORNER,
+      bitmap: full && full.ok ? await createImageBitmap(await full.blob()) : null,
+      spec: C.STORE_LOGO
+    };
   })().catch(function () { logoPromise = null; return null; });
   return logoPromise;
 }

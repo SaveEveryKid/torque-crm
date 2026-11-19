@@ -233,8 +233,8 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
           })}
         </div>
         <p className="muted small">
-          The only change to the photos: your watermarks on top, arranged around the store logo. Your own photos also get the store logo in the bottom-right, the
-          same one the website uses. Click a photo to leave it out.
+          The only change to the photos: CALL BYRON @ 256-762-0959 and your payment on top, arranged around the Shoals Outdoor Sports logo. Any photo without
+          the logo (your own photos too) gets it in the bottom-right, the same one the website uses. Click a photo to leave it out.
         </p>
 
         <label className="field">

@@ -2,10 +2,9 @@
  * THE PAYMENT WATERMARK ("$100 PER MONTH (WAC) / INBOX BYRON GREEN FOR
  * DETAILS"): the call to action is a Messenger inbox, never a phone call,
  * drawn here for each listing because the amount changes per unit. Same look
- * as the other Marketplace watermarks: slanted white Anton lettering with a
- * black outline, a black mountain range with snowcaps and pines, a blue
- * swoosh under the first line, and a white sticker edge with a thin black
- * rim. Colors are the store logo's: blue #5290C8, black, white.
+ * as before minus the scenery: slanted white Anton lettering with a black
+ * outline and a blue swoosh under the first line, nothing else. Colors are
+ * the store logo's: blue #5290C8, black, white.
  */
 const BLUE = '#5290c8';
 const BLACK = '#000000';
@@ -81,76 +80,6 @@ function textLayer(lines: [string, number][]) {
   o.setTransform(1, 0, -SLANT, 1, h * SLANT * 0.6, 0);
   o.drawImage(flat, 0, 0);
   return { image: out, rows };
-}
-
-/** Black range with white snowcaps and pine trees. */
-function mountains(w: number, h: number) {
-  const im = canvas(w, h);
-  const d = ctx2d(im);
-  const base = h;
-  const peaks: [number, number][] = [
-    [0.18, 0.55],
-    [0.32, 0.25],
-    [0.46, 0.5],
-    [0.58, 0.05],
-    [0.72, 0.42],
-    [0.84, 0.22],
-    [0.96, 0.6],
-  ];
-  const poly = (pts: [number, number][], fill: string, outline?: string) => {
-    d.beginPath();
-    pts.forEach(([x, y], i) => (i ? d.lineTo(x, y) : d.moveTo(x, y)));
-    d.closePath();
-    d.fillStyle = fill;
-    d.fill();
-    if (outline) {
-      d.strokeStyle = outline;
-      d.lineWidth = 1;
-      d.stroke();
-    }
-  };
-  poly([[w * 0.04, base], ...peaks.map(([x, y]): [number, number] => [w * x, h * y]), [w * 0.99, base]], BLACK, WHITE);
-  for (const [x, y] of peaks) {
-    if (y > 0.45) continue;
-    const px = w * x;
-    const py = h * y;
-    const cap = h * 0.22;
-    poly(
-      [
-        [px, py],
-        [px - cap * 0.75, py + cap],
-        [px - cap * 0.25, py + cap * 0.7],
-        [px, py + cap * 0.95],
-        [px + cap * 0.3, py + cap * 0.65],
-        [px + cap * 0.7, py + cap],
-      ],
-      WHITE,
-    );
-  }
-  for (const [tx, th] of [
-    [0.1, 0.62],
-    [0.16, 0.8],
-    [0.88, 0.75],
-    [0.94, 0.58],
-  ]) {
-    const cx = w * tx;
-    const top = h * (1 - th);
-    const tw = h * th * 0.42;
-    for (let k = 0; k < 4; k++) {
-      const y0 = top + (base - top) * k * 0.2;
-      const y1 = top + (base - top) * (0.35 + k * 0.2);
-      const hw = tw * (0.4 + k * 0.2);
-      poly(
-        [
-          [cx, y0],
-          [cx - hw, y1],
-          [cx + hw, y1],
-        ],
-        BLACK,
-      );
-    }
-  }
-  return im;
 }
 
 function swoosh(w: number, h: number) {
@@ -229,23 +158,19 @@ export async function paymentMark(payment: number, name?: string): Promise<strin
     [second, 0.7],
   ]);
   const W = txt.width;
-  const mh = Math.floor(SIZE * 0.85);
-  const edge = Math.max(6, Math.floor(SIZE / 18));
+  const edge = Math.max(4, Math.floor(SIZE / 40));
   const margin = edge + 6;
-  const art = canvas(W + 60 + margin * 2, txt.height + mh + margin * 2);
+  const art = canvas(W + 60 + margin * 2, txt.height + margin * 2);
   const a = ctx2d(art);
   a.translate(margin, margin);
-  a.drawImage(mountains(Math.floor(W * 0.92), mh + Math.floor(SIZE * 0.35)), Math.floor(W * 0.06), 0);
-  const textY = mh - Math.floor(SIZE * 0.2);
-  a.drawImage(txt, 30, textY);
-  a.drawImage(swoosh(Math.floor(W * 0.86), Math.floor(SIZE * 0.22)), Math.floor(W * 0.1), textY + rows[0].bottom + Math.floor(GAP * 0.15));
-  a.drawImage(txt, 30, textY); // letters stay on top
+  a.drawImage(txt, 30, 0);
+  a.drawImage(swoosh(Math.floor(W * 0.86), Math.floor(SIZE * 0.22)), Math.floor(W * 0.1), rows[0].bottom + Math.floor(GAP * 0.15));
+  a.drawImage(txt, 30, 0); // letters stay on top
   a.setTransform(1, 0, 0, 1, 0, 0);
-  // White sticker edge around everything, then a thin black rim.
+  // A thin black rim around everything so it reads on any photo.
   const out = canvas(art.width, art.height);
   const o = ctx2d(out);
-  o.drawImage(grown(art, edge + 2, BLACK), 0, 0);
-  o.drawImage(grown(art, edge, WHITE), 0, 0);
+  o.drawImage(grown(art, edge, BLACK), 0, 0);
   o.drawImage(art, 0, 0);
   // About 1400 px wide is plenty (it's drawn at a third of a 2048 px photo).
   const full = cropToContent(out);
