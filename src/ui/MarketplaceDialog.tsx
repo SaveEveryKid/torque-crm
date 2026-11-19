@@ -39,7 +39,7 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
     if (!payment) return;
     let live = true;
     const t = setTimeout(() => {
-      paymentMark(payment, settings.name)
+      paymentMark(payment)
         .then((url) => live && setMark({ for: payment, url }))
         .catch((e: Error) => live && setError(`Couldn't draw the payment watermark: ${e.message}`));
     }, 250);
@@ -47,7 +47,7 @@ export function MarketplaceDialog({ u, onClose, site = 'facebook' }: { u: Unit; 
       live = false;
       clearTimeout(t);
     };
-  }, [payment, settings.name]);
+  }, [payment]);
   const markUrl = payment && mark && mark.for === payment ? mark.url : null;
   // Your own photos (store logo already added), after the dealer's. They always
   // make the cut: when there are more than Facebook takes, dealer photos give way.

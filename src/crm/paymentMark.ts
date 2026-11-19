@@ -1,6 +1,5 @@
 /**
- * THE PAYMENT WATERMARK ("$100 PER MONTH (WAC) / INBOX BYRON GREEN FOR
- * DETAILS"): the call to action is a Messenger inbox, never a phone call,
+ * THE PAYMENT WATERMARK ("$100 PER MONTH (WAC) / INBOX FOR DETAILS"): the call to action is a Messenger inbox, never a phone call,
  * drawn here for each listing because the amount changes per unit. Same look
  * as before minus the scenery: slanted white Anton lettering with a black
  * outline and a blue swoosh under the first line, nothing else. Colors are
@@ -34,10 +33,7 @@ export function paymentText(payment: number): string {
   return `$${whole ? Math.round(payment).toLocaleString('en-US') : payment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export const paymentLines = (payment: number, name = 'Byron Green'): [string, string] => [
-  `${paymentText(payment)} PER MONTH (WAC)`,
-  `INBOX ${name.trim().toUpperCase() || 'ME'} FOR DETAILS`,
-];
+export const paymentLines = (payment: number): [string, string] => [`${paymentText(payment)} PER MONTH (WAC)`, 'INBOX FOR DETAILS'];
 
 const canvas = (w: number, h: number) => {
   const c = document.createElement('canvas');
@@ -150,9 +146,9 @@ function cropToContent(c: HTMLCanvasElement) {
 }
 
 /** The payment watermark as a PNG data URL (transparent background). */
-export async function paymentMark(payment: number, name?: string): Promise<string> {
+export async function paymentMark(payment: number): Promise<string> {
   await loadFont();
-  const [first, second] = paymentLines(payment, name);
+  const [first, second] = paymentLines(payment);
   const { image: txt, rows } = textLayer([
     [first, 1.0],
     [second, 0.7],
