@@ -2,7 +2,7 @@ import { afterActivity } from './sequence';
 import { useEffect } from 'react';
 import { kv } from '../core/storage/kv';
 import { normalizeUsPhone } from '../core/analysis/phone';
-import { activity, blankCustomer, getCustomers, serial, useStoredKey } from './store';
+import { activity, blankCustomer, getCustomers, serial, stagePatch, useStoredKey } from './store';
 import type { Activity, Customer } from './types';
 
 /**
@@ -110,7 +110,7 @@ async function mergeTexts(rows: SmsRow[]): Promise<SmsRow[]> {
       ...c,
       ...patch,
       activities: [entry, ...notes, ...c.activities].sort((a, b) => b.at.localeCompare(a.at)),
-      ...(c.stage === 'new' && s.direction === 'OUTBOUND' ? { stage: 'contacted' as const } : {}),
+      ...stagePatch(c, entry),
       // They texted: stop the scheduled follow-up emails and add "Reply to their text"; you texted back: that's done.
       ...afterActivity(c, entry),
       updatedAt: new Date().toISOString(),

@@ -287,7 +287,6 @@ function Composer({ customer: c }: { customer: Customer }) {
       text: text.trim(),
     });
     setSubject('');
-    if (kind === 'VISIT' && ['new', 'contacted', 'appointment'].includes(c.stage)) await setStage(c.id, 'showed', 'Showed');
     setText('');
   };
 
@@ -432,7 +431,6 @@ function Tasks({ customer: c }: { customer: Customer }) {
   const showed = async (t: Task, result: 'showed' | 'no_show') => {
     await updateTask(c.id, t.id, { done: true, doneAt: new Date().toISOString(), result });
     await logActivity(c.id, { channel: 'APPOINTMENT', direction: result === 'showed' ? 'INBOUND' : 'INTERNAL', outcome: result === 'showed' ? 'Showed for appointment' : 'No-show', text: '' });
-    if (result === 'showed' && ['new', 'contacted', 'appointment'].includes(c.stage)) await setStage(c.id, 'showed', 'Showed');
   };
 
   return (

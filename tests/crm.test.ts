@@ -11,7 +11,7 @@ import type { ChatMessage } from '../src/core/ai/localEngine';
 const NOW = new Date('2026-10-28T15:00:00');
 
 describe('customers and the AI record', () => {
-  it('logs activity newest first, and the first outbound contact moves New to Contacted', async () => {
+  it('logs activity newest first, and their reply moves them to Contacted', async () => {
     const c = await addCustomer(blankCustomer({ firstName: 'Pat', lastName: 'Sample', phone: '256.555.2964' }));
     expect(c.phone).toBe('(256) 555-2964');
     await logActivity(c.id, { channel: 'TEXT', direction: 'INBOUND', outcome: null, text: 'Is the green one still there?', at: '2026-10-27T10:00:00.000Z' });

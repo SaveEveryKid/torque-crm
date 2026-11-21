@@ -7,7 +7,7 @@ import { DISPOSITIONS, type CallLogEntry } from '../core/dialer/dispositions';
 import { normalizeUsPhone } from '../core/analysis/phone';
 import { appendCall } from '../core/storage/callLog';
 import { recordRef } from '../core/storage/hash';
-import { addTask, fullName, logActivity, setStage } from './store';
+import { addTask, fullName, logActivity } from './store';
 import type { Customer, Settings } from './types';
 
 /**
@@ -34,7 +34,7 @@ async function logResult(e: CallLogEntry) {
   const talk = e.talkSeconds ? ` (${Math.round(e.talkSeconds / 60) || '<1'} min)` : '';
   await logActivity(e.opportunityId, { channel: 'PHONE', direction: 'OUTBOUND', outcome: DISPOSITIONS[e.result] + talk, text: e.note ?? '' });
   if (e.callbackAt) await addTask(e.opportunityId, { kind: e.result === 'CONNECTED_APPOINTMENT' ? 'appointment' : 'call', dueAt: e.callbackAt, title: e.result === 'CONNECTED_APPOINTMENT' ? 'Appointment' : 'Call back' });
-  if (e.result === 'CONNECTED_APPOINTMENT') await setStage(e.opportunityId, 'appointment', 'Appointment');
+  // Connected calls move the stage on their own (logActivity); an appointment adds a task, which makes them Hot.
 }
 
 export function startDialer(customers: Customer[], s: Settings, practice: boolean): string | null {

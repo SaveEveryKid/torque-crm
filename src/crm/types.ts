@@ -1,19 +1,30 @@
 import type { ActivityChannel, ActivityDirection } from '../core/types/schema';
 
 /** Where a customer is in the deal. */
-export type Stage = 'new' | 'contacted' | 'appointment' | 'showed' | 'working' | 'sold' | 'lost';
+export type Stage = 'new' | 'attempted' | 'contacted' | 'hot' | 'working' | 'sold' | 'lost';
 
+/**
+ * New lead: nothing sent yet. Attempted: you've reached out, they haven't answered.
+ * Contacted: they responded. Hot: more than one back-and-forth (or an appointment or visit).
+ * Working deal, Sold and Lost are set by you.
+ */
 export const STAGES: { id: Stage; label: string }[] = [
-  { id: 'new', label: 'New' },
+  { id: 'new', label: 'New lead' },
+  { id: 'attempted', label: 'Attempted' },
   { id: 'contacted', label: 'Contacted' },
-  { id: 'appointment', label: 'Appointment' },
-  { id: 'showed', label: 'Showed' },
+  { id: 'hot', label: 'Hot' },
   { id: 'working', label: 'Working deal' },
   { id: 'sold', label: 'Sold' },
   { id: 'lost', label: 'Lost' },
 ];
 export const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.id, s.label])) as Record<Stage, string>;
-export const OPEN_STAGES: Stage[] = ['new', 'contacted', 'appointment', 'showed', 'working'];
+export const OPEN_STAGES: Stage[] = ['new', 'attempted', 'contacted', 'hot', 'working'];
+
+/** Stages saved before Attempted and Hot existed: Appointment and Showed are now Hot. */
+export function normalizeStage(s: string | undefined | null): Stage {
+  if (s === 'appointment' || s === 'showed') return 'hot';
+  return (STAGES.some((x) => x.id === s) ? s : 'new') as Stage;
+}
 
 /** A unit from the dealer's inventory, attached to a customer. */
 export interface VehicleRef {
