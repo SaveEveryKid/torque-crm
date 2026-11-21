@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { kv } from '../core/storage/kv';
 import { normalizeUsPhone } from '../core/analysis/phone';
+import { atLeast, autoStage } from './stage';
 import { afterActivity, autoStop } from './sequence';
-import { DEFAULT_SETTINGS, DEFAULT_SIGNATURE, type Activity, type Customer, type Settings, type Stage, type Task } from './types';
+import { DEFAULT_SETTINGS, DEFAULT_SIGNATURE, type Activity, type Customer, type Settings, type Stage, type Task, normalizeStage } from './types';
 
 /**
  * Your CRM data, on this computer only (IndexedDB through kv). Nothing here
@@ -18,7 +19,12 @@ const now = () => new Date().toISOString();
 export const newId = () => crypto.randomUUID();
 
 export async function getCustomers(): Promise<CustomerMap> {
-  return ((await kv.get(CUSTOMERS))[CUSTOMERS] as CustomerMap | undefined) ?? {};
+  const m = ((await kv.get(CUSTOMERS))[CUSTOMERS] as CustomerMap | undefined) ?? {};
+  for (const c of Object.values(m)) {
+    const s = normalizeStage(c.stage);
+    if (s !== c.stage) c.stage = s;
+  }
+  return m;
 }
 
 export async function getCustomer(id: string): Promise<Customer | null> {
@@ -142,12 +148,18 @@ export function activity(a: Omit<Activity, 'id' | 'at'> & { at?: string; id?: st
   return { ...a, id: a.id ?? newId(), at: a.at ?? now() };
 }
 
+/** The stage change a new activity calls for, as a patch. */
+export function stagePatch(c: Customer, entry: Activity): Partial<Customer> {
+  const next = autoStage(c, entry);
+  return next ? { stage: next } : {};
+}
+
 export async function logActivity(id: string, a: Omit<Activity, 'id' | 'at'> & { at?: string; id?: string }): Promise<void> {
   const entry = activity(a);
   await updateCustomer(id, (c) => c.activities.some((x) => x.id === entry.id) ? {} : ({
     activities: [entry, ...c.activities].sort((x, y) => y.at.localeCompare(x.at)),
-    // First outbound contact moves a New customer to Contacted.
-    ...(c.stage === 'new' && entry.direction === 'OUTBOUND' ? { stage: 'contacted' as Stage } : {}),
+    // New lead -> Attempted -> Contacted -> Hot, from what happened (see stage.ts).
+    ...stagePatch(c, entry),
     // Start / advance / stop the automatic follow-up emails; a reply adds "Reply to them".
     ...afterActivity(c, entry),
   }));
@@ -160,7 +172,7 @@ export async function deleteActivity(id: string, activityId: string): Promise<vo
 export async function addTask(id: string, t: Omit<Task, 'id' | 'done'>): Promise<void> {
   await updateCustomer(id, (c) => ({
     tasks: [...c.tasks, { ...t, id: newId(), done: false }],
-    ...(t.kind === 'appointment' && ['new', 'contacted'].includes(c.stage) ? { stage: 'appointment' as Stage } : {}),
+    ...(t.kind === 'appointment' && atLeast(c.stage, 'hot') ? { stage: 'hot' as Stage } : {}),
   }));
 }
 

@@ -147,9 +147,9 @@ export interface ImportPlan {
 const STAGE_WORDS: [Stage, RegExp][] = [
   ['sold', /sold|deliver|purchas|bought|won/],
   ['lost', /lost|dead|bad|inactive|closed|not interested|purchased elsewhere/],
-  ['appointment', /appo?i?n?t|appt|scheduled/],
-  ['showed', /show|visit|walk.?in|up\b/],
+  ['hot', /hot|appo?i?n?t|appt|scheduled|show|visit|walk.?in|up\b/],
   ['working', /work|negotiat|desk|pencil|financ|pending/],
+  ['attempted', /attempt|no answer|left (a )?(vm|voicemail|message)|emailed|no response|unresponsive/],
   ['contacted', /contact|called|spoke|talk|engaged|responded|replied|follow/],
   ['new', /new|fresh|open|lead|prospect/],
 ];

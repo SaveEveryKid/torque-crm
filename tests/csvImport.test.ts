@@ -61,7 +61,8 @@ describe('importing customers from a CSV', () => {
     expect(splitName('Zach & Abby Moore')).toEqual({ firstName: 'Zach & Abby', lastName: 'Moore' });
     expect(splitName('Steve / Ridge Construction', 'Ridge Construction')).toEqual({ firstName: 'Steve', lastName: '' });
     expect(readStage('Sold')).toBe('sold');
-    expect(readStage('Appt set')).toBe('appointment');
+    expect(readStage('Appt set')).toBe('hot');
+    expect(readStage('Left voicemail')).toBe('attempted');
     expect(readStage('whatever')).toBeNull();
     const sheet = readSheet('﻿sep=,\r\nFIRST,LAST,CELL,STATUS,DNT\r\nJOHN,SMITH,2565552601,lost,yes\r\n\r\n') as Sheet;
     const p = planImport(sheet, guessMapping(sheet.headers), [], opts);

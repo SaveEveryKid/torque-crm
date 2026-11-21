@@ -155,9 +155,9 @@ label.check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; c
   font-size: 12px; font-weight: 550; background: var(--hover); color: var(--text-2); white-space: nowrap;
 }
 .badge.new { background: var(--blue-soft); color: var(--blue-text); }
-.badge.contacted { background: var(--hover); color: var(--text-2); }
-.badge.appointment { background: var(--purple-soft); color: var(--purple-text); }
-.badge.showed { background: var(--amber-soft); color: var(--amber-text); }
+.badge.attempted { background: var(--hover); color: var(--text-2); }
+.badge.contacted { background: var(--purple-soft); color: var(--purple-text); }
+.badge.hot { background: var(--amber-soft); color: var(--amber-text); }
 .badge.working { background: var(--accent-soft); color: var(--accent-text); }
 .badge.sold { background: var(--green-soft); color: var(--green-text); }
 .badge.lost { background: var(--red-soft); color: var(--red-text); }

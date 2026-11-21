@@ -63,7 +63,7 @@ describe('scheduled follow-up emails', () => {
     const c = apply(fresh, sent());
     expect(running(apply(c, activity({ channel: 'PHONE', direction: 'OUTBOUND', outcome: 'Talked', text: '' })))).toBe(false);
     expect(running(apply(c, activity({ channel: 'PHONE', direction: 'OUTBOUND', outcome: 'Left voicemail', text: '' })))).toBe(true);
-    expect(autoStop({ ...c, stage: 'appointment' }).sequence?.reason).toBe('Moved to appointment');
+    expect(autoStop({ ...c, stage: 'hot' }).sequence?.reason).toBe('Moved to hot');
     expect(autoStop({ ...c, doNotContact: true }).sequence?.reason).toBe('Do not contact');
     expect(running({ ...c, ...stopSequence(c, 'Stopped by you') })).toBe(false);
   });

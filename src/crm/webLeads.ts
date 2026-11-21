@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { kv } from '../core/storage/kv';
 import { normalizeUsPhone } from '../core/analysis/phone';
 import { afterActivity } from './sequence';
-import { activity, blankCustomer, getCustomers, serial, useStoredKey } from './store';
+import { activity, blankCustomer, getCustomers, serial, stagePatch, useStoredKey } from './store';
 import type { Activity, Task } from './types';
 
 /**
@@ -102,7 +102,7 @@ async function mergeLeads(rows: WebLead[]): Promise<WebLead[]> {
       interest: c.interest || (l.vehicle ? l.vehicle.title : ''),
       vehicle: c.vehicle ?? (l.vehicle ? { id: l.vehicle.id, title: l.vehicle.title, stock: l.vehicle.stock, vin: null, price: null, image: null, url: l.vehicle.url } : null),
       // A sold or lost customer asking again is a live deal again.
-      ...(isNew || !['sold', 'lost'].includes(c.stage) ? {} : { stage: 'new' as const }),
+      ...(isNew ? {} : ['sold', 'lost'].includes(c.stage) ? { stage: 'new' as const } : stagePatch(c, entry)),
       activities: [entry, ...c.activities].sort((a, b) => b.at.localeCompare(a.at)),
       tasks: tasks.some((t) => t.id === task.id) ? tasks : [...tasks, task],
       updatedAt: new Date().toISOString(),
