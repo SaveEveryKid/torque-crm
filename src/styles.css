@@ -160,6 +160,8 @@ label.check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; c
 .badge.hot { background: var(--amber-soft); color: var(--amber-text); }
 .badge.working { background: var(--accent-soft); color: var(--accent-text); }
 .badge.sold { background: var(--green-soft); color: var(--green-text); }
+.badge.soldfollow { background: var(--green-soft); color: var(--green-text); }
+.badge.longterm { background: var(--blue-soft); color: var(--blue-text); }
 .badge.lost { background: var(--red-soft); color: var(--red-text); }
 .badge.warn { background: var(--red-soft); color: var(--red-text); }
 

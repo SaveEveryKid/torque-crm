@@ -27,7 +27,7 @@ export function Today() {
   const late = due.filter(({ t }) => daysFromToday(t.dueAt) < 0).length;
   const replies = tasks.filter(({ t }) => t.reply).sort((a, b) => a.t.dueAt.localeCompare(b.t.dueAt));
   const month = now.toISOString().slice(0, 7);
-  const soldThisMonth = list.filter((c) => c.stage === 'sold' && c.updatedAt.startsWith(month)).length;
+  const soldThisMonth = list.filter((c) => (c.stage === 'sold' || c.stage === 'soldfollow') && c.updatedAt.startsWith(month)).length;
   const hello = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
   return (

@@ -16,7 +16,7 @@ export const STEPS: { step: 2 | 3 | 4; days: number; type: ListType; title: stri
 ];
 
 /** Stages that mean you've made contact (the automatic follow-ups stop). */
-const CONTACT_STAGES: Stage[] = ['contacted', 'hot', 'working', 'sold', 'lost'];
+const CONTACT_STAGES: Stage[] = ['contacted', 'hot', 'working', 'longterm', 'sold', 'soldfollow', 'lost'];
 
 /** n business days after `from`, at 9 AM. */
 export function addBusinessDays(from: Date, n: number): Date {

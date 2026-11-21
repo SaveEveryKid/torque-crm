@@ -148,6 +148,7 @@ const STAGE_WORDS: [Stage, RegExp][] = [
   ['sold', /sold|deliver|purchas|bought|won/],
   ['lost', /lost|dead|bad|inactive|closed|not interested|purchased elsewhere/],
   ['hot', /hot|appo?i?n?t|appt|scheduled|show|visit|walk.?in|up\b/],
+  ['longterm', /long.?term|keep in mind|nurture|not (now|yet)|future/],
   ['working', /work|negotiat|desk|pencil|financ|pending/],
   ['attempted', /attempt|no answer|left (a )?(vm|voicemail|message)|emailed|no response|unresponsive/],
   ['contacted', /contact|called|spoke|talk|engaged|responded|replied|follow/],

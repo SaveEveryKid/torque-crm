@@ -1,12 +1,14 @@
 import type { ActivityChannel, ActivityDirection } from '../core/types/schema';
 
 /** Where a customer is in the deal. */
-export type Stage = 'new' | 'attempted' | 'contacted' | 'hot' | 'working' | 'sold' | 'lost';
+export type Stage = 'new' | 'attempted' | 'contacted' | 'hot' | 'working' | 'longterm' | 'sold' | 'soldfollow' | 'lost';
 
 /**
  * New lead: nothing sent yet. Attempted: you've reached out, they haven't answered.
  * Contacted: they responded. Hot: more than one back-and-forth (or an appointment or visit).
  * Working deal, Sold and Lost are set by you.
+ * Long-term follow-up: not buying now but said to keep them in mind; one email on the 15th of every month.
+ * Sold follow-up: a customer who bought; a referral follow-up chain that never ends (see cadence.ts).
  */
 export const STAGES: { id: Stage; label: string }[] = [
   { id: 'new', label: 'New lead' },
@@ -14,7 +16,9 @@ export const STAGES: { id: Stage; label: string }[] = [
   { id: 'contacted', label: 'Contacted' },
   { id: 'hot', label: 'Hot' },
   { id: 'working', label: 'Working deal' },
+  { id: 'longterm', label: 'Long-term follow-up' },
   { id: 'sold', label: 'Sold' },
+  { id: 'soldfollow', label: 'Sold follow-up' },
   { id: 'lost', label: 'Lost' },
 ];
 export const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.id, s.label])) as Record<Stage, string>;
@@ -71,6 +75,8 @@ export interface Task {
   result?: 'showed' | 'no_show' | null;
   /** Scheduled automatically: follow-up email #2, #3 or #4 after the first email. */
   seq?: 2 | 3 | 4;
+  /** Long-term follow-up (the 15th of each month) or Sold follow-up (every 3 months): checking it off schedules the next one. */
+  repeat?: 'monthly15' | 'quarterly';
   /** They wrote back: answer them. */
   reply?: boolean;
 }
