@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { kv } from '../core/storage/kv';
 import { normalizeUsPhone } from '../core/analysis/phone';
 import { atLeast, autoStage } from './stage';
+import { nextRepeat, tasksForStage } from './cadence';
 import { afterActivity, autoStop } from './sequence';
 import { DEFAULT_SETTINGS, DEFAULT_SIGNATURE, type Activity, type Customer, type Settings, type Stage, type Task, normalizeStage } from './types';
 
@@ -139,9 +140,12 @@ export function deleteCustomers(ids: string[]): Promise<void> {
 
 /** Moving to Appointment / Showed / Sold etc. is logged on the timeline. */
 export async function setStage(id: string, stage: Stage, label: string): Promise<void> {
-  await updateCustomer(id, (c) =>
-    c.stage === stage ? {} : { stage, activities: [activity({ channel: 'NOTE', direction: 'INTERNAL', outcome: 'Stage', text: `Moved to ${label}` }), ...c.activities] },
-  );
+  await updateCustomer(id, (c) => {
+    if (c.stage === stage) return {};
+    // Long-term and Sold follow-up bring their own email schedule (cadence.ts).
+    const tasks = tasksForStage(c, c.stage, stage);
+    return { stage, ...(tasks ? { tasks } : {}), activities: [activity({ channel: 'NOTE', direction: 'INTERNAL', outcome: 'Stage', text: `Moved to ${label}` }), ...c.activities] };
+  });
 }
 
 export function activity(a: Omit<Activity, 'id' | 'at'> & { at?: string; id?: string }): Activity {
@@ -177,7 +181,13 @@ export async function addTask(id: string, t: Omit<Task, 'id' | 'done'>): Promise
 }
 
 export async function updateTask(id: string, taskId: string, patch: Partial<Task>): Promise<void> {
-  await updateCustomer(id, (c) => ({ tasks: c.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t)) }));
+  await updateCustomer(id, (c) => {
+    const old = c.tasks.find((t) => t.id === taskId);
+    const tasks = c.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t));
+    // Checking off a monthly / every-3-months follow-up schedules the next one.
+    const next = old && !old.done && patch.done ? nextRepeat(old) : null;
+    return { tasks: next ? [...tasks, next] : tasks };
+  });
 }
 
 export async function deleteTask(id: string, taskId: string): Promise<void> {

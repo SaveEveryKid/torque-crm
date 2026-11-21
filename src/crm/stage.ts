@@ -4,9 +4,9 @@ import type { Activity, Customer, Stage } from './types';
  * WHERE A CUSTOMER IS, FROM WHAT HAS HAPPENED.
  * New lead -> Attempted (you reached out) -> Contacted (they answered)
  * -> Hot (they've engaged more than once, set an appointment or came in).
- * Stages only move forward on their own; Working deal, Sold and Lost are yours to set.
+ * Stages only move forward on their own; Working deal, Long-term follow-up, Sold, Sold follow-up and Lost are yours to set.
  */
-const RANK: Record<Stage, number> = { new: 0, attempted: 1, contacted: 2, hot: 3, working: 4, sold: 5, lost: 5 };
+const RANK: Record<Stage, number> = { new: 0, attempted: 1, contacted: 2, hot: 3, working: 4, longterm: 4, sold: 5, soldfollow: 5, lost: 5 };
 
 const AUTO_REPLY = /^(subject:\s*)?(automatic reply|auto-?reply|out of (the )?office|undeliverable|delivery (has )?failed)/i;
 
