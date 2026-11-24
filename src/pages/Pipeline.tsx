@@ -20,7 +20,8 @@ export function Pipeline() {
   const list = useMemo(() => all.filter((c) => pipelineOf(c) === track), [all, track]);
   const [over, setOver] = useState<Stage | null>(null);
   const [showClosed, setShowClosed] = useState(false);
-  const stages = STAGES.filter((s) => showClosed || !['sold', 'lost'].includes(s.id));
+  // Appointment set is a Kenect-board column (it shows on Email outreach only when someone is in it).
+  const stages = STAGES.filter((s) => (showClosed || !['sold', 'lost'].includes(s.id)) && (s.id !== 'apptset' || track === 'kenect' || list.some((c) => c.stage === 'apptset')));
   const month = new Date().toISOString().slice(0, 7);
 
   return (

@@ -63,3 +63,14 @@ describe('texts through Kenect (Chrome)', () => {
     expect(statusLabel({ ...base, status: 'sent' }).text).toBe('Sent in Kenect');
   });
 });
+
+describe('Appointment set (Kenect board)', () => {
+  it('setting an appointment moves Kenect customers to Appointment set, others to Hot, never backward', async () => {
+    const { apptStage } = await import('../src/crm/store');
+    expect(apptStage({ stage: 'contacted', pipeline: 'kenect' })).toEqual({ stage: 'apptset' });
+    expect(apptStage({ stage: 'hot', pipeline: 'kenect' })).toEqual({ stage: 'apptset' });
+    expect(apptStage({ stage: 'contacted' })).toEqual({ stage: 'hot' });
+    expect(apptStage({ stage: 'working', pipeline: 'kenect' })).toEqual({});
+    expect(apptStage({ stage: 'apptset', pipeline: 'kenect' })).toEqual({});
+  });
+});

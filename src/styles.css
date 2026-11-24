@@ -159,6 +159,7 @@ label.check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; c
 .badge.contacted { background: var(--purple-soft); color: var(--purple-text); }
 .badge.kenect { background: var(--hover); color: var(--text-2); font-size: 11px; margin-left: 4px; }
 .badge.hot { background: var(--amber-soft); color: var(--amber-text); }
+.badge.apptset { background: var(--green-soft, var(--accent-soft)); color: var(--green-text, var(--accent-text)); }
 .badge.working { background: var(--accent-soft); color: var(--accent-text); }
 .badge.sold { background: var(--green-soft); color: var(--green-text); }
 .badge.soldfollow { background: var(--green-soft); color: var(--green-text); }
