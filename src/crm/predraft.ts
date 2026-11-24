@@ -60,6 +60,7 @@ export const setDraftStatus = (id: string, status: PreDraft['status']) =>
 export const talkedTo = (c: Customer) => c.activities.some((a) => a.direction !== 'INTERNAL');
 /** The follow-up type that fits right now: the scheduled email that's due, else a cold opener if we've never talked. */
 export function suggestedType(c: Customer, now = new Date()): ListType | '' {
+  if (c.pipeline === 'kenect') return 'kenect_checkin';
   const due = dueStep(c, now);
   if (due) return stepType(due.seq);
   return talkedTo(c) ? '' : 'cold_opener';

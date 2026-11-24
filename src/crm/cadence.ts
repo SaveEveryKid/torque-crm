@@ -66,3 +66,46 @@ export function nextRepeat(t: Task, now = new Date()): Task | null {
   const dueAt = t.repeat === 'monthly15' ? next15th(from) : addDays(from, 91);
   return task({ kind: t.kind, dueAt: dueAt.toISOString(), title: t.title, repeat: t.repeat });
 }
+
+/**
+ * KENECT: past buyers. Light touches, not a sales push: one short thank-you
+ * text (thanks for doing business with us, still enjoying the unit?), one
+ * friendly nudge a month later, then a check-in every 3 months.
+ * Their reply stops the scheduled texts (see sequence.ts).
+ */
+export const KENECT_PREFIX = 'Kenect:';
+export const KENECT_STEPS: { days: number; title: string; repeat?: 'quarterly' }[] = [
+  { days: 0, title: 'Kenect: thank-you text: thanks for doing business with us, still enjoying the unit?' },
+  { days: 30, title: 'Kenect: friendly check-in text, no pitch' },
+  { days: 120, title: 'Kenect: check-in text (every 3 months)', repeat: 'quarterly' },
+];
+export const isKenectTask = (t: Task) => t.title.startsWith(KENECT_PREFIX);
+
+/** The Kenect text schedule starting on `start` (the first text that day at 9 AM). */
+export function kenectTasks(start: Date): Task[] {
+  return KENECT_STEPS.map((s) => task({ kind: 'text', dueAt: addDays(start, s.days).toISOString(), title: s.title, ...(s.repeat ? { repeat: s.repeat } : {}) }));
+}
+
+/**
+ * First-text days for `n` imported customers, `perDay` a work day so it stays light.
+ * Work days are Tuesday through Saturday (the store is closed Sunday and Monday).
+ * Starts with the next work day after `from`.
+ */
+export function spreadStarts(n: number, perDay: number, from = new Date(), workDays = [2, 3, 4, 5, 6]): Date[] {
+  const out: Date[] = [];
+  const per = Math.max(1, Math.floor(perDay));
+  const d = at9(from);
+  while (out.length < n) {
+    d.setDate(d.getDate() + 1);
+    if (!workDays.includes(d.getDay())) continue;
+    for (let i = 0; i < per && out.length < n; i++) out.push(new Date(d));
+  }
+  return out;
+}
+
+/** "HALEY RYE" or "haley" → "Haley": names from Kenect often come in all caps. Mixed case (McDonald) is left alone. */
+export function properName(n: string): string {
+  const t = n.trim();
+  if (!t || (t !== t.toUpperCase() && t !== t.toLowerCase())) return t;
+  return t.toLowerCase().replace(/(^|[\s'-])([a-z])/g, (_, p: string, ch: string) => p + ch.toUpperCase());
+}

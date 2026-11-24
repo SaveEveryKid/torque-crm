@@ -72,6 +72,7 @@ export type ListType =
   | 'lease_end'
   | 'equity'
   | 'service'
+  | 'kenect_checkin'
   | 'other';
 
 export const LIST_TYPES: Record<ListType, { label: string; hint: string }> = {
@@ -151,6 +152,16 @@ export const LIST_TYPES: Record<ListType, { label: string; hint: string }> = {
   service: {
     label: 'Service customers',
     hint: 'Customers who service with us. Keep it light and helpful. Mention options only as a no-pressure "if you ever want to see what yours is worth".',
+  },
+  kenect_checkin: {
+    label: 'Kenect: past buyer check-in (text)',
+    hint: `A past customer who bought from us (from Kenect). This is a light, friendly TEXT, not a sales pitch. Keep it simple.
+- The first text is a thank-you, in about this shape: "Hey [First name], this is Byron at Shoals Outdoor Sports. We just wanted to thank you so much for doing business with us in the past. Are you still enjoying the unit?" Close variations are fine; keep it that simple.
+- Their first name in normal capitalization (Haley, never HALEY), even if the record has it in all caps. Never write any part of the text in all caps.
+- Don't name the unit, model or year they bought, even if it's in the record. "The unit" is enough.
+- No upgrade pitch, prices, payments, trade values, promotions, inventory or urgency. One easy question at most.
+- Later texts in this list are just as light: a friendly check-in, here if they ever need anything. Under about 35 words.
+- The email version (if asked for) follows the same tone and stays just as short.`,
   },
   other: {
     label: 'Other (describe it below)',

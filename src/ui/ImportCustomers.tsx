@@ -2,14 +2,29 @@ import { useMemo, useRef, useState } from 'react';
 import { readTorqueData } from '../core/analysis/customExport';
 import { FIELDS, SAMPLE_CSV, guessMapping, planImport, readSheet, type Field, type Sheet } from '../crm/csvImport';
 import { importCustomers } from '../crm/store';
-import { STAGES, type Customer, type Stage } from '../crm/types';
+import { kenectTasks, properName, spreadStarts } from '../crm/cadence';
+import { STAGES, type Customer, type Pipeline, type Stage } from '../crm/types';
 import { Icon, Modal } from './kit';
 
 /**
  * IMPORT CUSTOMERS: pick a CSV, check which column is which, see what will
  * happen, then import. Nothing is saved until you press Import.
+ * pipeline "kenect": past buyers from Kenect. They go on the Kenect pipeline
+ * with a few light check-in texts, spread out a set number per work day.
  */
-export function ImportCustomers({ existing, onClose, onDone }: { existing: Customer[]; onClose: () => void; onDone: (msg: string) => void }) {
+export function ImportCustomers({
+  existing,
+  onClose,
+  onDone,
+  pipeline = 'email',
+}: {
+  existing: Customer[];
+  onClose: () => void;
+  onDone: (msg: string) => void;
+  pipeline?: Pipeline;
+}) {
+  const kenect = pipeline === 'kenect';
+  const [perDay, setPerDay] = useState(15);
   const [file, setFile] = useState<{ name: string; text: string; sheet: Sheet } | null>(null);
   const [mapping, setMapping] = useState<Field[]>([]);
   const [stage, setStage] = useState<Stage>('new');
@@ -28,7 +43,7 @@ export function ImportCustomers({ existing, onClose, onDone }: { existing: Custo
     if ('error' in sheet) return setError(sheet.error);
     setFile({ name: f.name, text, sheet });
     setMapping(guessMapping(sheet.headers));
-    setSource(`Import: ${f.name.replace(/\.csv$/i, '')}`);
+    setSource(kenect ? 'Kenect' : `Import: ${f.name.replace(/\.csv$/i, '')}`);
   };
 
   const torque = useMemo(() => (file ? readTorqueData(file.text) : new Map()), [file]);
@@ -43,7 +58,17 @@ export function ImportCustomers({ existing, onClose, onDone }: { existing: Custo
     if (!plan) return;
     setBusy(true);
     try {
-      await importCustomers(plan.add, plan.update);
+      let add = plan.add;
+      let texting = 0;
+      if (kenect) {
+        // Only people we can text get the check-in texts; everyone goes on the Kenect pipeline.
+        const can = add.filter((c) => c.phone.trim() && !c.doNotText && !c.doNotContact);
+        const starts = spreadStarts(can.length, perDay);
+        const startOf = new Map(can.map((c, i) => [c.id, starts[i]]));
+        texting = can.length;
+        add = add.map((c) => ({ ...c, firstName: properName(c.firstName), lastName: properName(c.lastName), pipeline: 'kenect' as const, tasks: startOf.has(c.id) ? [...c.tasks, ...kenectTasks(startOf.get(c.id)!)] : c.tasks }));
+      }
+      await importCustomers(add, plan.update);
       const n = plan.add.length;
       onDone(
         [
@@ -52,6 +77,7 @@ export function ImportCustomers({ existing, onClose, onDone }: { existing: Custo
           plan.unchanged && `${plan.unchanged} already here were left alone.`,
           plan.repeats && `${plan.repeats} rows were the same person again and were merged.`,
           plan.skipped.length && `${plan.skipped.length} skipped (no way to reach them).`,
+          kenect && texting && `Check-in texts start next work day, ${Math.min(perDay, texting)} a day.`,
         ]
           .filter(Boolean)
           .join(' '),
@@ -74,7 +100,7 @@ export function ImportCustomers({ existing, onClose, onDone }: { existing: Custo
   return (
     <Modal
       wide
-      title="Import customers"
+      title={kenect ? 'Import Kenect customers (past buyers)' : 'Import customers'}
       onClose={onClose}
       foot={
         <>
@@ -91,6 +117,12 @@ export function ImportCustomers({ existing, onClose, onDone }: { existing: Custo
       }
     >
       <input ref={input} type="file" accept=".csv,text/csv" hidden onChange={(e) => void open(e.target.files?.[0])} />
+      {kenect && (
+        <p className="notice small">
+          Past buyers go on the <b>Kenect</b> pipeline, separate from your email outreach. Each one gets a simple thank-you text (thanks for doing business with us, still enjoying the unit?), a
+          friendly nudge a month later, then a check-in every 3 months. A reply stops the scheduled texts. All-caps names are fixed (HALEY RYE → Haley Rye).
+        </p>
+      )}
       {!file ? (
         <div className="stack">
           <div
@@ -168,6 +200,12 @@ export function ImportCustomers({ existing, onClose, onDone }: { existing: Custo
                 ))}
               </select>
             </label>
+            {kenect && (
+              <label className="field">
+                First check-in texts per work day
+                <input type="number" min={1} max={100} value={perDay} onChange={(e) => setPerDay(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} />
+              </label>
+            )}
             <label className="field">
               Source (unless the file has one)
               <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="e.g. Commercial list, Oct 2026" />

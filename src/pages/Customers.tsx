@@ -14,7 +14,7 @@ export function Customers() {
   const list = useMemo(() => Object.values(customers), [customers]);
   const [v, set] = useView('customers');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [importing, setImporting] = useState(false);
+  const [importing, setImporting] = useState<false | 'email' | 'kenect'>(false);
   const [deleting, setDeleting] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
 
@@ -53,7 +53,10 @@ export function Customers() {
           <p>Everyone you're working, in one place.</p>
         </div>
         <div className="row">
-          <button className="btn" onClick={() => setImporting(true)} title="Bring in customers from a spreadsheet (CSV). A Torque “EXPORT LIST + HISTORY” file brings each customer's eLead history.">
+          <button className="btn" onClick={() => setImporting('kenect')} title="Past buyers exported from Kenect: they go on the Kenect pipeline with a few light check-in texts">
+            <Icon name="upload" size={16} /> Import Kenect CSV
+          </button>
+          <button className="btn" onClick={() => setImporting('email')} title="Bring in customers from a spreadsheet (CSV). A Torque “EXPORT LIST + HISTORY” file brings each customer's eLead history.">
             <Icon name="upload" size={16} /> Import CSV
           </button>
           <button className="btn ghost danger" disabled={!shown.length} onClick={() => setDeleting(true)} title="Delete everyone the list is showing (all customers with no filters)">
@@ -63,7 +66,7 @@ export function Customers() {
       </div>
       {msg && <p className={msg.ok ? 'success' : 'error'}>{msg.text}</p>}
       {deleting && <DeleteCustomers list={shown} everyone={shown.length === list.length} onClose={() => setDeleting(false)} onDone={(text) => setMsg({ ok: true, text })} />}
-      {importing && <ImportCustomers existing={list} onClose={() => setImporting(false)} onDone={(text) => setMsg({ ok: true, text })} />}
+      {importing && <ImportCustomers pipeline={importing} existing={list} onClose={() => setImporting(false)} onDone={(text) => setMsg({ ok: true, text })} />}
 
       <div className="tabs scroll-x">
         {(['open', 'all'] as View['stage'][]).concat(STAGES.map((s) => s.id)).map((f) => (
@@ -114,7 +117,9 @@ export function Customers() {
                       <div className="who">
                         <Avatar first={c.firstName} last={c.lastName} company={c.company} />
                         <div style={{ minWidth: 0 }}>
-                          <div className="name">{fullName(c)}</div>
+                          <div className="name">
+                            {fullName(c)} {c.pipeline === 'kenect' && <span className="badge kenect">Kenect</span>}
+                          </div>
                           <div className="line">
                             {[`${c.firstName}${c.lastName}`.trim() ? c.company : c.title, c.phone || c.email || 'no phone'].filter(Boolean).join(' · ')}
                           </div>
