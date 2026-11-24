@@ -1,5 +1,6 @@
 import { dialerBase, json, type Env } from './env';
 import { readRow, rowsWithPrefix, writeRows } from './store';
+import { checkKenect, kenectMissing, kenectReady, sendViaKenect } from './kenect';
 
 /**
  * TEXTING through your SignalWire number. One text at a time, sent only when
@@ -47,7 +48,7 @@ export function digits(phone: string): string {
 export const viaDialer = (env: Env) => Boolean(dialerBase(env.DIALER_URL) && env.DIALER_PASSWORD);
 /** Or straight to SignalWire with Torque CRM's own SignalWire settings. */
 const direct = (env: Env) => Boolean(env.SW_SPACE && env.SW_PROJECT_ID && env.SW_API_TOKEN && digits(env.SMS_FROM ?? ''));
-export const smsReady = (env: Env) => viaDialer(env) || direct(env);
+export const smsReady = (env: Env) => kenectReady(env) || viaDialer(env) || direct(env);
 
 async function hmac(secret: string, data: string): Promise<string> {
   const enc = new TextEncoder();
@@ -105,6 +106,20 @@ export async function sendSms(request: Request, env: Env, origin: string): Promi
     const raw = await readRow(env.DB, `customers/${b.customerId}`);
     const c = raw ? (JSON.parse(raw) as { doNotText?: boolean; doNotContact?: boolean }) : null;
     if (c?.doNotText || c?.doNotContact) return json(403, { error: 'This customer is marked do not text.' });
+  }
+  // Kenect first: the store's texting inbox, so the conversation is in Kenect too.
+  if (kenectReady(env)) {
+    let name = '';
+    if (b.customerId) {
+      const raw = await readRow(env.DB, `customers/${b.customerId}`);
+      const c = raw ? (JSON.parse(raw) as { firstName?: string; lastName?: string }) : null;
+      name = [c?.firstName, c?.lastName].filter(Boolean).join(' ');
+    }
+    const sent = await sendViaKenect(env, to, body, name);
+    if ('error' in sent) return json(502, { error: sent.error });
+    const row: SmsRow = { ...sent.row, customerId: b.customerId ?? null };
+    await save(env, row);
+    return json(200, row);
   }
   const key = await webhookKey(env);
   if (viaDialer(env)) {
@@ -206,8 +221,9 @@ export async function smsStatus(request: Request, env: Env): Promise<Response> {
 /** For Settings: the address to paste into SignalWire (only when logged in). */
 export async function smsSetup(env: Env, origin: string) {
   // Which settings are missing or wrong (names only, never values).
-  const missing = smsReady(env) ? [] : [!env.DIALER_URL?.trim() && 'DIALER_URL', !env.DIALER_PASSWORD?.trim() && 'DIALER_PASSWORD'].filter((m): m is string => Boolean(m));
-  return { ready: smsReady(env), via: viaDialer(env) ? 'dialer' : 'signalwire', from: viaDialer(env) ? 'your dialer’s number (CALLER_ID)' : (env.SMS_FROM ?? null), missing, incomingUrl: env.APP_PASSWORD ? `${origin}/sms/incoming?k=${await webhookKey(env)}` : null };
+  const missing = smsReady(env) ? [] : kenectMissing(env);
+  const via = kenectReady(env) ? 'kenect' : viaDialer(env) ? 'dialer' : 'signalwire';
+  return { ready: smsReady(env), via, from: via === 'kenect' ? 'the store’s Kenect number' : via === 'dialer' ? 'your dialer’s number (CALLER_ID)' : (env.SMS_FROM ?? null), missing, incomingUrl: env.APP_PASSWORD ? `${origin}/sms/incoming?k=${await webhookKey(env)}` : null };
 }
 
 /**
@@ -215,6 +231,10 @@ export async function smsSetup(env: Env, origin: string) {
  * the settings without revealing them (length and first letters only).
  */
 export async function checkSms(env: Env): Promise<Response> {
+  if (kenectReady(env)) {
+    const k = await checkKenect(env);
+    return json(200, { via: 'kenect', space: 'integrations-api.kenect.com', projectIdStart: '', tokenLength: 0, tokenStart: '', from: 'the store’s Kenect number', notes: [], login: k.message });
+  }
   if (viaDialer(env)) return json(200, await checkDialerTexting(env));
   const token = env.SW_API_TOKEN ?? '';
   const project = env.SW_PROJECT_ID ?? '';

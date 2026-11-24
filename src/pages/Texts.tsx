@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { recordEdit } from '../core/storage/styleMemory';
 import { recordSent } from '../core/storage/sentLog';
 import { aiReady, replyFor } from '../crm/ai';
-import { loadStatus, smsReady, smsSetup } from '../crm/server';
+import { loadStatus, smsReady, smsSetup, syncKenectNow, viaKenect } from '../crm/server';
+import { kv } from '../core/storage/kv';
 import { quietHours, sendText, statusLabel, unreadCount, useSms, type SmsMap } from '../crm/sms';
 import { fullName, updateCustomer, useCustomers, useSettings } from '../crm/store';
 import type { Customer } from '../crm/types';
@@ -26,14 +27,32 @@ export function Texts({ id }: { id?: string }) {
   useEffect(() => void loadStatus().then(() => setChecked((n) => n + 1)), []);
   const missing = smsSetup().missing ?? [];
   const [perm, setPerm] = useState(typeof Notification === 'undefined' ? 'denied' : Notification.permission);
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const sync = async (days?: number) => {
+    setSyncing('Checking Kenect…');
+    const r = await syncKenectNow(days).catch((e: Error) => ({ checked: 0, added: 0, error: e.message }));
+    await kv.refresh().catch(() => undefined);
+    setSyncing(r.error ? r.error : r.added ? `${r.added} new text${r.added === 1 ? '' : 's'} from Kenect.` : 'Up to date with Kenect.');
+  };
 
   return (
     <div className="page" style={{ maxWidth: 1200 }}>
       <div className="page-head">
         <div>
           <h1>Texts</h1>
-          <p>{smsReady() ? 'Texts to and from your SignalWire number.' : `Texting isn’t set up yet${missing.length ? `: missing ${missing.join(', ')} on the torque-crm Worker in Cloudflare` : ''}. See Settings → Texting.`}</p>
+          <p>{smsReady() ? (viaKenect() ? 'Texts go out through Kenect (the store’s number), and replies from your customers come back here every few minutes.' : 'Texts to and from your SignalWire number.') : `Texting isn’t set up yet${missing.length ? `: missing ${missing.join(', ')} on the torque-crm Worker in Cloudflare` : ''}. See Settings → Texting.`}</p>
         </div>
+        {viaKenect() && (
+          <div className="row">
+            {syncing && <span className="soft small">{syncing}</span>}
+            <button className="btn" onClick={() => void sync()} title="Bring in new Kenect texts from your customers now">
+              Sync Kenect
+            </button>
+            <button className="btn ghost" onClick={() => void sync(30)} title="Bring in the last 30 days of Kenect texts with your customers">
+              Last 30 days
+            </button>
+          </div>
+        )}
         {perm === 'default' && (
           <button className="btn" onClick={() => void Notification.requestPermission().then(setPerm)}>
             Notify me of new texts

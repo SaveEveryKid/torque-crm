@@ -15,6 +15,14 @@ export interface Env {
   SW_PROJECT_ID?: string;
   SW_API_TOKEN?: string;
   SMS_FROM?: string;
+  /** Texting through Kenect (the store's texting inbox): from Kenect → Settings → Integrations → Zapier → Api Credentials (secrets). */
+  KENECT_API_KEY?: string;
+  KENECT_API_SECRET?: string;
+  KENECT_LOCATION_ID?: string;
+  KENECT_PARTNER_LOCATION_ID?: string;
+  KENECT_PARTNER_LOCATION_ZIP?: string;
+  /** Your Kenect login email (optional): texts show in Kenect as sent by you. */
+  KENECT_USER_EMAIL?: string;
   /** Shared with RideWithByron.com (its TORQUE_SIGNING_SECRET): proves a website lead really came from your site (a secret). */
   LEADS_SECRET?: string;
   /** Your own cell number: each website lead is also texted to it, through your dialer (optional). */

@@ -3,6 +3,7 @@ import { dialerBase, json, type Env } from './env';
 import { MAX_VALUE, PAGE, readRows, writeRows } from './store';
 import { checkSms, incomingSms, sendSms, smsSetup, smsStatus } from './sms';
 import { leadAlert, leadIntake } from './leads';
+import { kenectReady, kenectSyncRoute, syncKenect } from './kenect';
 
 /**
  * TORQUE CRM's server (a Cloudflare Worker). /api/* and /dealer/* come here;
@@ -20,6 +21,7 @@ import { leadAlert, leadIntake } from './leads';
  *   POST   /sms/incoming|status SignalWire's texts in and delivery updates (key in the address)
  *   POST   /leads/intake        a lead from RideWithByron.com (signed with LEADS_SECRET, see leads.ts)
  *   POST   /leads/alert         a heads-up from the site, texted to your phone (same signature)
+ *   POST   /api/kenect/sync     bring in Kenect texts now (also every 5 minutes, see kenect.ts)
  */
 const SETUP_PASSWORD = 'Torque CRM has no password yet. Add APP_PASSWORD in Cloudflare (see the README).';
 const SETUP_DB = 'No database yet. Add the D1 database to wrangler.jsonc (see the README).';
@@ -121,8 +123,13 @@ export default {
       });
     if (path === '/api/sms/send' && request.method === 'POST') return sendSms(request, env, url.origin);
     if (path === '/api/sms/check') return checkSms(env);
+    if (path === '/api/kenect/sync' && request.method === 'POST') return kenectSyncRoute(request, env);
     if (path.startsWith('/api/dialer/')) return dialer(request, env, path.slice('/api/dialer'.length));
     if (path.startsWith('/dealer/')) return dealer(request, path.slice('/dealer'.length));
     return json(404, { error: 'Not found.' });
+  },
+  /** Every few minutes (wrangler.jsonc "triggers"): bring in new Kenect texts from your customers. */
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (env.DB && kenectReady(env)) ctx.waitUntil(syncKenect(env).then(() => undefined));
   },
 } satisfies ExportedHandler<Env>;
