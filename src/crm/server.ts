@@ -20,7 +20,27 @@ export async function loadStatus(): Promise<void> {
 export const dialerReady = () => status.dialer;
 export const dialerAddress = () => status.dialerUrl;
 export const smsSetup = () => status.sms ?? { ready: false, from: null, incomingUrl: null };
-export const smsReady = () => Boolean(status.sms?.ready);
+/**
+ * Texts go through Kenect (the store's texting inbox, run in Chrome) unless you
+ * switch it off in Settings → Texting: Torque queues each text, and Claude sends
+ * it in Kenect and brings replies back (see sms.ts). Kept on this computer.
+ */
+const VIA_KEY = 'torque.textsVia';
+export const viaKenect = () => {
+  try {
+    return localStorage.getItem(VIA_KEY) !== 'server';
+  } catch {
+    return true;
+  }
+};
+export const setViaKenect = (on: boolean) => {
+  try {
+    localStorage.setItem(VIA_KEY, on ? 'kenect' : 'server');
+  } catch {
+    /* not saved */
+  }
+};
+export const smsReady = () => viaKenect() || Boolean(status.sms?.ready);
 
 /**
  * The Torque dialer provider, sending to /api/dialer/api and /api/dialer/draft

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { kv, logout, type SyncState } from '../core/storage/kv';
-import { dialerAddress, dialerProvider, loadStatus, smsSetup } from '../crm/server';
+import { dialerAddress, dialerProvider, loadStatus, setViaKenect, smsSetup, viaKenect } from '../crm/server';
 import { approvePending, editProfileText, rejectPending, type StyleProfile, EMPTY_PROFILE } from '../core/storage/styleProfile';
 import { aiReady, maybeProposeProfile } from '../crm/ai';
 import { backupFileName, backupJson, download, restoreBackup } from '../crm/backup';
@@ -180,6 +180,7 @@ function DialerSetup({ s }: { s: Settings }) {
 
 function Texting() {
   const [, setChecked] = useState(0);
+  const [kenect, setKenect] = useState(viaKenect());
   const [copied, setCopied] = useState(false);
   useEffect(() => void loadStatus().then(() => setChecked((n) => n + 1)), []);
   const t = smsSetup();
@@ -197,6 +198,18 @@ function Texting() {
   return (
     <section className="card card-pad stack">
       <h2>Texting</h2>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={kenect}
+          onChange={(e) => {
+            setViaKenect(e.target.checked);
+            setKenect(e.target.checked);
+          }}
+        />{' '}
+        Send texts through Kenect (the store's number). Texts you send in Torque wait in a queue; Claude sends them in Kenect in Chrome and brings customers' replies back into
+        Torque.
+      </label>
       <p className="soft small">
         Text customers from Torque CRM through your SignalWire number. Texts go out through your dialer (torque-dialer), which already has your SignalWire login. Their replies land on
         their timeline and in Texts. Only you press Send: nothing is ever texted automatically.

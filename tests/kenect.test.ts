@@ -54,3 +54,12 @@ describe('Kenect pipeline: past buyers, light check-in texts', () => {
     expect(suggestedType(c)).toBe('kenect_checkin');
   });
 });
+
+describe('texts through Kenect (Chrome)', () => {
+  it('a queued Kenect text says it is waiting, then sent', async () => {
+    const { statusLabel } = await import('../src/crm/sms');
+    const base = { id: 'kq-1', at: '2026-11-24T20:00:00Z', direction: 'OUTBOUND' as const, phone: '+19316225957', body: 'Hey', customerId: 'c', via: 'kenect' as const };
+    expect(statusLabel({ ...base, status: 'queued' }).text).toBe('Waiting to send in Kenect');
+    expect(statusLabel({ ...base, status: 'sent' }).text).toBe('Sent in Kenect');
+  });
+});
