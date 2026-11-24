@@ -1,11 +1,12 @@
 import type { ActivityChannel, ActivityDirection } from '../core/types/schema';
 
 /** Where a customer is in the deal. */
-export type Stage = 'new' | 'attempted' | 'contacted' | 'hot' | 'working' | 'longterm' | 'sold' | 'soldfollow' | 'lost';
+export type Stage = 'new' | 'attempted' | 'contacted' | 'hot' | 'apptset' | 'working' | 'longterm' | 'sold' | 'soldfollow' | 'lost';
 
 /**
  * New lead: nothing sent yet. Attempted: you've reached out, they haven't answered.
  * Contacted: they responded. Hot: more than one back-and-forth (or an appointment or visit).
+ * Appointment set: an appointment is on the calendar (the Kenect board; setting one moves them here).
  * Working deal, Sold and Lost are set by you.
  * Long-term follow-up: not buying now but said to keep them in mind; one email on the 15th of every month.
  * Sold follow-up: a customer who bought; a referral follow-up chain that never ends (see cadence.ts).
@@ -15,6 +16,7 @@ export const STAGES: { id: Stage; label: string }[] = [
   { id: 'attempted', label: 'Attempted' },
   { id: 'contacted', label: 'Contacted' },
   { id: 'hot', label: 'Hot' },
+  { id: 'apptset', label: 'Appointment set' },
   { id: 'working', label: 'Working deal' },
   { id: 'longterm', label: 'Long-term follow-up' },
   { id: 'sold', label: 'Sold' },
@@ -22,7 +24,7 @@ export const STAGES: { id: Stage; label: string }[] = [
   { id: 'lost', label: 'Lost' },
 ];
 export const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.id, s.label])) as Record<Stage, string>;
-export const OPEN_STAGES: Stage[] = ['new', 'attempted', 'contacted', 'hot', 'working'];
+export const OPEN_STAGES: Stage[] = ['new', 'attempted', 'contacted', 'hot', 'apptset', 'working'];
 
 /** Stages saved before Attempted and Hot existed: Appointment and Showed are now Hot. */
 export function normalizeStage(s: string | undefined | null): Stage {

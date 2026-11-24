@@ -173,10 +173,17 @@ export async function deleteActivity(id: string, activityId: string): Promise<vo
   await updateCustomer(id, (c) => ({ activities: c.activities.filter((a) => a.id !== activityId) }));
 }
 
+/** Where setting an appointment moves a customer (nothing if they're already there or past it). */
+export function apptStage(c: Pick<Customer, 'stage' | 'pipeline'>): { stage?: Stage } {
+  const to: Stage = c.pipeline === 'kenect' ? 'apptset' : 'hot';
+  return atLeast(c.stage, to) ? { stage: to } : {};
+}
+
 export async function addTask(id: string, t: Omit<Task, 'id' | 'done'>): Promise<void> {
   await updateCustomer(id, (c) => ({
     tasks: [...c.tasks, { ...t, id: newId(), done: false }],
-    ...(t.kind === 'appointment' && atLeast(c.stage, 'hot') ? { stage: 'hot' as Stage } : {}),
+    // An appointment on the calendar: Kenect customers go to Appointment set, everyone else to Hot.
+    ...(t.kind === 'appointment' ? apptStage(c) : {}),
   }));
 }
 
