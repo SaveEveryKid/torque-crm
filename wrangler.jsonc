@@ -19,8 +19,12 @@
     "run_worker_first": ["/api/*", "/dealer/*", "/sms/*", "/leads/*"]
   },
   // Your customers and history. Found by name: the D1 database called "torque-crm" on your account.
-  "d1_databases": [{ "binding": "DB", "database_name": "torque-crm" }]
+  "d1_databases": [{ "binding": "DB", "database_name": "torque-crm" }],
+  // Every 5 minutes: bring in new Kenect texts from your customers (only when the KENECT_ keys are set).
+  "triggers": { "crons": ["*/5 * * * *"] }
   // Secrets (Settings → Variables and Secrets): APP_PASSWORD, DIALER_URL, DIALER_PASSWORD,
   // and for texting: SW_SPACE, SW_PROJECT_ID, SW_API_TOKEN, SMS_FROM.
+  // For texting through Kenect: KENECT_API_KEY, KENECT_API_SECRET, KENECT_LOCATION_ID, KENECT_PARTNER_LOCATION_ID,
+  // KENECT_PARTNER_LOCATION_ZIP, and optionally KENECT_USER_EMAIL (see worker/kenect.ts).
   // For leads from RideWithByron.com: LEADS_SECRET (the same value as that site's TORQUE_SIGNING_SECRET).
 }
