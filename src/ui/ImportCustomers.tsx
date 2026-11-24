@@ -203,7 +203,7 @@ export function ImportCustomers({
             {kenect && (
               <label className="field">
                 First check-in texts per work day
-                <input type="number" min={1} max={100} value={perDay} onChange={(e) => setPerDay(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} />
+                <input type="number" min={1} max={500} value={perDay} onChange={(e) => setPerDay(Math.max(1, Math.min(500, Number(e.target.value) || 1)))} />
               </label>
             )}
             <label className="field">
