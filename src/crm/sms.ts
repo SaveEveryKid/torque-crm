@@ -4,6 +4,7 @@ import { kv } from '../core/storage/kv';
 import { normalizeUsPhone } from '../core/analysis/phone';
 import { activity, blankCustomer, getCustomers, serial, stagePatch, useStoredKey } from './store';
 import type { Activity, Customer } from './types';
+import { viaKenect } from './server';
 
 /**
  * TEXTING: send through your SignalWire number (Torque CRM's server sends
@@ -23,6 +24,8 @@ export interface SmsRow {
   error?: string | null;
   optOut?: boolean;
   optIn?: boolean;
+  /** Kenect: queued here for Claude to send in Kenect (status "queued", then "sent"), or brought in from Kenect. */
+  via?: 'kenect';
 }
 
 export type SmsMap = Record<string, SmsRow>;
@@ -31,6 +34,8 @@ export const useSms = () => useStoredKey<SmsMap>('sms', {});
 /** "Delivered", "Failed: 30007 …" etc. */
 export function statusLabel(s: SmsRow): { text: string; bad: boolean } {
   if (s.direction === 'INBOUND') return { text: '', bad: false };
+  if (s.via === 'kenect' && s.status === 'queued') return { text: 'Waiting to send in Kenect', bad: false };
+  if (s.via === 'kenect' && s.status === 'sent') return { text: 'Sent in Kenect', bad: false };
   if (s.status === 'delivered') return { text: 'Delivered', bad: false };
   if (s.status === 'failed' || s.status === 'undelivered') return { text: `Not delivered${s.error ? ` (${s.error})` : ''}`, bad: true };
   if (s.status === 'sent') return { text: 'Sent', bad: false };
@@ -48,6 +53,14 @@ export async function sendText(c: Customer, body: string): Promise<SmsRow> {
   if (c.doNotText || c.doNotContact) throw new Error(`${c.firstName || 'This customer'} is marked do not text.`);
   const to = [c.phone, c.altPhone].map((p) => normalizeUsPhone(p)).find((n) => n.ok);
   if (!to || !to.ok) throw new Error('No textable phone number for this customer.');
+  if (viaKenect()) {
+    // Queued: Claude sends it in Kenect (Chrome) and marks it sent.
+    const row: SmsRow = { id: `kq-${crypto.randomUUID()}`, at: new Date().toISOString(), direction: 'OUTBOUND', phone: to.e164, body, customerId: c.id, status: 'queued', via: 'kenect' };
+    const all = ((await kv.get('sms')).sms as SmsMap | undefined) ?? {};
+    await kv.set({ sms: { ...all, [row.id]: row } });
+    await addToTimeline([row]);
+    return row;
+  }
   const res = await fetch('/api/sms/send', {
     method: 'POST',
     credentials: 'same-origin',

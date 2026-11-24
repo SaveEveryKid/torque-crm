@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { recordEdit } from '../core/storage/styleMemory';
 import { recordSent } from '../core/storage/sentLog';
 import { aiReady, replyFor } from '../crm/ai';
-import { loadStatus, smsReady, smsSetup } from '../crm/server';
+import { loadStatus, smsReady, smsSetup, viaKenect } from '../crm/server';
 import { quietHours, sendText, statusLabel, unreadCount, useSms, type SmsMap } from '../crm/sms';
 import { fullName, updateCustomer, useCustomers, useSettings } from '../crm/store';
 import type { Customer } from '../crm/types';
@@ -32,7 +32,7 @@ export function Texts({ id }: { id?: string }) {
       <div className="page-head">
         <div>
           <h1>Texts</h1>
-          <p>{smsReady() ? 'Texts to and from your SignalWire number.' : `Texting isn’t set up yet${missing.length ? `: missing ${missing.join(', ')} on the torque-crm Worker in Cloudflare` : ''}. See Settings → Texting.`}</p>
+          <p>{smsReady() ? (viaKenect() ? 'Texts go out through Kenect (the store’s number): Claude sends what you queue here and brings replies back.' : 'Texts to and from your SignalWire number.') : `Texting isn’t set up yet${missing.length ? `: missing ${missing.join(', ')} on the torque-crm Worker in Cloudflare` : ''}. See Settings → Texting.`}</p>
         </div>
         {perm === 'default' && (
           <button className="btn" onClick={() => void Notification.requestPermission().then(setPerm)}>
