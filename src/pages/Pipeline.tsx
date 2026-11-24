@@ -1,13 +1,23 @@
 import { useMemo, useState } from 'react';
 import { fullName, lastContact, setStage, useCustomers } from '../crm/store';
-import { STAGES, type Stage } from '../crm/types';
+import { PIPELINES, pipelineOf, STAGES, type Pipeline as Track, type Stage } from '../crm/types';
 import { money } from '../crm/inventory';
 import { ago, go } from '../ui/kit';
 
 /** Drag a customer to another column to move their stage. */
 export function Pipeline() {
   const customers = useCustomers();
-  const list = useMemo(() => Object.values(customers), [customers]);
+  const [track, setTrack] = useState<Track>(() => (localStorage.getItem('torque.pipeline') === 'kenect' ? 'kenect' : 'email'));
+  const pick = (t: Track) => {
+    setTrack(t);
+    try {
+      localStorage.setItem('torque.pipeline', t);
+    } catch {
+      /* not saved; fine */
+    }
+  };
+  const all = useMemo(() => Object.values(customers), [customers]);
+  const list = useMemo(() => all.filter((c) => pipelineOf(c) === track), [all, track]);
   const [over, setOver] = useState<Stage | null>(null);
   const [showClosed, setShowClosed] = useState(false);
   const stages = STAGES.filter((s) => showClosed || !['sold', 'lost'].includes(s.id));
@@ -23,6 +33,13 @@ export function Pipeline() {
         <label className="check">
           <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> Show Sold and Lost
         </label>
+      </div>
+      <div className="tabs">
+        {PIPELINES.map((p) => (
+          <button key={p.id} className={track === p.id ? 'on' : ''} onClick={() => pick(p.id)}>
+            {p.label} <span className="muted">{all.filter((c) => pipelineOf(c) === p.id && !['sold', 'lost'].includes(c.stage)).length}</span>
+          </button>
+        ))}
       </div>
       <div className="board">
         {stages.map((s) => {

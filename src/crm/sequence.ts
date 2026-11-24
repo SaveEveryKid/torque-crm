@@ -1,5 +1,6 @@
 import type { ListType } from '../core/analysis/customList';
 import type { Activity, Customer, Stage, Task } from './types';
+import { isKenectTask } from './cadence';
 
 /**
  * FOLLOW-UP EMAILS, SCHEDULED: the first email you send a customer starts
@@ -64,6 +65,8 @@ export function afterActivity(c: Customer, a: Activity): Partial<Customer> {
   if (madeContact(a)) {
     const stop = stopSequence({ ...c, tasks }, a.direction === 'INBOUND' ? 'They replied' : a.channel === 'APPOINTMENT' ? 'Visit' : 'You talked', a.at);
     tasks = stop.tasks ?? tasks;
+    // Kenect: once you're talking, the scheduled check-in texts stop (the every-3-months one stays).
+    if (c.pipeline === 'kenect') tasks = tasks.map((t) => (!t.done && !t.reply && !t.repeat && isKenectTask(t) ? { ...t, done: true, doneAt: a.at } : t));
     const wrote = a.direction === 'INBOUND' && (a.channel === 'EMAIL' || a.channel === 'TEXT');
     if (wrote && !tasks.some((t) => !t.done && t.reply))
       tasks = [...tasks, { id: id(), kind: a.channel === 'TEXT' ? 'text' : 'email', dueAt: a.at, title: `Reply to their ${a.channel === 'TEXT' ? 'text' : 'email'}`, done: false, reply: true }];

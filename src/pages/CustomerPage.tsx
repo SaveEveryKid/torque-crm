@@ -16,7 +16,7 @@ import {
   useCustomers,
   useSettings,
 } from '../crm/store';
-import { STAGES, STAGE_LABEL, TASK_LABEL, type Activity, type Customer, type Stage, type Task, type TaskKind } from '../crm/types';
+import { PIPELINES, pipelineOf, STAGES, STAGE_LABEL, TASK_LABEL, type Pipeline, type Activity, type Customer, type Stage, type Task, type TaskKind } from '../crm/types';
 import { CustomerForm } from '../ui/CustomerForm';
 import { DraftPanel } from '../ui/DraftPanel';
 import { EmailComposer } from '../ui/EmailComposer';
@@ -110,6 +110,18 @@ export function CustomerPage({ id }: { id: string }) {
             </div>
           </div>
           <div className="row">
+            <select
+              value={pipelineOf(c)}
+              onChange={(e) => void updateCustomer(c.id, { pipeline: e.target.value as Pipeline })}
+              aria-label="Pipeline"
+              title="Which follow-up track they're on"
+            >
+              {PIPELINES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
             <select value={c.stage} onChange={(e) => void setStage(c.id, e.target.value as Stage, STAGE_LABEL[e.target.value as Stage])} aria-label="Stage">
               {STAGES.map((s) => (
                 <option key={s.id} value={s.id}>

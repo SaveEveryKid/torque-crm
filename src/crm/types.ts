@@ -30,6 +30,18 @@ export function normalizeStage(s: string | undefined | null): Stage {
   return (STAGES.some((x) => x.id === s) ? s : 'new') as Stage;
 }
 
+/**
+ * Which follow-up track a customer is on. Email: the commercial email outreach.
+ * Kenect: past buyers from Kenect, re-engaged with a few light check-in texts.
+ * Both use the same stages and move the same way; the Pipeline page shows one at a time.
+ */
+export type Pipeline = 'email' | 'kenect';
+export const PIPELINES: { id: Pipeline; label: string }[] = [
+  { id: 'email', label: 'Email outreach' },
+  { id: 'kenect', label: 'Kenect' },
+];
+export const pipelineOf = (c: { pipeline?: Pipeline | null }): Pipeline => (c.pipeline === 'kenect' ? 'kenect' : 'email');
+
 /** A unit from the dealer's inventory, attached to a customer. */
 export interface VehicleRef {
   id: string;
@@ -94,6 +106,8 @@ export interface Customer {
   email: string;
   address: string;
   source: string;
+  /** Follow-up track (missing = Email). */
+  pipeline?: Pipeline;
   stage: Stage;
   /** What they're shopping for, in words ("2024 Grizzly 700, green"). */
   interest: string;
