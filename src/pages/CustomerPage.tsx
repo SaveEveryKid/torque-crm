@@ -28,6 +28,15 @@ import { neighbors } from '../crm/listView';
 import { running, stopSequence } from '../crm/sequence';
 import { Avatar, copy, daysFromToday, Empty, go, Icon, localInput, Modal, tomorrowAt, when } from '../ui/kit';
 
+/** Build a click-to-call link the Wildix / x-bees Chrome extension picks up. */
+function wildixHref(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const d = raw.replace(/\D/g, '');
+  const ten = d.length === 11 && d[0] === '1' ? d.slice(1) : d;
+  if (ten.length !== 10) return null;
+  return `callto:+1${ten}`;
+}
+
 export function CustomerPage({ id }: { id: string }) {
   const customers = useCustomers();
   const settings = useSettings();
@@ -72,6 +81,11 @@ export function CustomerPage({ id }: { id: string }) {
     go('dialer');
   };
 
+  /** Dialing through Wildix logs the call attempt so the lead shows worked. */
+  const logWildixCall = (num: string) => {
+    void logActivity(c.id, { channel: 'PHONE', direction: 'OUTBOUND', outcome: 'Call placed via Wildix', text: num });
+  };
+
   return (
     <div className="page">
       <div className="row between">
@@ -102,7 +116,14 @@ export function CustomerPage({ id }: { id: string }) {
                 <div className="soft">{[c.title, `${c.firstName}${c.lastName}`.trim() ? c.company : ''].filter(Boolean).join(' · ')}</div>
               )}
               <div className="row soft">
-                {c.phone && <span>{c.phone}</span>}
+                {c.phone &&
+                  (wildixHref(c.phone) && !c.doNotContact ? (
+                    <a className="calllink" href={wildixHref(c.phone)!} onClick={() => logWildixCall(c.phone!)} title="Call through Wildix — rings your cell, then the customer">
+                      {c.phone}
+                    </a>
+                  ) : (
+                    <span>{c.phone}</span>
+                  ))}
                 {c.email && <span>· {c.email}</span>}
                 {c.doNotText && <span className="badge warn">Do not text</span>}
                 {c.doNotContact && <span className="badge warn">Do not contact</span>}
@@ -208,7 +229,19 @@ export function CustomerPage({ id }: { id: string }) {
               <dt>Trade</dt>
               <dd>{c.trade || '—'}</dd>
               <dt>Other phone</dt>
-              <dd>{c.altPhone || '—'}</dd>
+              <dd>
+                {c.altPhone ? (
+                  wildixHref(c.altPhone) && !c.doNotContact ? (
+                    <a className="calllink" href={wildixHref(c.altPhone)!} onClick={() => logWildixCall(c.altPhone!)} title="Call through Wildix — rings your cell, then the customer">
+                      {c.altPhone}
+                    </a>
+                  ) : (
+                    c.altPhone
+                  )
+                ) : (
+                  '—'
+                )}
+              </dd>
               <dt>Source</dt>
               <dd>{c.source || '—'}</dd>
               <dt>Address</dt>
