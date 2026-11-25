@@ -203,6 +203,42 @@ async function stampedPhoto(state, index) {
   return result;
 }
 
+/** A chat from Facebook, cut down to plain text of sensible length. */
+function validChat(lead) {
+  if (!lead || typeof lead !== "object") throw new Error("Nothing to save.");
+  var text = function (v, max) { return String(v == null ? "" : v).slice(0, max); };
+  var out = { thread: text(lead.thread, 80).replace(/[^\w.-]/g, ""), name: text(lead.name, 120).trim(), phone: text(lead.phone, 40).trim(), unit: text(lead.unit, 160).trim(), chat: text(lead.chat, 8000), url: text(lead.url, 300) };
+  if (out.url && !/^https:\/\/www\.facebook\.com\//.test(out.url)) out.url = "";
+  if (!out.name && !out.chat.trim()) throw new Error("Nothing to save: no name and no chat.");
+  return out;
+}
+
+/** The Torque tab (the live site first), or a new one opened in the background. */
+async function torqueTab() {
+  var tabs = await chrome.tabs.query({});
+  var mine = tabs.filter(function (t) {
+    try { return t.url && C.CRM_ORIGINS.indexOf(new URL(t.url).origin) !== -1; } catch (e) { return false; }
+  });
+  mine.sort(function (a, b) { return C.CRM_ORIGINS.indexOf(new URL(a.url).origin) - C.CRM_ORIGINS.indexOf(new URL(b.url).origin); });
+  if (mine.length) return { tab: mine[0], opened: false };
+  return { tab: await chrome.tabs.create({ url: C.CRM_ORIGINS[0] + "/#/today", active: false }), opened: true };
+}
+
+async function saveChatInTorque(lead) {
+  var found = await torqueTab();
+  // A tab that's just opening needs a moment before its bridge (content/crm-bridge.js) answers.
+  for (var i = 0; i < 40; i += 1) {
+    try {
+      var r = await chrome.tabs.sendMessage(found.tab.id, { type: "TORQUE_SAVE_CHAT", lead: lead });
+      if (r && r.needsLogin) await chrome.tabs.update(found.tab.id, { active: true });
+      return Object.assign({ crm: new URL(found.tab.url || found.tab.pendingUrl || C.CRM_ORIGINS[0]).origin }, r || { ok: false, error: "No answer from Torque." });
+    } catch (e) {
+      await new Promise(function (ok) { setTimeout(ok, 500); });
+    }
+  }
+  return { ok: false, error: "Couldn't reach Torque. Open Torque in a tab, then try again." };
+}
+
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   (async function () {
     try {
@@ -276,6 +312,14 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         await rememberEbay(go.unit);
         var page = await chrome.tabs.create({ url: C.EBAY.POST_URL, active: true });
         return sendResponse({ ok: true, tabId: page.id, runId: go.runId });
+      }
+
+      // "Save to Torque" on a Facebook chat (content/fb-chat.js): hand it to an open Torque tab
+      // (opening one in the background if there isn't one), which saves it and drafts the reply.
+      if (message.type === "SAVE_CHAT") {
+        var from = sender.url ? new URL(sender.url).hostname : "";
+        if (from !== "www.facebook.com") throw new Error("Chats can only be saved from Facebook.");
+        return sendResponse(await saveChatInTorque(validChat(message.lead)));
       }
 
       // From the Facebook tab (content/facebook.js), the OfferUp tab (content/offerup.js) or the eBay tab (content/ebay.js).

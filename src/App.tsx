@@ -4,6 +4,7 @@ import { fullName, openTasks, useCustomers, useSettings } from './crm/store';
 import { useDialer } from './crm/dialer';
 import { unreadCount, useSms, useTextInbox, type SmsRow } from './crm/sms';
 import { customerForLead, useWebLeadInbox, type WebLead } from './crm/webLeads';
+import { useChatBridge } from './crm/chatLeads';
 import { Texts } from './pages/Texts';
 import { Bootcamp } from './pages/Bootcamp';
 import { CustomerForm } from './ui/CustomerForm';
@@ -48,6 +49,8 @@ export function App() {
   });
   // Leads from RideWithByron.com: onto customers, with a pop-up (and a notification if you're in another window).
   const [leadToast, setLeadToast] = useState<WebLead[]>([]);
+  // Facebook Marketplace chats saved from the extension's Save to Torque button.
+  useChatBridge();
   useWebLeadInbox((leads) => {
     setLeadToast(leads);
     if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted')
