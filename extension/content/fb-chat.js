@@ -2,8 +2,8 @@
   "use strict";
 
   /**
-   * SAVE TO TORQUE: on a Facebook Messenger chat (facebook.com/messages/… and
-   * the Marketplace inbox), a button that reads the buyer's name, the unit
+   * SAVE TO TORQUE: on a Facebook Messenger chat (the popup chat windows on
+   * any Facebook page, and the full-page chats at facebook.com/messages), a button that reads the buyer's name, the unit
    * they're asking about and the chat, shows it to you to fix, and saves it to
    * Torque CRM (a customer, the chat on their timeline, a task to answer).
    * Torque's Claude drafts your reply; "Put in message box" types it into
@@ -25,30 +25,73 @@
   }
   var norm = function (s) { return String(s || "").replace(/\s+/g, " ").trim(); };
 
-  /** On a chat page with a message box. */
+  // Text boxes that aren't a chat: comments, posts, search.
+  var NOT_CHAT = /comment|post|on your mind|write something|search|bio|caption|review/i;
+
+  /**
+   * The chat a message box belongs to: the nearest part of the page around it
+   * that has messages in it, widened to the whole chat window (so the header
+   * with the buyer's name is included). Works for the full-page chats
+   * (facebook.com/messages) and the small popup chat windows on any page.
+   */
+  function chatOf(box) {
+    var full = /^\/(messages|marketplace)(\/|$)/.test(location.pathname) && box.closest('[role="main"]');
+    if (full) return full;
+    var node = box.parentElement;
+    for (var i = 0; node && i < 25 && !node.querySelector('[role="row"]'); i += 1) node = node.parentElement;
+    if (!node || !node.querySelector('[role="row"]')) return null;
+    var w = node.getBoundingClientRect().width;
+    while (node.parentElement && node.parentElement !== document.body) {
+      var r = node.parentElement.getBoundingClientRect();
+      if (r.width > w + 24 || r.height > window.innerHeight) break;
+      node = node.parentElement;
+    }
+    return node;
+  }
+
+  /** Every visible chat message box on the page, with its chat. */
+  function chats() {
+    var out = [];
+    document.querySelectorAll('[role="textbox"][contenteditable="true"]').forEach(function (b) {
+      var r = b.getBoundingClientRect();
+      if (r.width < 100 || r.height <= 0) return;
+      var label = [b.getAttribute("aria-label"), b.getAttribute("aria-placeholder"), b.getAttribute("placeholder")].join(" ");
+      if (NOT_CHAT.test(label)) return;
+      var root = chatOf(b);
+      if (root) out.push({ box: b, root: root });
+    });
+    return out;
+  }
+
+  // The chat you last typed in or clicked (when more than one is open).
+  var lastBox = null;
+  document.addEventListener("focusin", function (e) {
+    if (e.target && e.target.getAttribute && e.target.getAttribute("role") === "textbox") lastBox = e.target;
+  }, true);
+
+  function activeChat() {
+    var all = chats();
+    for (var i = 0; i < all.length; i += 1) if (all[i].box === lastBox) return all[i];
+    return all[all.length - 1] || null;
+  }
+
   function onChat() {
-    return /^\/(messages|marketplace)(\/|$)/.test(location.pathname) && !!composer();
+    return !!activeChat();
   }
 
   function composer() {
-    var boxes = document.querySelectorAll('[role="textbox"][contenteditable="true"]');
-    for (var i = boxes.length - 1; i >= 0; i -= 1) {
-      var r = boxes[i].getBoundingClientRect();
-      if (r.width > 120 && r.height > 0) return boxes[i];
-    }
-    return null;
+    var c = activeChat();
+    return c ? c.box : null;
   }
 
-  /** The conversation pane: the part of the page around the message box. */
-  function pane() {
-    var box = composer();
-    var main = box && box.closest('[role="main"]');
-    return main || document.querySelector('[role="main"]') || document.body;
-  }
-
-  function threadId() {
-    var m = location.pathname.match(/\/t\/([^/?#]+)/);
-    return m ? m[1] : "";
+  /** Facebook's id for the conversation: a /t/ link in the chat or the page address, else one made from the name and unit. */
+  function threadId(root, name, unit) {
+    var link = root.querySelector('a[href*="/messages/t/"], a[href*="/messages/e2ee/t/"]');
+    var m = (link && link.getAttribute("href").match(/\/t\/([\w.-]+)/)) || location.pathname.match(/\/t\/([\w.-]+)/);
+    if (m) return m[1];
+    var h = 5381, key = (name + "|" + unit).toLowerCase();
+    for (var i = 0; i < key.length; i += 1) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+    return name ? "p" + (h >>> 0).toString(36) : "";
   }
 
   var TIME_LINE = /^(today|yesterday|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s.*\d{1,2}:\d{2}\s*(am|pm)?$|^\d{1,2}:\d{2}\s*(am|pm)$/i;
@@ -97,6 +140,20 @@
       name = bits[0];
       if (bits.length > 1) unit = bits.slice(1).join(" · ");
     }
+    if (!name) {
+      // Popup chat windows: the name is the first short text along the top of the window.
+      var top = root.getBoundingClientRect().top;
+      var tops = root.querySelectorAll("span, a, h4, strong");
+      for (var k = 0; k < tops.length && !name; k += 1) {
+        var r = tops[k].getBoundingClientRect();
+        var w = norm(tops[k].textContent);
+        if (!w || w.length > 120 || !r.width || r.top < top - 2 || r.bottom > top + 80) continue;
+        if (/^(active|close|minimize|options|chat|messenger|marketplace|seen|new message)\b/i.test(w) || !/[a-z]/i.test(w)) continue;
+        var parts = w.split(/\s+[·•|]\s+/);
+        name = parts[0];
+        if (parts.length > 1) unit = parts.slice(1).join(" · ");
+      }
+    }
     if (!unit) {
       // The listing card at the top of a Marketplace chat (e.g. "2024 Polaris Ranger 1000 · $15,999").
       var spans = root.querySelectorAll('span, a[role="link"]');
@@ -120,10 +177,13 @@
   }
 
   function read() {
-    var root = pane();
+    var c = activeChat();
+    var root = c ? c.root : document.body;
     var head = readHeader(root);
     var lines = readMessages(root);
-    return { thread: threadId(), name: head.name, unit: head.unit, phone: phoneIn(lines), chat: lines.join("\n"), url: location.origin + location.pathname };
+    var thread = threadId(root, head.name, head.unit);
+    var url = /^\d+$/.test(thread) ? location.origin + "/messages/t/" + thread : location.origin + location.pathname;
+    return { thread: thread, name: head.name, unit: head.unit, phone: phoneIn(lines), chat: lines.join("\n"), url: url };
   }
 
   /* ---------- putting the reply in the message box (never sent) ---------- */
