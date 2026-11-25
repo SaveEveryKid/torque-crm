@@ -345,3 +345,24 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   })();
   return true;
 });
+
+/*
+ * The extension's icon in Chrome's toolbar: on Facebook it opens the Save to
+ * Torque panel (a backup if the button doesn't show on a chat); anywhere else
+ * it opens Torque.
+ */
+chrome.action.onClicked.addListener(async function (tab) {
+  var host = "";
+  try { host = new URL(tab.url || "").hostname; } catch (e) { host = ""; }
+  if (host !== "www.facebook.com") {
+    await chrome.tabs.create({ url: C.CRM_ORIGINS[0] + "/#/today" });
+    return;
+  }
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: "TORQUE_OPEN_CHAT_PANEL" });
+  } catch (e) {
+    // The page was open before the extension was installed or updated: add the script, then open.
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/fb-chat.js"] });
+    await chrome.tabs.sendMessage(tab.id, { type: "TORQUE_OPEN_CHAT_PANEL" });
+  }
+});

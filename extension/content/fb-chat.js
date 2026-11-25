@@ -12,7 +12,8 @@
    * Facebook's page code changes often, so the reading is best-effort and
    * everything it read is editable before you save.
    */
-  if (window.top !== window) return;
+  if (window.top !== window || window.__torqueChatLoaded) return;
+  window.__torqueChatLoaded = true;
   var BTN = "torque-chat-button";
   var PANEL = "torque-chat-panel";
   var FONT = "font:13px/1.4 Arial,sans-serif";
@@ -26,39 +27,70 @@
   var norm = function (s) { return String(s || "").replace(/\s+/g, " ").trim(); };
 
   // Text boxes that aren't a chat: comments, posts, search.
-  var NOT_CHAT = /comment|post|on your mind|write something|search|bio|caption|review/i;
+  var NOT_CHAT = /comment|post|on your mind|write something|search|bio|caption|review|reply to/i;
+
+  // Laid out (messages scrolled out of view in the chat still count).
+  function visible(e) {
+    var r = e.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+
+  /** Leaf elements with text (no element children holding text of their own). */
+  function leaves(root) {
+    var out = [];
+    root.querySelectorAll("div, span, a, h1, h2, h3, h4, strong").forEach(function (e) {
+      if (!e.firstChild || !visible(e)) return;
+      for (var c = e.firstElementChild; c; c = c.nextElementSibling) if (norm(c.textContent)) return;
+      var t = norm(e.textContent);
+      if (t) out.push({ e: e, t: t, r: e.getBoundingClientRect() });
+    });
+    return out;
+  }
 
   /**
-   * The chat a message box belongs to: the nearest part of the page around it
-   * that has messages in it, widened to the whole chat window (so the header
-   * with the buyer's name is included). Works for the full-page chats
-   * (facebook.com/messages) and the small popup chat windows on any page.
+   * Facebook's chat message box: the editable box with the "Aa" hint (its
+   * label is usually "Message"). Comment and post boxes are left alone.
+   */
+  function isChatBox(b) {
+    var r = b.getBoundingClientRect();
+    if (r.width < 40 || r.height <= 0 || r.top > window.innerHeight) return false;
+    var label = [b.getAttribute("aria-label"), b.getAttribute("aria-placeholder"), b.getAttribute("placeholder"), b.getAttribute("data-placeholder")].join(" ");
+    if (NOT_CHAT.test(label)) return false;
+    if (/message|^\s*aa\s*$/i.test(label.trim()) || /\bAa\b/.test(label)) return true;
+    // The "Aa" hint is often a separate element laid over the box.
+    var around = b.parentElement && b.parentElement.parentElement;
+    if (around && Array.prototype.some.call(around.querySelectorAll("div, span"), function (x) { return x !== b && !x.firstElementChild && norm(x.textContent) === "Aa"; })) return true;
+    return /^\/messages(\/|$)/.test(location.pathname) && !NOT_CHAT.test(label);
+  }
+
+  /**
+   * The chat window around a message box: climb to the first part of the page
+   * tall enough to be a chat, then widen to the whole window (same width), so
+   * the header with the buyer's name is in it. Popup windows and the
+   * full-page chat both work this way.
    */
   function chatOf(box) {
-    var full = /^\/(messages|marketplace)(\/|$)/.test(location.pathname) && box.closest('[role="main"]');
-    if (full) return full;
-    var node = box.parentElement;
-    for (var i = 0; node && i < 25 && !node.querySelector('[role="row"]'); i += 1) node = node.parentElement;
-    if (!node || !node.querySelector('[role="row"]')) return null;
+    var node = box;
+    for (var i = 0; node.parentElement && node.parentElement !== document.body && i < 40; i += 1) {
+      node = node.parentElement;
+      if (node.getBoundingClientRect().height >= 250) break;
+    }
     var w = node.getBoundingClientRect().width;
     while (node.parentElement && node.parentElement !== document.body) {
       var r = node.parentElement.getBoundingClientRect();
-      if (r.width > w + 24 || r.height > window.innerHeight) break;
+      if (r.width > w + 30 || r.height > window.innerHeight + 4) break;
       node = node.parentElement;
     }
     return node;
   }
 
-  /** Every visible chat message box on the page, with its chat. */
+  /** Every visible chat message box on the page, with its chat window. */
   function chats() {
     var out = [];
-    document.querySelectorAll('[role="textbox"][contenteditable="true"]').forEach(function (b) {
-      var r = b.getBoundingClientRect();
-      if (r.width < 100 || r.height <= 0) return;
-      var label = [b.getAttribute("aria-label"), b.getAttribute("aria-placeholder"), b.getAttribute("placeholder")].join(" ");
-      if (NOT_CHAT.test(label)) return;
-      var root = chatOf(b);
-      if (root) out.push({ box: b, root: root });
+    document.querySelectorAll('[contenteditable="true"]').forEach(function (b) {
+      if (b.closest("#" + PANEL)) return;
+      if (b.parentElement && b.parentElement.closest('[contenteditable="true"]')) return;
+      if (isChatBox(b)) out.push({ box: b, root: chatOf(b) });
     });
     return out;
   }
@@ -66,7 +98,7 @@
   // The chat you last typed in or clicked (when more than one is open).
   var lastBox = null;
   document.addEventListener("focusin", function (e) {
-    if (e.target && e.target.getAttribute && e.target.getAttribute("role") === "textbox") lastBox = e.target;
+    if (e.target && e.target.isContentEditable) lastBox = e.target.closest('[contenteditable="true"]');
   }, true);
 
   function activeChat() {
@@ -94,77 +126,68 @@
     return name ? "p" + (h >>> 0).toString(36) : "";
   }
 
-  var TIME_LINE = /^(today|yesterday|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s.*\d{1,2}:\d{2}\s*(am|pm)?$|^\d{1,2}:\d{2}\s*(am|pm)$/i;
-  var SKIP_LINE = /^(enter|seen|sent|delivered|you sent|you replied|you started this chat|message sent|active now|active \d+\w* ago|view buyer profile|view seller profile|mark as sold|mark as pending)\b/i;
+  var TIME_LINE = /^(today|yesterday|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?(\s.*)?\d{1,2}:\d{2}\s*(am|pm)?$|^\d{1,2}:\d{2}\s*(am|pm)$|^\d{1,2}\/\d{1,2}\/\d{2,4}/i;
+  var SKIP_LINE = /^(enter|seen|sent|delivered|you sent|you replied|you started this chat|message sent|active now|active \d+\w* ago|view buyer profile|view seller profile|view listing|mark as sold|mark as pending|mark as available|more options|marketplace|aa|reply|react|more|edited|unsent a message|you unsent a message)$/i;
+  var LISTING_LINE = /^\$[\d,]+(\.\d+)?\s*[-–·]\s*(.{3,})$/;
+  var clean = function (t) { return norm(String(t).replace(/[^\x20-\x7E]+/g, " ").replace(/\s*(\.\.\.|…)\s*$/, "")); };
 
-  /** "Them: …" / "Me: …" lines: which side of the pane each message bubble sits on. */
-  function readMessages(root) {
-    var box = root.getBoundingClientRect();
-    var middle = box.left + box.width / 2;
-    var rows = root.querySelectorAll('[role="row"]');
-    var out = [];
-    var seen = new Set();
-    rows.forEach(function (row) {
-      var parts = [];
-      var first = null;
-      row.querySelectorAll('div[dir="auto"], span[dir="auto"]').forEach(function (n) {
-        if (n.querySelector('[dir="auto"]')) return; // the innermost text only
-        var t = norm(n.textContent);
-        if (!t || TIME_LINE.test(t) || SKIP_LINE.test(t)) return;
-        if (!first) first = n;
-        if (parts.indexOf(t) === -1) parts.push(t);
-      });
-      if (!parts.length || !first) return;
-      var r = first.getBoundingClientRect();
-      if (!r.width) return;
-      var me = (r.left + r.right) / 2 > middle;
-      var line = (me ? "Me: " : "Them: ") + parts.join(" ");
-      if (seen.has(line)) return;
-      seen.add(line);
-      out.push(line);
+  /** The buyer's name, the listing, and where the messages start. */
+  function readHeader(root, all) {
+    var top = root.getBoundingClientRect().top;
+    var name = "", unit = "", startEl = null;
+    var later = function (e) { if (!startEl || (startEl.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING)) startEl = e; };
+    // "Dylan · 2025 Polaris ranger crew xp 1000 …" along the top of the chat.
+    for (var i = 0; i < all.length && !name; i += 1) {
+      var x = all[i];
+      if (x.r.top > top + 90 || x.t.length > 200) continue;
+      if (/\s[·•]\s/.test(x.t)) {
+        var bits = x.t.split(/\s+[·•]\s+/);
+        // "2023 Polaris Sportsman 570 · $8,999" is the listing, not a name.
+        if (/^(\$|(19|20)\d{2}\s)/.test(bits[0])) {
+          if (!unit) unit = bits[0];
+          later(x.e);
+          continue;
+        }
+        name = bits[0];
+        unit = bits.slice(1).join(" ");
+        later(x.e);
+      }
+    }
+    for (var j = 0; j < all.length && !name; j += 1) {
+      var y = all[j];
+      if (y.r.top > top + 90 || y.t.length > 60 || SKIP_LINE.test(y.t) || TIME_LINE.test(y.t) || !/[a-z]/i.test(y.t) || /^(\$|(19|20)\d{2}\s)/.test(y.t)) continue;
+      name = y.t;
+      later(y.e);
+    }
+    // The Marketplace card under the header: "$24,999 - 2025 Polaris ranger crew xp 1000 …".
+    all.forEach(function (z) {
+      if (z.r.top > top + 220) return;
+      var m = z.t.match(LISTING_LINE);
+      if (m) {
+        unit = m[2];
+        later(z.e);
+      }
+      if (/^(mark as (pending|sold|available)|more options|view listing)$/i.test(z.t)) later(z.e);
     });
-    return out.slice(-40);
+    return { name: clean(name), unit: clean(unit).replace(/\s*[·•-]\s*\$[\d,]+.*$/, ""), startEl: startEl };
   }
 
-  var UNIT = /\b(19|20)\d{2}\s+[A-Za-z][\w&.'-]*(\s+[\w&.'/-]+){0,7}/;
-
-  /** The buyer's name and the listing, from the conversation's header ("Jane · 2024 Polaris Ranger 1000"). */
-  function readHeader(root) {
-    var name = "";
-    var unit = "";
-    var heads = root.querySelectorAll('h1, h2, h3, [role="heading"]');
-    for (var i = 0; i < heads.length && !name; i += 1) {
-      var t = norm(heads[i].textContent);
-      if (!t || t.length > 120 || /^(chats|messages|marketplace|inbox|chat info)$/i.test(t)) continue;
-      var bits = t.split(/\s+[·•|]\s+/);
-      name = bits[0];
-      if (bits.length > 1) unit = bits.slice(1).join(" · ");
-    }
-    if (!name) {
-      // Popup chat windows: the name is the first short text along the top of the window.
-      var top = root.getBoundingClientRect().top;
-      var tops = root.querySelectorAll("span, a, h4, strong");
-      for (var k = 0; k < tops.length && !name; k += 1) {
-        var r = tops[k].getBoundingClientRect();
-        var w = norm(tops[k].textContent);
-        if (!w || w.length > 120 || !r.width || r.top < top - 2 || r.bottom > top + 80) continue;
-        if (/^(active|close|minimize|options|chat|messenger|marketplace|seen|new message)\b/i.test(w) || !/[a-z]/i.test(w)) continue;
-        var parts = w.split(/\s+[·•|]\s+/);
-        name = parts[0];
-        if (parts.length > 1) unit = parts.slice(1).join(" · ");
-      }
-    }
-    if (!unit) {
-      // The listing card at the top of a Marketplace chat (e.g. "2024 Polaris Ranger 1000 · $15,999").
-      var spans = root.querySelectorAll('span, a[role="link"]');
-      for (var j = 0; j < spans.length && !unit; j += 1) {
-        var s = norm(spans[j].textContent);
-        if (s.length < 8 || s.length > 100) continue;
-        var m = s.match(UNIT);
-        if (m) unit = norm(m[0].replace(/\s*[·•]\s*\$.*$/, ""));
-      }
-    }
-    return { name: name.replace(/\s*\(.*\)$/, ""), unit: unit.replace(/\s*[·•-]\s*\$[\d,]+.*$/, "") };
+  /** "Them: …" / "Me: …" lines: which side of the chat each message sits on. */
+  function readMessages(root, all, startEl, box, name) {
+    var r = root.getBoundingClientRect();
+    var middle = r.left + r.width / 2;
+    var out = [];
+    all.forEach(function (x) {
+      // Between the header (and the Marketplace card) and the message box, in page order.
+      if (startEl && !(startEl.compareDocumentPosition(x.e) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
+      if (!(x.e.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
+      if (TIME_LINE.test(x.t) || SKIP_LINE.test(x.t) || x.t === name || x.e.closest('[contenteditable="true"]')) return;
+      if (!/[a-z0-9]/i.test(x.t)) return; // icons and emoji-only (the mic, the thumbs-up)
+      var me = (x.r.left + x.r.right) / 2 > middle;
+      var line = (me ? "Me: " : "Them: ") + x.t;
+      if (out[out.length - 1] !== line) out.push(line);
+    });
+    return out.slice(-40);
   }
 
   function phoneIn(lines) {
@@ -178,10 +201,11 @@
 
   function read() {
     var c = activeChat();
-    var root = c ? c.root : document.body;
-    var head = readHeader(root);
-    var lines = readMessages(root);
-    var thread = threadId(root, head.name, head.unit);
+    if (!c) return { thread: "", name: "", unit: "", phone: "", chat: "", url: location.origin + location.pathname };
+    var all = leaves(c.root);
+    var head = readHeader(c.root, all);
+    var lines = readMessages(c.root, all, head.startEl, c.box, head.name);
+    var thread = threadId(c.root, head.name, head.unit);
     var url = /^\d+$/.test(thread) ? location.origin + "/messages/t/" + thread : location.origin + location.pathname;
     return { thread: thread, name: head.name, unit: head.unit, phone: phoneIn(lines), chat: lines.join("\n"), url: url };
   }
@@ -321,6 +345,14 @@
     b.addEventListener("click", openPanel);
     document.body.appendChild(b);
   }
+
+  // Clicking the extension's icon in Chrome's toolbar opens the panel too (even if the button didn't show).
+  chrome.runtime.onMessage.addListener(function (m, sender, reply) {
+    if (m && m.type === "TORQUE_OPEN_CHAT_PANEL") {
+      openPanel();
+      reply({ ok: true });
+    }
+  });
 
   var lastPath = location.pathname;
   setInterval(function () {

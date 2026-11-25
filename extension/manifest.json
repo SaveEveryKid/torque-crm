@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Torque Marketplace Lister",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "description": "List a Shoals Outdoor Sports unit from Torque CRM as a Facebook Marketplace draft, an OfferUp post or an eBay Motors classified ad (you review and publish), and save Facebook Marketplace chats to Torque.",
   "permissions": [
     "storage",
     "unlimitedStorage",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
     "https://www.facebook.com/*",
@@ -20,7 +21,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Torque Marketplace Lister: list units from Torque CRM \u2192 Inventory"
+    "default_title": "Torque: on a Facebook chat, Save to Torque. Elsewhere, open Torque CRM."
   },
   "web_accessible_resources": [],
   "content_scripts": [

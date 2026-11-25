@@ -90,7 +90,7 @@
     LISTING_STATE_KEY: "torqueMarketplaceListing",
     // Every unit sent to Facebook (id → when, title), so Torque CRM can mark it Listed.
     LISTED_KEY: "torqueListedUnits",
-    VERSION: "0.14.1",
+    VERSION: "0.14.2",
     // OfferUp: the same unit, photos and description on offerup.com's own posting page.
     OFFERUP: {
       // The posting form opens over OfferUp's home page (Post → Sell an item); offerup.com/post only says "update your app".
